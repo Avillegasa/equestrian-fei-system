@@ -1,5 +1,3 @@
-""" SECRET_KEY = "django-insecure-0r+^m&bg43&ipy4mb%uts^)h@^_i@_y7vu56ee+iz!=40=1p^j" """
-
 import os
 from pathlib import Path
 from decouple import config

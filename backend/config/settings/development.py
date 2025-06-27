@@ -2,10 +2,8 @@ from .base import *
 
 DEBUG = True
 
-# Database optimizations for development
-DATABASES['default']['OPTIONS'] = {
-    'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-}
+# Database optimizations for development (sin init_command)
+DATABASES['default']['OPTIONS'] = {}
 
 # Add debug toolbar for development
 if DEBUG:
