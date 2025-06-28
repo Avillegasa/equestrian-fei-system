@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   env: {
-    API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
+    API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000',
+    WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://127.0.0.1:8000',
   },
   
   images: {
@@ -24,18 +24,19 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
+    // Usar la URL directa en lugar de variable de entorno
+    const apiUrl = 'http://127.0.0.1:8000';
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`,
+        destination: `${apiUrl}/api/:path*`,
       },
     ];
   },
 
   // Configuración específica para el sistema ecuestre
-  experimental: {
-    serverComponentsExternalPackages: ['socket.io-client'],
-  },
+  // Actualizar la configuración experimental según las nuevas versiones de Next.js
+  serverExternalPackages: ['socket.io-client'],
 
   // Optimizaciones para PWA (funcionalidad offline)
   compiler: {
