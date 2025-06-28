@@ -23,27 +23,15 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  async rewrites() {
-    // Usar la URL directa en lugar de variable de entorno
-    const apiUrl = 'http://127.0.0.1:8000';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ];
-  },
+  // ELIMINAR ESTE BLOQUE COMPLETO:
+  // async rewrites() { ... },
 
-  // Configuración específica para el sistema ecuestre
-  // Actualizar la configuración experimental según las nuevas versiones de Next.js
   serverExternalPackages: ['socket.io-client'],
 
-  // Optimizaciones para PWA (funcionalidad offline)
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
-  // Headers de seguridad
   async headers() {
     return [
       {

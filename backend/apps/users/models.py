@@ -23,7 +23,7 @@ class User(AbstractUser):
     phone = models.CharField(
         max_length=20,
         blank=True,
-        validators=[RegexValidator(r'^\+?1?\d{9,15}$')],
+        validators=[RegexValidator(r'^\+?[\d\s\-\(\)]{7,20}$')],
         verbose_name=_('Teléfono')
     )
     country = models.CharField(max_length=100, blank=True, verbose_name=_('País'))
@@ -199,7 +199,7 @@ class OrganizerProfile(models.Model):
     )
     contact_phone = models.CharField(
         max_length=20,
-        validators=[RegexValidator(r'^\+?1?\d{9,15}$')],
+        validators=[RegexValidator(r'^\+?[\d\s\-\(\)]{7,20}$')],
         verbose_name=_('Teléfono de Contacto')
     )
     established_date = models.DateField(
