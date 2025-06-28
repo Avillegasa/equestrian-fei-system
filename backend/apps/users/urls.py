@@ -36,13 +36,13 @@ urlpatterns = [
     path('judges/', views.JudgeListView.as_view(), name='judge_list'),
     path('judges/discipline/<str:discipline>/', views.JudgesByDisciplineView.as_view(), name='judges_by_discipline'),
     
-    # Permisos de usuario (admin)
+    # Permisos de usuario
     path('permissions/', views.UserPermissionListView.as_view(), name='user_permission_list'),
     path('permissions/<int:pk>/', views.UserPermissionDetailView.as_view(), name='user_permission_detail'),
     
-    # Auditoría (admin)
+    # Auditoría
     path('audit/', views.AuditLogListView.as_view(), name='audit_log_list'),
     
-    # Estadísticas (admin)
+    # Estadísticas
     path('stats/', views.UserStatsView.as_view(), name='user_stats'),
 ]

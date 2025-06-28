@@ -85,7 +85,8 @@ class JudgeProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = JudgeProfile
         fields = '__all__'
-        read_only_fields = ('user',)
+        read_only_fields = ('user', 'action', 'resource_type', 'resource_id', 'description', 
+                   'ip_address', 'user_agent', 'timestamp')
     
     def get_user_info(self, obj):
         return {
@@ -114,7 +115,8 @@ class OrganizerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrganizerProfile
         fields = '__all__'
-        read_only_fields = ('user',)
+        read_only_fields = ('user', 'action', 'resource_type', 'resource_id', 'description', 
+                   'ip_address', 'user_agent', 'timestamp')
     
     def get_user_info(self, obj):
         return {
@@ -144,7 +146,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'judge_profile', 'organizer_profile',
             'date_joined', 'last_login'
         )
-        read_only_fields = ('id', 'email', 'username', 'is_verified', 'date_joined', 'last_login')
+        read_only_fields = ('user', 'action', 'resource_type', 'resource_id', 'description', 
+                   'ip_address', 'user_agent', 'timestamp')
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -242,7 +245,8 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = '__all__'
-        read_only_fields = '__all__'
+        read_only_fields = ('user', 'action', 'resource_type', 'resource_id', 'description', 
+                   'ip_address', 'user_agent', 'timestamp')
     
     def get_user_info(self, obj):
         if obj.user:
