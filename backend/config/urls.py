@@ -8,9 +8,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/auth/', include('djoser.urls')),
-    path('api/auth/', include('djoser.urls.jwt')),
-    # URLs de apps se agregarán en siguientes fases
+    
+    # APIs principales
+    path('api/users/', include('apps.users.urls')),
+    # Las siguientes se agregarán en fases posteriores:
+    # path('api/competitions/', include('apps.competitions.urls')),
+    # path('api/scoring/', include('apps.scoring.urls')),
+    # path('api/rankings/', include('apps.rankings.urls')),
+    # path('api/websockets/', include('apps.websockets.urls')),
 ]
 
 if settings.DEBUG:
