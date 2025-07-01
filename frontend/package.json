@@ -13,10 +13,14 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
+    "@tanstack/react-query": "^5.81.5",
+    "axios": "^1.10.0",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "next": "^15.3.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.5.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

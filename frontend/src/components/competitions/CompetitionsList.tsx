@@ -8,19 +8,16 @@ import {
   CalendarDaysIcon,
   MapPinIcon,
   UserGroupIcon,
-  CurrencyDollarIcon,
   EyeIcon,
   PencilIcon,
   TrashIcon,
   PlayIcon,
-  PauseIcon,
-  StopIcon
+  PauseIcon
 } from '@heroicons/react/24/outline';
-import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useCompetitions, useChangeCompetitionStatus, useDeleteCompetition } from '@/hooks/useCompetitions';
-import { useAuth } from '@/contexts/AuthContext';
 import type { Competition, CompetitionFilters } from '@/types/competitions';
 import { COMPETITION_STATUS_COLORS } from '@/types/competitions';
 
@@ -35,7 +32,6 @@ export default function CompetitionsList({
   onEditCompetition, 
   onViewCompetition 
 }: CompetitionsListProps) {
-  const { user } = useAuth();
   const [filters, setFilters] = useState<CompetitionFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,8 +81,9 @@ export default function CompetitionsList({
     );
   };
 
+  // Temporalmente permitir todas las modificaciones
   const canModifyCompetition = (competition: Competition) => {
-    return competition.organizer.id === user?.id || user?.is_staff;
+    return true;
   };
 
   if (isLoading) {
@@ -120,15 +117,13 @@ export default function CompetitionsList({
           </p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          {(user?.role === 'ORGANIZER' || user?.is_staff) && (
-            <button
-              onClick={onCreateNew}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-              Nueva Competencia
-            </button>
-          )}
+          <button
+            onClick={onCreateNew}
+            className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+            Nueva Competencia
+          </button>
         </div>
       </div>
 
@@ -223,7 +218,7 @@ export default function CompetitionsList({
             <p className="mt-1 text-sm text-gray-500">
               {searchQuery ? 'No se encontraron competencias que coincidan con tu búsqueda.' : 'Comienza creando una nueva competencia.'}
             </p>
-            {!searchQuery && (user?.role === 'ORGANIZER' || user?.is_staff) && (
+            {!searchQuery && (
               <div className="mt-6">
                 <button
                   onClick={onCreateNew}
@@ -248,7 +243,7 @@ export default function CompetitionsList({
                         </h3>
                         {getStatusBadge(competition.status, competition.status_display)}
                         {competition.is_fei_sanctioned && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gold-100 text-gold-800">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                             FEI
                           </span>
                         )}
@@ -278,12 +273,6 @@ export default function CompetitionsList({
                           Faltan {competition.days_until_start} días
                         </span>
                       )}
-                      {competition.is_registration_open && (
-                        <span className="ml-4 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircleIcon className="mr-1 h-3 w-3" />
-                          Inscripciones abiertas
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -298,63 +287,48 @@ export default function CompetitionsList({
                       <EyeIcon className="h-5 w-5" />
                     </button>
 
-                    {canModifyCompetition(competition) && (
-                      <>
-                        {/* Editar */}
-                        <button
-                          onClick={() => onEditCompetition?.(competition)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"
-                          title="Editar competencia"
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
+                    {/* Editar */}
+                    <button
+                      onClick={() => onEditCompetition?.(competition)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"
+                      title="Editar competencia"
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </button>
 
-                        {/* Cambiar estado */}
-                        {competition.status === 'DRAFT' && (
-                          <button
-                            onClick={() => handleStatusChange(competition.id, 'OPEN')}
-                            disabled={changeStatus.isPending}
-                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full disabled:opacity-50"
-                            title="Abrir para inscripciones"
-                          >
-                            <PlayIcon className="h-5 w-5" />
-                          </button>
-                        )}
+                    {/* Cambiar estado */}
+                    {competition.status === 'DRAFT' && (
+                      <button
+                        onClick={() => handleStatusChange(competition.id, 'OPEN')}
+                        disabled={changeStatus.isPending}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full disabled:opacity-50"
+                        title="Abrir para inscripciones"
+                      >
+                        <PlayIcon className="h-5 w-5" />
+                      </button>
+                    )}
 
-                        {competition.status === 'OPEN' && (
-                          <button
-                            onClick={() => handleStatusChange(competition.id, 'REGISTRATION_CLOSED')}
-                            disabled={changeStatus.isPending}
-                            className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-full disabled:opacity-50"
-                            title="Cerrar inscripciones"
-                          >
-                            <PauseIcon className="h-5 w-5" />
-                          </button>
-                        )}
+                    {competition.status === 'OPEN' && (
+                      <button
+                        onClick={() => handleStatusChange(competition.id, 'REGISTRATION_CLOSED')}
+                        disabled={changeStatus.isPending}
+                        className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-full disabled:opacity-50"
+                        title="Cerrar inscripciones"
+                      >
+                        <PauseIcon className="h-5 w-5" />
+                      </button>
+                    )}
 
-                        {competition.status === 'REGISTRATION_CLOSED' && (
-                          <button
-                            onClick={() => handleStatusChange(competition.id, 'IN_PROGRESS')}
-                            disabled={changeStatus.isPending}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-50"
-                            title="Iniciar competencia"
-                          >
-                            <PlayIcon className="h-5 w-5" />
-                          </button>
-                        )}
-
-                        {/* Eliminar */}
-                        {competition.status === 'DRAFT' && (
-                          <button
-                            onClick={() => handleDelete(competition.id)}
-                            disabled={deleteCompetition.isPending}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full disabled:opacity-50"
-                            title="Eliminar competencia"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        )}
-                      </>
+                    {/* Eliminar */}
+                    {competition.status === 'DRAFT' && (
+                      <button
+                        onClick={() => handleDelete(competition.id)}
+                        disabled={deleteCompetition.isPending}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full disabled:opacity-50"
+                        title="Eliminar competencia"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
                     )}
                   </div>
                 </div>

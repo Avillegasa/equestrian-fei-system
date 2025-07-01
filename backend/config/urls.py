@@ -6,8 +6,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.users.urls')),
-    path('api/competitions/', include('apps.competitions.urls')),  # AGREGAR ESTA LÍNEA
-    path('api/websockets/', include('apps.websockets.urls')),
+    path('api/competitions/', include('apps.competitions.urls')),
 ]
 
 if settings.DEBUG:

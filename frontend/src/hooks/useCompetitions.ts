@@ -11,7 +11,11 @@ import type {
 export function useCompetitions(options?: UseCompetitionsOptions) {
   return useQuery({
     queryKey: ['competitions', options?.filters],
-    queryFn: () => competitionsApi.competitions.getAll(options?.filters),
+    queryFn: async () => {
+      const response = await competitionsApi.competitions.getAll(options?.filters);
+      // ✅ CAMBIO: Si la respuesta tiene 'results', extraerlo
+      return Array.isArray(response) ? response : response.results || [];
+    },
     enabled: options?.enabled !== false,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });

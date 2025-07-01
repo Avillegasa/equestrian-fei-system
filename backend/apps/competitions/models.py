@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
@@ -119,7 +119,7 @@ class Competition(models.Model):
     categories = models.ManyToManyField(Category, through='CompetitionCategory')
     
     # Organizador y contacto
-    organizer = models.ForeignKey(User, on_delete=models.PROTECT, related_name='organized_competitions')
+    organizer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='organized_competitions')
     contact_email = models.EmailField()
     contact_phone = models.CharField(max_length=20, blank=True)
     website = models.URLField(blank=True)
@@ -143,7 +143,7 @@ class Competition(models.Model):
     # Metadatos
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_competitions')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_competitions')
     
     class Meta:
         ordering = ['-start_date', 'name']
@@ -278,7 +278,7 @@ class Horse(models.Model):
 class Rider(models.Model):
     """Modelo para jinetes participantes"""
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='rider_profile')
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rider_profile')
     license_number = models.CharField(max_length=50, unique=True)
     nationality = models.CharField(max_length=100)
     birth_date = models.DateField()
@@ -362,7 +362,7 @@ class Registration(models.Model):
     notes = models.TextField(blank=True)
     
     # Metadatos
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_registrations')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_registrations')
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -423,7 +423,7 @@ class JudgeAssignment(models.Model):
     ]
     
     competition_category = models.ForeignKey(CompetitionCategory, on_delete=models.CASCADE, related_name='judge_assignments')
-    judge = models.ForeignKey(User, on_delete=models.CASCADE, related_name='judge_assignments')
+    judge = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='judge_assignments')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     
     # Configuración específica
@@ -438,7 +438,7 @@ class JudgeAssignment(models.Model):
     notes = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_judge_assignments')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_judge_assignments')
     
     class Meta:
         ordering = ['order', 'role']
@@ -450,208 +450,12 @@ class JudgeAssignment(models.Model):
         return f"{self.judge.get_full_name()} - {self.get_role_display()} ({self.competition_category})"
     
     def clean(self):
-        errors = {}
-        
         # Verificar que el usuario tiene el rol de juez
         if not hasattr(self.judge, 'judge_profile'):
-            errors['judge'] = "El usuario debe tener un perfil de juez válido"
-        else:
-            judge_profile = self.judge.judge_profile
-            category = self.competition_category.category
-            
-            # Verificar que el juez puede juzgar esta disciplina
-            if not judge_profile.can_judge_discipline(category.discipline):
-                errors['judge'] = f"El juez no está certificado para la disciplina {category.discipline.name}"
-            
-            # Verificar que el juez puede juzgar este nivel de categoría
-            if not judge_profile.can_judge_category_level(category.level):
-                errors['judge'] = f"El juez no está certificado para el nivel {category.get_level_display()}"
-            
-            # Verificar que la licencia del juez está vigente
-            if not judge_profile.is_license_valid():
-                errors['judge'] = "La licencia del juez no está vigente"
+            raise ValidationError("El usuario debe tener un perfil de juez válido")
         
-        # Verificar que no hay conflicto de roles en la misma competencia
-        if self.role == 'PRESIDENT':
-            existing_president = JudgeAssignment.objects.filter(
-                competition_category__competition=self.competition_category.competition,
-                role='PRESIDENT'
-            ).exclude(pk=self.pk)
-            
-            if existing_president.exists():
-                errors['role'] = "Ya existe un Presidente del Jurado para esta competencia"
+        # Verificar certificaciones del juez según la categoría
+        judge_profile = self.judge.judge_profile
+        category = self.competition_category.category
         
-        # Verificar que el juez no está asignado a competencias que se superponen en fechas
-        overlapping_assignments = JudgeAssignment.objects.filter(
-            judge=self.judge,
-            competition_category__competition__start_date__lte=self.competition_category.competition.end_date,
-            competition_category__competition__end_date__gte=self.competition_category.competition.start_date
-        ).exclude(pk=self.pk)
-        
-        if overlapping_assignments.exists():
-            overlapping_comp = overlapping_assignments.first().competition_category.competition
-            errors['judge'] = f"El juez ya está asignado a '{overlapping_comp.name}' en fechas superpuestas"
-        
-        if errors:
-            raise ValidationError(errors)
-    
-    @property
-    def total_compensation(self):
-        """Compensación total del juez"""
-        return (self.fee or Decimal('0.00')) + self.travel_allowance
-    
-    @property
-    def is_confirmed_and_paid(self):
-        """Verifica si está confirmado y pagado"""
-        return self.confirmed and self.fee is not None
-
-
-# Modelo adicional para manejar mejor los perfiles de jueces
-class JudgeQualification(models.Model):
-    """Calificaciones y certificaciones de jueces"""
-    
-    QUALIFICATION_LEVELS = [
-        ('NATIONAL_1', 'Nacional Nivel 1'),
-        ('NATIONAL_2', 'Nacional Nivel 2'),
-        ('NATIONAL_3', 'Nacional Nivel 3'),
-        ('FEI_1', 'FEI Nivel 1'),
-        ('FEI_2', 'FEI Nivel 2'),
-        ('FEI_3', 'FEI Nivel 3'),
-        ('FEI_4', 'FEI Nivel 4'),
-        ('FEI_5', 'FEI Nivel 5'),
-    ]
-    
-    judge_profile = models.ForeignKey('users.JudgeProfile', on_delete=models.CASCADE, related_name='qualifications')
-    discipline = models.ForeignKey(Discipline, on_delete=models.CASCADE)
-    level = models.CharField(max_length=20, choices=QUALIFICATION_LEVELS)
-    certificate_number = models.CharField(max_length=100)
-    issued_date = models.DateField()
-    valid_until = models.DateField()
-    issuing_authority = models.CharField(max_length=200)
-    is_active = models.BooleanField(default=True)
-    
-    class Meta:
-        unique_together = ['judge_profile', 'discipline', 'level']
-        ordering = ['-valid_until', 'discipline', 'level']
-        verbose_name = 'Calificación de Juez'
-        verbose_name_plural = 'Calificaciones de Jueces'
-    
-    def __str__(self):
-        return f"{self.judge_profile.user.get_full_name()} - {self.discipline.name} {self.get_level_display()}"
-    
-    @property
-    def is_valid(self):
-        """Verifica si la calificación está vigente"""
-        from django.utils import timezone
-        return self.is_active and self.valid_until >= timezone.now().date()
-    
-    @property
-    def days_until_expiry(self):
-        """Días hasta el vencimiento"""
-        from django.utils import timezone
-        if not self.is_valid:
-            return 0
-        return (self.valid_until - timezone.now().date()).days
-
-
-# Modelo para registro de conflictos de interés
-class JudgeConflictOfInterest(models.Model):
-    """Registro de conflictos de interés de jueces"""
-    
-    CONFLICT_TYPES = [
-        ('FAMILY', 'Familiar'),
-        ('BUSINESS', 'Negocios'),
-        ('TRAINING', 'Entrenamiento'),
-        ('OWNERSHIP', 'Propiedad de caballo'),
-        ('SPONSORSHIP', 'Patrocinio'),
-        ('OTHER', 'Otro'),
-    ]
-    
-    judge = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conflicts_of_interest')
-    participant = models.ForeignKey(Rider, on_delete=models.CASCADE, related_name='judge_conflicts')
-    conflict_type = models.CharField(max_length=20, choices=CONFLICT_TYPES)
-    description = models.TextField()
-    declared_date = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
-    
-    class Meta:
-        unique_together = ['judge', 'participant', 'conflict_type']
-        verbose_name = 'Conflicto de Interés'
-        verbose_name_plural = 'Conflictos de Interés'
-    
-    def __str__(self):
-        return f"{self.judge.get_full_name()} - {self.participant.full_name} ({self.get_conflict_type_display()})"
-
-
-# Extensión del modelo JudgeProfile (esto se agregaría al modelo existente en users)
-"""
-Agregar estos métodos al modelo JudgeProfile existente en apps/users/models.py:
-
-def can_judge_discipline(self, discipline):
-    '''Verifica si el juez puede juzgar una disciplina específica'''
-    return self.qualifications.filter(
-        discipline=discipline,
-        is_active=True,
-        valid_until__gte=timezone.now().date()
-    ).exists()
-
-def can_judge_category_level(self, category_level):
-    '''Verifica si el juez puede juzgar un nivel de categoría'''
-    # Mapeo de niveles de categoría a niveles de calificación requeridos
-    level_requirements = {
-        'INTRO': ['NATIONAL_1', 'NATIONAL_2', 'NATIONAL_3', 'FEI_1', 'FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'PRELIMINARY': ['NATIONAL_2', 'NATIONAL_3', 'FEI_1', 'FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'NOVICE': ['NATIONAL_2', 'NATIONAL_3', 'FEI_1', 'FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'TRAINING': ['NATIONAL_3', 'FEI_1', 'FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'MODIFIED': ['FEI_1', 'FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'INTERMEDIATE': ['FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'ADVANCED': ['FEI_3', 'FEI_4', 'FEI_5'],
-        'CCI1': ['FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'CCI2': ['FEI_2', 'FEI_3', 'FEI_4', 'FEI_5'],
-        'CCI3': ['FEI_3', 'FEI_4', 'FEI_5'],
-        'CCI4': ['FEI_4', 'FEI_5'],
-        'CCI5': ['FEI_5'],
-    }
-    
-    required_levels = level_requirements.get(category_level, [])
-    if not required_levels:
-        return True  # Si no hay requisitos específicos, permitir
-    
-    return self.qualifications.filter(
-        level__in=required_levels,
-        is_active=True,
-        valid_until__gte=timezone.now().date()
-    ).exists()
-
-def is_license_valid(self):
-    '''Verifica si la licencia del juez está vigente'''
-    from django.utils import timezone
-    return self.license_valid_until >= timezone.now().date()
-
-def has_conflict_with_participant(self, participant):
-    '''Verifica si hay conflicto de interés con un participante'''
-    return JudgeConflictOfInterest.objects.filter(
-        judge=self.user,
-        participant=participant,
-        is_active=True
-    ).exists()
-
-def get_valid_qualifications(self):
-    '''Obtiene las calificaciones válidas del juez'''
-    return self.qualifications.filter(
-        is_active=True,
-        valid_until__gte=timezone.now().date()
-    )
-
-def get_expiring_qualifications(self, days=30):
-    '''Obtiene calificaciones que expiran en los próximos días'''
-    from django.utils import timezone
-    from datetime import timedelta
-    
-    expiry_date = timezone.now().date() + timedelta(days=days)
-    return self.qualifications.filter(
-        is_active=True,
-        valid_until__gte=timezone.now().date(),
-        valid_until__lte=expiry_date
-    )
-"""
+        # Aquí se pueden agregar validaciones específicas según el rol y categoría
