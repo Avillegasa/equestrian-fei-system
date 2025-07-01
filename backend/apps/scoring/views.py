@@ -22,7 +22,6 @@ from .serializers import (
 )
 from .calculators import FEICalculator, FEIValidationEngine
 from apps.competitions.models import Competition, Registration
-from apps.users.permissions import IsJudge, IsOrganizer, IsAdminOrOrganizer
 
 
 class EvaluationParameterViewSet(viewsets.ReadOnlyModelViewSet):
@@ -91,7 +90,7 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         if judge_position_id:
             queryset = queryset.filter(judge_position_id=judge_position_id)
         if competition_id:
-            queryset = queryset.filter(participant__competition_id=competition_id)
+            queryset = queryset.filter(participant__competition_category__competition_id=competition_id)
         
         return queryset.select_related(
             'participant', 'judge_position', 'evaluation_parameter', 'scored_by'
@@ -112,10 +111,8 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         )
         
         if not validation['is_valid']:
-            return Response(
-                {'errors': validation['errors']}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'errors': validation['errors']})
         
         # Guardar con metadatos de auditoría
         score_entry = serializer.save(
@@ -128,11 +125,6 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         
         # Actualizar evaluación del juez
         self._update_judge_evaluation(score_entry)
-        
-        return Response(
-            ScoreEntrySerializer(score_entry).data,
-            status=status.HTTP_201_CREATED
-        )
     
     def perform_update(self, serializer):
         """Actualizar calificación con auditoría"""
@@ -152,10 +144,8 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         )
         
         if not validation['is_valid']:
-            return Response(
-                {'errors': validation['errors']}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'errors': validation['errors']})
         
         # Guardar cambios
         score_entry = serializer.save()
@@ -170,8 +160,6 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         
         # Actualizar evaluación del juez
         self._update_judge_evaluation(score_entry)
-        
-        return Response(ScoreEntrySerializer(score_entry).data)
     
     def _create_audit_log(self, score_entry, action, old_score=None, old_justification=""):
         """Crear entrada en el log de auditoría"""
@@ -229,7 +217,7 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         
         # Obtener parámetros de evaluación
         parameters = EvaluationParameter.objects.filter(
-            category=participant.category
+            category=participant.competition_category.category
         ).order_by('order', 'exercise_number')
         
         # Obtener calificaciones existentes
@@ -258,13 +246,13 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         return Response({
             'participant': {
                 'id': participant.id,
-                'number': participant.number,
-                'rider_name': f"{participant.rider.first_name} {participant.rider.last_name}",
+                'number': participant.start_number,
+                'rider_name': f"{participant.rider.user.first_name} {participant.rider.user.last_name}",
                 'horse_name': participant.horse.name,
-                'category': participant.category.name
+                'category': participant.competition_category.category.name
             },
             'judge': {
-                'name': judge_position.judge.get_full_name(),
+                'name': judge_position.judge.user.get_full_name(),
                 'position': judge_position.position
             },
             'scorecard': scorecard,
@@ -359,7 +347,7 @@ class JudgeEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
         if judge_id:
             queryset = queryset.filter(judge_position__judge_id=judge_id)
         if competition_id:
-            queryset = queryset.filter(participant__competition_id=competition_id)
+            queryset = queryset.filter(participant__competition_category__competition_id=competition_id)
         
         return queryset.select_related(
             'participant', 'judge_position__judge'
@@ -417,14 +405,14 @@ class JudgeEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
         for judge_position in judge_positions:
             evaluations = self.get_queryset().filter(
                 judge_position=judge_position,
-                participant__competition=competition
+                participant__competition_category__competition=competition
             )
             
             completed = evaluations.filter(status='completed').count()
             total = evaluations.count()
             
             judges_progress.append({
-                'judge_name': judge_position.judge.get_full_name(),
+                'judge_name': judge_position.judge.user.get_full_name(),
                 'judge_position': judge_position.position,
                 'completed_evaluations': completed,
                 'total_evaluations': total,
@@ -468,7 +456,7 @@ class CompetitionRankingView(viewsets.ViewSet):
             
             # Filtrar por categoría si se especifica
             if category_id:
-                rankings = [r for r in rankings if r['participant'].category_id == int(category_id)]
+                rankings = [r for r in rankings if r['participant'].competition_category.category_id == int(category_id)]
             
             return Response({
                 'competition': {
@@ -508,8 +496,8 @@ class CompetitionRankingView(viewsets.ViewSet):
             judge_details = []
             for judge_breakdown in average_result['judges_breakdown']:
                 judge_position = JudgePosition.objects.get(
-                    competition=participant.competition,
-                    judge__first_name__icontains=judge_breakdown['judge_name'].split()[0]
+                    competition=participant.competition_category.competition,
+                    judge__user__first_name__icontains=judge_breakdown['judge_name'].split()[0]
                 )
                 
                 detail_result = FEICalculator.calculate_participant_total(
@@ -524,10 +512,10 @@ class CompetitionRankingView(viewsets.ViewSet):
             return Response({
                 'participant': {
                     'id': participant.id,
-                    'number': participant.number,
-                    'rider_name': f"{participant.rider.first_name} {participant.rider.last_name}",
+                    'number': participant.start_number,
+                    'rider_name': f"{participant.rider.user.first_name} {participant.rider.user.last_name}",
                     'horse_name': participant.horse.name,
-                    'category': participant.category.name
+                    'category': participant.competition_category.category.name
                 },
                 'summary': average_result,
                 'judge_details': judge_details
