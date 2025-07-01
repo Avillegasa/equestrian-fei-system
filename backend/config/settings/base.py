@@ -25,6 +25,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.users',
     'apps.competitions',
+    'apps.scoring',  # ← AGREGAR ESTA LÍNEA
+    'apps.rankings',
+    'apps.websockets',
 ]
 
 MIDDLEWARE = [

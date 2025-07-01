@@ -2,8 +2,8 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from decimal import Decimal
 from django.contrib.auth import get_user_model
-from apps.competitions.models import Competition, Category, Participant
-from apps.users.models import Judge
+from apps.competitions.models import Competition, Category, Registration
+from apps.users.models import JudgeProfile
 
 User = get_user_model()
 
@@ -88,7 +88,7 @@ class JudgePosition(models.Model):
     ]
     
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='judge_positions')
-    judge = models.ForeignKey(Judge, on_delete=models.CASCADE)
+    judge = models.ForeignKey(JudgeProfile, on_delete=models.CASCADE)
     position = models.CharField(
         max_length=1,
         choices=POSITION_CHOICES,
@@ -112,7 +112,7 @@ class ScoreEntry(models.Model):
     Almacena cada calificación individual FEI
     Implementa el sistema de 3 celdas: Parámetro, Coeficiente, Calificación
     """
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='scores')
+    participant = models.ForeignKey(Registration, on_delete=models.CASCADE, related_name='scores')
     judge_position = models.ForeignKey(JudgePosition, on_delete=models.CASCADE, related_name='scores')
     evaluation_parameter = models.ForeignKey(EvaluationParameter, on_delete=models.CASCADE, related_name='scores')
     
@@ -208,7 +208,7 @@ class JudgeEvaluation(models.Model):
         ('finalized', 'Finalizada'),
     ]
     
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='evaluations')
+    participant = models.ForeignKey(Registration, on_delete=models.CASCADE, related_name='evaluations')
     judge_position = models.ForeignKey(JudgePosition, on_delete=models.CASCADE, related_name='evaluations')
     
     # Campos calculados automáticamente

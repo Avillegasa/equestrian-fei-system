@@ -7,8 +7,8 @@ from .models import (
     JudgePosition,
     ScoreAuditLog
 )
-from apps.competitions.serializers import ParticipantSerializer
-from apps.users.serializers import JudgeSerializer
+from apps.competitions.serializers import RegistrationDetailSerializer
+from apps.users.serializers import JudgeProfileSerializer
 
 
 class EvaluationParameterSerializer(serializers.ModelSerializer):
@@ -36,8 +36,8 @@ class JudgePositionSerializer(serializers.ModelSerializer):
     """
     Serializer para posiciones de jueces
     """
-    judge_name = serializers.CharField(source='judge.get_full_name', read_only=True)
-    judge_license = serializers.CharField(source='judge.fei_license', read_only=True)
+    judge_name = serializers.CharField(source='judge.user.get_full_name', read_only=True)
+    judge_license = serializers.CharField(source='judge.fei_id', read_only=True)
     
     class Meta:
         model = JudgePosition
@@ -61,8 +61,8 @@ class ScoreEntrySerializer(serializers.ModelSerializer):
     is_extreme_score = serializers.ReadOnlyField()
     scored_by_name = serializers.CharField(source='scored_by.get_full_name', read_only=True)
     
-    # Información del participante
-    participant_number = serializers.IntegerField(source='participant.number', read_only=True)
+    # Información del participante (Registration)
+    participant_number = serializers.IntegerField(source='participant.start_number', read_only=True)
     rider_name = serializers.SerializerMethodField()
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
     
@@ -90,7 +90,7 @@ class ScoreEntrySerializer(serializers.ModelSerializer):
         ]
     
     def get_rider_name(self, obj):
-        return f"{obj.participant.rider.first_name} {obj.participant.rider.last_name}"
+        return f"{obj.participant.rider.user.first_name} {obj.participant.rider.user.last_name}"
 
 
 class ScoreEntryCreateSerializer(serializers.ModelSerializer):
@@ -142,7 +142,7 @@ class ScoreEntryCreateSerializer(serializers.ModelSerializer):
         judge_position = data.get('judge_position')
         
         if participant and judge_position:
-            if participant.competition != judge_position.competition:
+            if participant.competition_category.competition != judge_position.competition:
                 raise serializers.ValidationError(
                     "El participante debe pertenecer a la misma competencia que el juez"
                 )
@@ -177,7 +177,7 @@ class JudgeEvaluationSerializer(serializers.ModelSerializer):
     """
     Serializer para evaluaciones completas de jueces
     """
-    participant = ParticipantSerializer(read_only=True)
+    participant = RegistrationDetailSerializer(read_only=True)
     judge_position = JudgePositionSerializer(read_only=True)
     progress_percentage = serializers.SerializerMethodField()
     is_complete = serializers.SerializerMethodField()
@@ -233,7 +233,7 @@ class RankingSerializer(serializers.Serializer):
     Serializer para rankings de competencia
     """
     position = serializers.IntegerField()
-    participant = ParticipantSerializer()
+    participant = RegistrationDetailSerializer()
     rider_name = serializers.CharField()
     horse_name = serializers.CharField()
     category = serializers.CharField()
@@ -309,7 +309,7 @@ class AnomalySerializer(serializers.Serializer):
     Serializer para anomalías detectadas
     """
     type = serializers.CharField()
-    participant = ParticipantSerializer()
+    participant = RegistrationDetailSerializer()
     exercise_number = serializers.IntegerField()
     scores = serializers.ListField(child=serializers.DictField())
     range = serializers.DecimalField(max_digits=3, decimal_places=1)

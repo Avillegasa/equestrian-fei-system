@@ -4,7 +4,7 @@ from django.db.models import Sum, F, Q, Avg, Min, Max
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import ScoreEntry, JudgeEvaluation, EvaluationParameter, JudgePosition
-from apps.competitions.models import Participant
+from apps.competitions.models import Registration
 
 
 class FEICalculator:
@@ -29,7 +29,7 @@ class FEICalculator:
             return False
             
         # Verificar participantes
-        participants_count = Participant.objects.filter(competition=competition).count()
+        participants_count = Registration.objects.filter(competition=competition).count()
         if participants_count == 0:
             errors.append("No hay participantes inscritos en la competencia")
         
@@ -49,7 +49,7 @@ class FEICalculator:
         anomalies = []
         
         # Detectar variaciones extremas entre jueces
-        participants = Participant.objects.filter(competition=competition)
+        participants = Registration.objects.filter(competition=competition)
         
         for participant in participants:
             scores_by_exercise = {}
@@ -87,7 +87,7 @@ class FEICalculator:
                 score >= FEICalculator.EXTREME_SCORE_THRESHOLD_HIGH)
     
     @classmethod
-    def calculate_participant_total(cls, participant: Participant, judge_position: JudgePosition) -> Dict:
+    def calculate_participant_total(cls, participant: Registration, judge_position: JudgePosition) -> Dict:
         """
         Calcula el total para un participante específico con un juez específico
         Basado en la estructura de las hojas Excel
@@ -166,7 +166,7 @@ class FEICalculator:
             raise ValidationError(f"Error calculando totales: {str(e)}")
     
     @classmethod
-    def calculate_participant_average(cls, participant: Participant) -> Dict:
+    def calculate_participant_average(cls, participant: Registration) -> Dict:
         """
         Calcula el promedio de todos los jueces para un participante
         Implementa la metodología oficial FEI para múltiples jueces
@@ -235,7 +235,7 @@ class FEICalculator:
         Basado en promedios de porcentajes FEI
         """
         try:
-            participants = Participant.objects.filter(
+            participants = Registration.objects.filter(
                 competition=competition
             ).select_related('rider', 'horse', 'category')
             
@@ -276,7 +276,7 @@ class FEICalculator:
             raise ValidationError(f"Error calculando rankings: {str(e)}")
     
     @classmethod
-    def update_judge_evaluation(cls, participant: Participant, judge_position: JudgePosition) -> JudgeEvaluation:
+    def update_judge_evaluation(cls, participant: Registration, judge_position: JudgePosition) -> JudgeEvaluation:
         """
         Actualiza o crea una evaluación de juez con cálculos automáticos
         """
@@ -351,7 +351,7 @@ class FEICalculator:
         Genera estadísticas resumidas para una competencia
         """
         try:
-            participants_count = Participant.objects.filter(competition=competition).count()
+            participants_count = Registration.objects.filter(competition=competition).count()
             judges_count = JudgePosition.objects.filter(
                 competition=competition, 
                 is_active=True
@@ -409,7 +409,7 @@ class FEIValidationEngine:
         warnings = []
     
     @classmethod
-    def calculate_participant_total(cls, participant: Participant, judge_position: JudgePosition) -> Dict:
+    def calculate_participant_total(cls, participant: Registration, judge_position: JudgePosition) -> Dict:
         """
         Calcula el total para un participante específico con un juez específico
         Basado en la estructura de las hojas Excel
@@ -488,7 +488,7 @@ class FEIValidationEngine:
             raise ValidationError(f"Error calculando totales: {str(e)}")
     
     @classmethod
-    def calculate_participant_average(cls, participant: Participant) -> Dict:
+    def calculate_participant_average(cls, participant: Registration) -> Dict:
         """
         Calcula el promedio de todos los jueces para un participante
         Implementa la metodología oficial FEI para múltiples jueces
@@ -557,7 +557,7 @@ class FEIValidationEngine:
         Basado en promedios de porcentajes FEI
         """
         try:
-            participants = Participant.objects.filter(
+            participants = Registration.objects.filter(
                 competition=competition
             ).select_related('rider', 'horse', 'category')
             
@@ -598,7 +598,7 @@ class FEIValidationEngine:
             raise ValidationError(f"Error calculando rankings: {str(e)}")
     
     @classmethod
-    def update_judge_evaluation(cls, participant: Participant, judge_position: JudgePosition) -> JudgeEvaluation:
+    def update_judge_evaluation(cls, participant: Registration, judge_position: JudgePosition) -> JudgeEvaluation:
         """
         Actualiza o crea una evaluación de juez con cálculos automáticos
         """
@@ -673,7 +673,7 @@ class FEIValidationEngine:
         Genera estadísticas resumidas para una competencia
         """
         try:
-            participants_count = Participant.objects.filter(competition=competition).count()
+            participants_count = Registration.objects.filter(competition=competition).count()
             judges_count = JudgePosition.objects.filter(
                 competition=competition, 
                 is_active=True

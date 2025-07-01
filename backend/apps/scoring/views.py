@@ -21,7 +21,7 @@ from .serializers import (
     JudgePositionSerializer
 )
 from .calculators import FEICalculator, FEIValidationEngine
-from apps.competitions.models import Competition, Participant
+from apps.competitions.models import Competition, Registration
 from apps.users.permissions import IsJudge, IsOrganizer, IsAdminOrOrganizer
 
 
@@ -224,7 +224,7 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        participant = get_object_or_404(Participant, id=participant_id)
+        participant = get_object_or_404(Registration, id=participant_id)
         judge_position = get_object_or_404(JudgePosition, id=judge_position_id)
         
         # Obtener parámetros de evaluación
@@ -498,7 +498,7 @@ class CompetitionRankingView(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        participant = get_object_or_404(Participant, id=participant_id)
+        participant = get_object_or_404(Registration, id=participant_id)
         
         try:
             # Calcular promedio del participante
