@@ -25,7 +25,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.users',
     'apps.competitions',
-    'apps.scoring',  # ← AGREGAR ESTA LÍNEA
+    'apps.scoring',  
     'apps.rankings',
     'apps.websockets',
 ]

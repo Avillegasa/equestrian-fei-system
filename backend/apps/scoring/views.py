@@ -1,3 +1,8 @@
+"""
+Vistas para el sistema de calificación FEI
+Implementa todas las operaciones de scoring y rankings
+"""
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -6,22 +11,23 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.utils import timezone
 from decimal import Decimal
+from typing import Dict, List
+
 from .models import (
     EvaluationParameter, 
     ScoreEntry, 
-    JudgeEvaluation, 
-    JudgePosition,
-    ScoreAuditLog
+    JudgeEvaluation
 )
 from .serializers import (
     EvaluationParameterSerializer,
     ScoreEntrySerializer,
-    JudgeEvaluationSerializer,
-    ScoreEntryCreateSerializer,
-    JudgePositionSerializer
+    JudgeEvaluationSerializer
 )
-from .calculators import FEICalculator, FEIValidationEngine
+# Corregir importaciones del calculador
+from .calculators import FEIScoreCalculator, FEIRankingCalculator, FEIStatisticsCalculator
+
 from apps.competitions.models import Competition, Registration
+from apps.users.models import User
 
 
 class EvaluationParameterViewSet(viewsets.ReadOnlyModelViewSet):
@@ -34,33 +40,49 @@ class EvaluationParameterViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().filter(is_active=True)
+        
+        # Filtros opcionales
+        competition_id = self.request.query_params.get('competition_id')
         category_id = self.request.query_params.get('category_id')
+        
+        if competition_id:
+            queryset = queryset.filter(competition_id=competition_id)
         if category_id:
             queryset = queryset.filter(category_id=category_id)
-        return queryset.order_by('order', 'exercise_number')
+            
+        return queryset.order_by('code')
     
     @action(detail=False, methods=['get'])
-    def by_category(self, request):
-        """Obtener parámetros agrupados por categoría"""
-        category_id = request.query_params.get('category_id')
-        if not category_id:
+    def by_competition(self, request):
+        """Obtener parámetros para una competencia específica"""
+        competition_id = request.query_params.get('competition_id')
+        if not competition_id:
             return Response(
-                {'error': 'category_id es requerido'}, 
+                {'error': 'competition_id es requerido'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        parameters = self.get_queryset().filter(category_id=category_id)
-        serializer = self.get_serializer(parameters, many=True)
-        
-        # Calcular puntuación máxima total
-        total_max_score = sum(p.max_score * p.coefficient for p in parameters)
-        
-        return Response({
-            'parameters': serializer.data,
-            'total_max_score': total_max_score,
-            'parameters_count': len(parameters)
-        })
+        try:
+            competition = Competition.objects.get(id=competition_id)
+            parameters = self.get_queryset().filter(competition_id=competition_id)
+            serializer = self.get_serializer(parameters, many=True)
+            
+            return Response({
+                'competition': {
+                    'id': competition.id,
+                    'name': competition.name,
+                    'discipline': competition.discipline.name if competition.discipline else None
+                },
+                'parameters': serializer.data,
+                'total_parameters': len(parameters)
+            })
+            
+        except Competition.DoesNotExist:
+            return Response(
+                {'error': 'Competencia no encontrada'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class ScoreEntryViewSet(viewsets.ModelViewSet):
@@ -72,201 +94,116 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
     serializer_class = ScoreEntrySerializer
     permission_classes = [IsAuthenticated]
     
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return ScoreEntryCreateSerializer
-        return ScoreEntrySerializer
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.calculator = FEIScoreCalculator()
     
     def get_queryset(self):
         queryset = super().get_queryset()
         
         # Filtros
-        participant_id = self.request.query_params.get('participant_id')
-        judge_position_id = self.request.query_params.get('judge_position_id')
-        competition_id = self.request.query_params.get('competition_id')
+        evaluation_id = self.request.query_params.get('evaluation_id')
+        parameter_id = self.request.query_params.get('parameter_id')
+        judge_id = self.request.query_params.get('judge_id')
         
-        if participant_id:
-            queryset = queryset.filter(participant_id=participant_id)
-        if judge_position_id:
-            queryset = queryset.filter(judge_position_id=judge_position_id)
-        if competition_id:
-            queryset = queryset.filter(participant__competition_category__competition_id=competition_id)
-        
-        return queryset.select_related(
-            'participant', 'judge_position', 'evaluation_parameter', 'scored_by'
-        ).order_by('evaluation_parameter__order', 'evaluation_parameter__exercise_number')
+        if evaluation_id:
+            queryset = queryset.filter(evaluation_id=evaluation_id)
+        if parameter_id:
+            queryset = queryset.filter(parameter_id=parameter_id)
+        if judge_id:
+            queryset = queryset.filter(evaluation__judge_id=judge_id)
+            
+        return queryset.select_related('parameter', 'evaluation')
     
     def perform_create(self, serializer):
-        """Crear calificación con validaciones FEI"""
-        # Obtener datos de la request
+        """Crear entrada de puntuación con validaciones FEI"""
         score = serializer.validated_data['score']
-        evaluation_parameter = serializer.validated_data['evaluation_parameter']
-        justification = serializer.validated_data.get('justification', '')
+        parameter = serializer.validated_data['parameter']
         
-        # Validar usando el motor FEI
-        validation = FEICalculator.validate_score_entry(
-            score, 
-            evaluation_parameter.coefficient,
-            justification
-        )
-        
-        if not validation['is_valid']:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({'errors': validation['errors']})
-        
-        # Guardar con metadatos de auditoría
-        score_entry = serializer.save(
-            scored_by=self.request.user,
-            scored_at=timezone.now()
-        )
-        
-        # Crear log de auditoría
-        self._create_audit_log(score_entry, 'create')
-        
-        # Actualizar evaluación del juez
-        self._update_judge_evaluation(score_entry)
-    
-    def perform_update(self, serializer):
-        """Actualizar calificación con auditoría"""
-        old_score = self.get_object()
-        old_score_value = old_score.score
-        old_justification = old_score.justification
-        
-        # Validar nueva puntuación
-        new_score = serializer.validated_data['score']
-        evaluation_parameter = serializer.validated_data['evaluation_parameter']
-        justification = serializer.validated_data.get('justification', '')
-        
-        validation = FEICalculator.validate_score_entry(
-            new_score, 
-            evaluation_parameter.coefficient,
-            justification
-        )
-        
-        if not validation['is_valid']:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({'errors': validation['errors']})
-        
-        # Guardar cambios
-        score_entry = serializer.save()
-        
-        # Crear log de auditoría
-        self._create_audit_log(
-            score_entry, 
-            'update',
-            old_score_value,
-            old_justification
-        )
-        
-        # Actualizar evaluación del juez
-        self._update_judge_evaluation(score_entry)
-    
-    def _create_audit_log(self, score_entry, action, old_score=None, old_justification=""):
-        """Crear entrada en el log de auditoría"""
-        reason = self.request.data.get('reason', '')
-        if not reason and action == 'update':
-            reason = "Actualización de puntuación"
-        
-        ScoreAuditLog.objects.create(
-            score_entry=score_entry,
-            action=action,
-            old_score=old_score,
-            new_score=score_entry.score,
-            old_justification=old_justification,
-            new_justification=score_entry.justification,
-            changed_by=self.request.user,
-            reason=reason,
-            ip_address=self._get_client_ip(),
-            user_agent=self.request.META.get('HTTP_USER_AGENT', '')
-        )
-    
-    def _update_judge_evaluation(self, score_entry):
-        """Actualizar evaluación automáticamente"""
-        try:
-            FEICalculator.update_judge_evaluation(
-                score_entry.participant,
-                score_entry.judge_position
-            )
-        except Exception as e:
-            # Log error but don't fail the request
-            print(f"Error updating judge evaluation: {e}")
-    
-    def _get_client_ip(self):
-        """Obtener IP del cliente"""
-        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = self.request.META.get('REMOTE_ADDR')
-        return ip
-    
-    @action(detail=False, methods=['get'])
-    def judge_scorecard(self, request):
-        """Obtener tarjeta de puntuación para un juez específico"""
-        participant_id = request.query_params.get('participant_id')
-        judge_position_id = request.query_params.get('judge_position_id')
-        
-        if not participant_id or not judge_position_id:
+        # Validar con el motor FEI
+        validation = self.calculator.validate_score_increment(score)
+        if not validation:
             return Response(
-                {'error': 'participant_id y judge_position_id son requeridos'},
+                {'error': 'Puntuación inválida. Debe ser en incrementos de 0.5 entre 0.0 y 10.0'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        participant = get_object_or_404(Registration, id=participant_id)
-        judge_position = get_object_or_404(JudgePosition, id=judge_position_id)
+        # Validar rango específico del parámetro
+        if not self.calculator.validate_score_range(score, parameter.min_score, parameter.max_score):
+            return Response(
+                {'error': f'Puntuación fuera de rango para este parámetro ({parameter.min_score}-{parameter.max_score})'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        # Obtener parámetros de evaluación
-        parameters = EvaluationParameter.objects.filter(
-            category=participant.competition_category.category
-        ).order_by('order', 'exercise_number')
+        serializer.save()
         
-        # Obtener calificaciones existentes
-        existing_scores = {
-            score.evaluation_parameter_id: score 
-            for score in ScoreEntry.objects.filter(
-                participant=participant,
-                judge_position=judge_position
-            ).select_related('evaluation_parameter')
-        }
+        # Recalcular totales de la evaluación
+        self._recalculate_evaluation_totals(serializer.instance.evaluation)
+    
+    def perform_update(self, serializer):
+        """Actualizar entrada con validaciones"""
+        old_score = serializer.instance.score
+        new_score = serializer.validated_data.get('score', old_score)
         
-        # Construir tarjeta de puntuación
-        scorecard = []
-        for param in parameters:
-            score_entry = existing_scores.get(param.id)
-            scorecard.append({
-                'parameter': EvaluationParameterSerializer(param).data,
-                'score_entry': ScoreEntrySerializer(score_entry).data if score_entry else None,
-                'weighted_score': score_entry.weighted_score if score_entry else 0,
-                'is_scored': score_entry is not None
+        # Validar nueva puntuación
+        if new_score != old_score:
+            validation = self.calculator.validate_score_increment(new_score)
+            if not validation:
+                return Response(
+                    {'error': 'Puntuación inválida. Debe ser en incrementos de 0.5'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        serializer.save()
+        
+        # Recalcular totales
+        self._recalculate_evaluation_totals(serializer.instance.evaluation)
+        
+        # Crear log de auditoría
+        self._create_audit_log(serializer.instance, 'update', old_score)
+    
+    @action(detail=False, methods=['post'])
+    def validate_score(self, request):
+        """Validar una puntuación sin guardarla"""
+        score_str = request.data.get('score')
+        parameter_id = request.data.get('parameter_id')
+        
+        if not score_str or not parameter_id:
+            return Response(
+                {'error': 'score y parameter_id son requeridos'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            score = Decimal(str(score_str))
+            parameter = EvaluationParameter.objects.get(id=parameter_id)
+            
+            # Validar incrementos FEI
+            increment_valid = self.calculator.validate_score_increment(score)
+            range_valid = self.calculator.validate_score_range(score, parameter.min_score, parameter.max_score)
+            
+            return Response({
+                'is_valid': increment_valid and range_valid,
+                'increment_valid': increment_valid,
+                'range_valid': range_valid,
+                'formatted_score': self.calculator.utils.formatScore(str(score)) if increment_valid else None,
+                'percentage': self.calculator.calculate_percentage(score, parameter.max_score) if range_valid else None
             })
-        
-        # Calcular totales
-        totals = FEICalculator.calculate_participant_total(participant, judge_position)
-        
-        return Response({
-            'participant': {
-                'id': participant.id,
-                'number': participant.start_number,
-                'rider_name': f"{participant.rider.user.first_name} {participant.rider.user.last_name}",
-                'horse_name': participant.horse.name,
-                'category': participant.competition_category.category.name
-            },
-            'judge': {
-                'name': judge_position.judge.user.get_full_name(),
-                'position': judge_position.position
-            },
-            'scorecard': scorecard,
-            'totals': totals
-        })
+            
+        except (ValueError, EvaluationParameter.DoesNotExist) as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     @action(detail=False, methods=['post'])
     def bulk_update(self, request):
-        """Actualización masiva de calificaciones"""
+        """Actualización masiva de puntuaciones"""
         scores_data = request.data.get('scores', [])
         
         if not scores_data:
             return Response(
-                {'error': 'No se proporcionaron calificaciones'},
+                {'error': 'Se requiere lista de puntuaciones'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -276,38 +213,50 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             for score_data in scores_data:
                 try:
-                    # Validar datos requeridos
-                    required_fields = ['participant_id', 'judge_position_id', 'evaluation_parameter_id', 'score']
-                    if not all(field in score_data for field in required_fields):
-                        errors.append({
-                            'error': 'Faltan campos requeridos',
-                            'data': score_data
-                        })
-                        continue
+                    score_id = score_data.get('id')
+                    new_score = Decimal(str(score_data.get('score')))
+                    justification = score_data.get('justification', '')
                     
-                    # Obtener o crear calificación
-                    score_entry, created = ScoreEntry.objects.get_or_create(
-                        participant_id=score_data['participant_id'],
-                        judge_position_id=score_data['judge_position_id'],
-                        evaluation_parameter_id=score_data['evaluation_parameter_id'],
-                        defaults={
-                            'score': Decimal(str(score_data['score'])),
-                            'justification': score_data.get('justification', ''),
-                            'scored_by': request.user
-                        }
-                    )
-                    
-                    if not created:
+                    if score_id:
                         # Actualizar existente
+                        score_entry = ScoreEntry.objects.get(id=score_id)
                         old_score = score_entry.score
-                        score_entry.score = Decimal(str(score_data['score']))
-                        score_entry.justification = score_data.get('justification', '')
+                        
+                        # Validar
+                        if not self.calculator.validate_score_increment(new_score):
+                            errors.append({
+                                'id': score_id,
+                                'error': 'Puntuación inválida'
+                            })
+                            continue
+                        
+                        score_entry.score = new_score
+                        score_entry.justification = justification
+                        score_entry.updated_at = timezone.now()
                         score_entry.save()
                         
                         # Auditoría
                         self._create_audit_log(score_entry, 'update', old_score)
                     else:
-                        # Auditoría para nueva
+                        # Crear nueva
+                        evaluation_id = score_data.get('evaluation_id')
+                        parameter_id = score_data.get('parameter_id')
+                        
+                        if not evaluation_id or not parameter_id:
+                            errors.append({
+                                'error': 'evaluation_id y parameter_id requeridos para nuevas entradas',
+                                'data': score_data
+                            })
+                            continue
+                        
+                        score_entry = ScoreEntry.objects.create(
+                            evaluation_id=evaluation_id,
+                            parameter_id=parameter_id,
+                            score=new_score,
+                            justification=justification
+                        )
+                        
+                        # Auditoría
                         self._create_audit_log(score_entry, 'create')
                     
                     updated_scores.append(ScoreEntrySerializer(score_entry).data)
@@ -324,6 +273,110 @@ class ScoreEntryViewSet(viewsets.ModelViewSet):
             'success_count': len(updated_scores),
             'error_count': len(errors)
         })
+    
+    @action(detail=False, methods=['get'])
+    def judge_scorecard(self, request):
+        """Obtener tarjeta de puntuación para un juez"""
+        competition_id = request.query_params.get('competition_id')
+        rider_id = request.query_params.get('rider_id')
+        horse_id = request.query_params.get('horse_id')
+        
+        if not all([competition_id, rider_id, horse_id]):
+            return Response(
+                {'error': 'competition_id, rider_id y horse_id son requeridos'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Buscar o crear evaluación
+            evaluation, created = JudgeEvaluation.objects.get_or_create(
+                judge_id=request.user.id,
+                competition_id=competition_id,
+                rider_id=rider_id,
+                horse_id=horse_id,
+                defaults={
+                    'status': 'draft',
+                    'total_score': Decimal('0.00'),
+                    'percentage': Decimal('0.00')
+                }
+            )
+            
+            # Obtener parámetros para la competencia
+            parameters = EvaluationParameter.objects.filter(
+                competition_id=competition_id,
+                is_active=True
+            ).order_by('code')
+            
+            # Obtener puntuaciones existentes
+            existing_scores = ScoreEntry.objects.filter(
+                evaluation=evaluation
+            ).select_related('parameter')
+            
+            return Response({
+                'evaluation': JudgeEvaluationSerializer(evaluation).data,
+                'parameters': EvaluationParameterSerializer(parameters, many=True).data,
+                'existing_scores': ScoreEntrySerializer(existing_scores, many=True).data,
+                'can_edit': evaluation.status in ['draft', 'submitted'],
+                'is_new': created
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    def _recalculate_evaluation_totals(self, evaluation):
+        """Recalcular totales de una evaluación"""
+        try:
+            scores = ScoreEntry.objects.filter(evaluation=evaluation)
+            
+            if not scores.exists():
+                evaluation.total_score = Decimal('0.00')
+                evaluation.percentage = Decimal('0.00')
+                evaluation.save()
+                return
+            
+            # Preparar datos para el calculador
+            parameter_scores = {}
+            for score in scores:
+                parameter_scores[score.parameter.code] = {
+                    'score': score.score,
+                    'weight': score.parameter.weight,
+                    'max_score': score.parameter.max_score
+                }
+            
+            # Calcular totales
+            result = self.calculator.calculate_total_score(parameter_scores)
+            
+            evaluation.total_score = result['total_score']
+            evaluation.percentage = result['percentage']
+            evaluation.save()
+            
+        except Exception as e:
+            # Log error but don't break the flow
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error recalculando evaluación {evaluation.id}: {e}")
+    
+    def _create_audit_log(self, score_entry, action, old_score=None):
+        """Crear log de auditoría para cambios en puntuaciones"""
+        try:
+            from .models import ScoreAuditLog
+            
+            ScoreAuditLog.objects.create(
+                score_entry=score_entry,
+                user=self.request.user,
+                action=action,
+                old_score=old_score,
+                new_score=score_entry.score,
+                timestamp=timezone.now(),
+                ip_address=self.request.META.get('REMOTE_ADDR'),
+                user_agent=self.request.META.get('HTTP_USER_AGENT', '')[:255]
+            )
+        except Exception:
+            # Log error but don't break the flow
+            pass
 
 
 class JudgeEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -335,111 +388,146 @@ class JudgeEvaluationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = JudgeEvaluationSerializer
     permission_classes = [IsAuthenticated]
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.calculator = FEIScoreCalculator()
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        participant_id = self.request.query_params.get('participant_id')
-        judge_id = self.request.query_params.get('judge_id')
+        # Filtros
         competition_id = self.request.query_params.get('competition_id')
+        judge_id = self.request.query_params.get('judge_id')
+        rider_id = self.request.query_params.get('rider_id')
+        status = self.request.query_params.get('status')
         
-        if participant_id:
-            queryset = queryset.filter(participant_id=participant_id)
-        if judge_id:
-            queryset = queryset.filter(judge_position__judge_id=judge_id)
         if competition_id:
-            queryset = queryset.filter(participant__competition_category__competition_id=competition_id)
+            queryset = queryset.filter(competition_id=competition_id)
+        if judge_id:
+            queryset = queryset.filter(judge_id=judge_id)
+        if rider_id:
+            queryset = queryset.filter(rider_id=rider_id)
+        if status:
+            queryset = queryset.filter(status=status)
         
-        return queryset.select_related(
-            'participant', 'judge_position__judge'
-        )
+        return queryset.select_related('judge', 'rider', 'horse', 'competition')
     
     @action(detail=True, methods=['post'])
-    def recalculate(self, request, pk=None):
-        """Recalcular totales de una evaluación"""
+    def submit(self, request, pk=None):
+        """Enviar evaluación final"""
         evaluation = self.get_object()
         
-        try:
-            result = FEICalculator.calculate_participant_total(
-                evaluation.participant,
-                evaluation.judge_position
-            )
-            
-            evaluation.total_score = result['total_weighted_score']
-            evaluation.total_possible = result['total_possible_score']
-            evaluation.percentage = result['percentage']
-            evaluation.save()
-            
-            return Response({
-                'message': 'Evaluación recalculada exitosamente',
-                'evaluation': JudgeEvaluationSerializer(evaluation).data
-            })
-            
-        except Exception as e:
+        if evaluation.judge_id != request.user.id:
             return Response(
-                {'error': f'Error recalculando evaluación: {str(e)}'},
+                {'error': 'Solo puedes enviar tus propias evaluaciones'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if evaluation.status == 'final':
+            return Response(
+                {'error': 'Evaluación ya está finalizada'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Validar completitud
+        scores = ScoreEntry.objects.filter(evaluation=evaluation)
+        parameters_count = EvaluationParameter.objects.filter(
+            competition=evaluation.competition,
+            is_active=True
+        ).count()
+        
+        if scores.count() != parameters_count:
+            return Response(
+                {'error': 'Evaluación incompleta. Faltan puntuaciones'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Finalizar evaluación
+        evaluation.status = 'final'
+        evaluation.submission_time = timezone.now()
+        evaluation.save()
+        
+        return Response({
+            'message': 'Evaluación enviada exitosamente',
+            'evaluation': JudgeEvaluationSerializer(evaluation).data
+        })
+    
+    @action(detail=False, methods=['get'])
+    def my_evaluations(self, request):
+        """Obtener evaluaciones del juez actual"""
+        evaluations = self.get_queryset().filter(judge=request.user)
+        serializer = self.get_serializer(evaluations, many=True)
+        
+        return Response({
+            'evaluations': serializer.data,
+            'total_count': evaluations.count(),
+            'draft_count': evaluations.filter(status='draft').count(),
+            'submitted_count': evaluations.filter(status='submitted').count(),
+            'final_count': evaluations.filter(status='final').count()
+        })
     
     @action(detail=False, methods=['get'])
     def competition_progress(self, request):
-        """Obtener progreso de evaluación por competencia"""
+        """Progreso de evaluaciones en una competencia"""
         competition_id = request.query_params.get('competition_id')
+        
         if not competition_id:
             return Response(
                 {'error': 'competition_id es requerido'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        competition = get_object_or_404(Competition, id=competition_id)
-        
-        # Estadísticas generales
-        stats = FEICalculator.get_statistics_summary(competition)
-        
-        # Progreso por juez
-        judges_progress = []
-        judge_positions = JudgePosition.objects.filter(
-            competition=competition,
-            is_active=True
-        )
-        
-        for judge_position in judge_positions:
-            evaluations = self.get_queryset().filter(
-                judge_position=judge_position,
-                participant__competition_category__competition=competition
+        try:
+            stats_calculator = FEIStatisticsCalculator()
+            
+            # Obtener evaluaciones de la competencia
+            evaluations = self.get_queryset().filter(competition_id=competition_id)
+            
+            # Preparar datos para el calculador de estadísticas
+            eval_data = []
+            for evaluation in evaluations:
+                eval_data.append({
+                    'rider_id': evaluation.rider_id,
+                    'rider_name': evaluation.rider.name if evaluation.rider else 'Desconocido',
+                    'horse_id': evaluation.horse_id,
+                    'horse_name': evaluation.horse.name if evaluation.horse else 'Desconocido',
+                    'judge_evaluations': [{
+                        'judge_id': evaluation.judge_id,
+                        'judge_name': evaluation.judge.get_full_name() if evaluation.judge else 'Desconocido',
+                        'total_score': evaluation.total_score,
+                        'percentage': evaluation.percentage
+                    }]
+                })
+            
+            # Calcular estadísticas
+            stats = stats_calculator.calculate_competition_statistics(eval_data)
+            
+            return Response(stats)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
-            
-            completed = evaluations.filter(status='completed').count()
-            total = evaluations.count()
-            
-            judges_progress.append({
-                'judge_name': judge_position.judge.user.get_full_name(),
-                'judge_position': judge_position.position,
-                'completed_evaluations': completed,
-                'total_evaluations': total,
-                'completion_percentage': (completed / total * 100) if total > 0 else 0
-            })
-        
-        return Response({
-            'competition': {
-                'id': competition.id,
-                'name': competition.name,
-                'status': competition.status
-            },
-            'statistics': stats,
-            'judges_progress': judges_progress
-        })
 
 
-class CompetitionRankingView(viewsets.ViewSet):
+class CompetitionRankingView(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet para rankings de competencias
-    Proporciona cálculos en tiempo real
+    ViewSet para rankings y resultados de competencias
     """
     permission_classes = [IsAuthenticated]
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ranking_calculator = FEIRankingCalculator()
+        self.stats_calculator = FEIStatisticsCalculator()
+    
+    def get_queryset(self):
+        return JudgeEvaluation.objects.none()  # No queryset base necesario
+    
     @action(detail=False, methods=['get'])
     def live_rankings(self, request):
-        """Obtener rankings en tiempo real"""
+        """Rankings en tiempo real de una competencia"""
         competition_id = request.query_params.get('competition_id')
         category_id = request.query_params.get('category_id')
         
@@ -449,87 +537,59 @@ class CompetitionRankingView(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        competition = get_object_or_404(Competition, id=competition_id)
-        
         try:
-            rankings = FEICalculator.calculate_competition_rankings(competition)
+            # Obtener evaluaciones
+            evaluations_query = JudgeEvaluation.objects.filter(
+                competition_id=competition_id,
+                status__in=['submitted', 'final']
+            ).select_related('judge', 'rider', 'horse')
             
-            # Filtrar por categoría si se especifica
             if category_id:
-                rankings = [r for r in rankings if r['participant'].competition_category.category_id == int(category_id)]
+                evaluations_query = evaluations_query.filter(category_id=category_id)
+            
+            # Agrupar por participante
+            participants_data = {}
+            for evaluation in evaluations_query:
+                key = f"{evaluation.rider_id}_{evaluation.horse_id}"
+                
+                if key not in participants_data:
+                    participants_data[key] = {
+                        'rider_id': evaluation.rider_id,
+                        'rider_name': evaluation.rider.name if evaluation.rider else 'Desconocido',
+                        'horse_id': evaluation.horse_id,
+                        'horse_name': evaluation.horse.name if evaluation.horse else 'Desconocido',
+                        'judge_evaluations': []
+                    }
+                
+                participants_data[key]['judge_evaluations'].append({
+                    'judge_id': evaluation.judge_id,
+                    'judge_name': evaluation.judge.get_full_name() if evaluation.judge else 'Desconocido',
+                    'total_score': evaluation.total_score,
+                    'percentage': evaluation.percentage
+                })
+            
+            # Calcular rankings
+            rankings = self.ranking_calculator.calculate_competition_rankings(
+                list(participants_data.values())
+            )
             
             return Response({
-                'competition': {
-                    'id': competition.id,
-                    'name': competition.name,
-                    'status': competition.status
-                },
+                'competition_id': competition_id,
+                'category_id': category_id,
                 'rankings': rankings,
-                'last_updated': timezone.now(),
+                'last_updated': timezone.now().isoformat(),
                 'total_participants': len(rankings)
             })
             
         except Exception as e:
             return Response(
-                {'error': f'Error calculando rankings: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @action(detail=False, methods=['get'])
-    def participant_detail(self, request):
-        """Obtener detalle completo de un participante"""
-        participant_id = request.query_params.get('participant_id')
-        
-        if not participant_id:
-            return Response(
-                {'error': 'participant_id es requerido'},
+                {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        participant = get_object_or_404(Registration, id=participant_id)
-        
-        try:
-            # Calcular promedio del participante
-            average_result = FEICalculator.calculate_participant_average(participant)
-            
-            # Obtener detalles por juez
-            judge_details = []
-            for judge_breakdown in average_result['judges_breakdown']:
-                judge_position = JudgePosition.objects.get(
-                    competition=participant.competition_category.competition,
-                    judge__user__first_name__icontains=judge_breakdown['judge_name'].split()[0]
-                )
-                
-                detail_result = FEICalculator.calculate_participant_total(
-                    participant, judge_position
-                )
-                
-                judge_details.append({
-                    'judge_info': judge_breakdown,
-                    'detailed_scores': detail_result['scores_breakdown']
-                })
-            
-            return Response({
-                'participant': {
-                    'id': participant.id,
-                    'number': participant.start_number,
-                    'rider_name': f"{participant.rider.user.first_name} {participant.rider.user.last_name}",
-                    'horse_name': participant.horse.name,
-                    'category': participant.competition_category.category.name
-                },
-                'summary': average_result,
-                'judge_details': judge_details
-            })
-            
-        except Exception as e:
-            return Response(
-                {'error': f'Error obteniendo detalle: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     @action(detail=False, methods=['get'])
     def anomaly_detection(self, request):
-        """Detectar anomalías en calificaciones"""
+        """Detectar anomalías en las puntuaciones"""
         competition_id = request.query_params.get('competition_id')
         
         if not competition_id:
@@ -538,20 +598,44 @@ class CompetitionRankingView(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        competition = get_object_or_404(Competition, id=competition_id)
-        
         try:
-            anomalies = FEIValidationEngine.detect_scoring_anomalies(competition)
+            # Obtener datos para detección de anomalías
+            evaluations = JudgeEvaluation.objects.filter(
+                competition_id=competition_id,
+                status__in=['submitted', 'final']
+            ).select_related('judge', 'rider', 'horse')
+            
+            # Preparar datos
+            participants_data = {}
+            for evaluation in evaluations:
+                key = f"{evaluation.rider_id}_{evaluation.horse_id}"
+                
+                if key not in participants_data:
+                    participants_data[key] = {
+                        'rider_name': evaluation.rider.name if evaluation.rider else 'Desconocido',
+                        'horse_name': evaluation.horse.name if evaluation.horse else 'Desconocido',
+                        'judge_scores': []
+                    }
+                
+                participants_data[key]['judge_scores'].append({
+                    'judge_id': evaluation.judge_id,
+                    'judge_name': evaluation.judge.get_full_name() if evaluation.judge else 'Desconocido',
+                    'percentage': evaluation.percentage
+                })
+            
+            # Detectar anomalías
+            rankings_list = list(participants_data.values())
+            anomalies = self.ranking_calculator.detect_ranking_anomalies(rankings_list)
             
             return Response({
-                'competition_id': competition.id,
-                'anomalies_count': len(anomalies),
+                'competition_id': competition_id,
                 'anomalies': anomalies,
-                'checked_at': timezone.now()
+                'anomalies_count': len(anomalies),
+                'analysis_date': timezone.now().isoformat()
             })
             
         except Exception as e:
             return Response(
-                {'error': f'Error detectando anomalías: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
