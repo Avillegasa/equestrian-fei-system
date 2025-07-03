@@ -9,20 +9,12 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f0f9ff',
+          50: '#eff6ff',
           500: '#3b82f6',
           600: '#2563eb',
           700: '#1d4ed8',
-        },
-        equestrian: {
-          brown: '#8b4513',
-          gold: '#ffd700',
-          forest: '#228b22',
         }
-      },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-      },
+      }
     },
   },
   plugins: [],

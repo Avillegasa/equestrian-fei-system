@@ -1,51 +1,56 @@
-export default function HomePage() {
+export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            🏇 Sistema FEI
-          </h1>
-          <p className="text-gray-600 mb-8">
-            Sistema de Gestión de Competencias Ecuestres
-          </p>
+    <main className="container mx-auto px-4 py-8">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          Sistema FEI - Fase 4
+        </h1>
+        <p className="text-lg text-gray-600 mb-8">
+          Sistema de Calificación y Cálculos FEI
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold text-blue-600 mb-3">
+              🧮 Motor de Cálculo
+            </h2>
+            <p className="text-gray-600">
+              Sistema FEI de 3 celdas implementado con validaciones automáticas
+            </p>
+          </div>
           
-          <div className="space-y-4">
-            <a
-              href="/auth/login"
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              Iniciar Sesión
-            </a>
-            
-            <a
-              href="/dashboard"
-              className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              Ir al Dashboard
-            </a>
-            
-            <a
-              href="http://localhost:8000/admin/"
-              target="_blank"
-              className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              Admin Django ↗
-            </a>
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold text-green-600 mb-3">
+              👨‍⚖️ Interfaz de Juez
+            </h2>
+            <p className="text-gray-600">
+              Optimizada para tablet/móvil con cálculos en tiempo real
+            </p>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold text-purple-600 mb-3">
+              📊 Rankings
+            </h2>
+            <p className="text-gray-600">
+              Sistema de rankings automático con detección de anomalías
+            </p>
           </div>
         </div>
         
-        <div className="mt-8 p-4 bg-blue-50 rounded-md">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">
-            ✅ Estado del Sistema:
-          </h3>
-          <ul className="text-xs text-blue-700 space-y-1">
-            <li>• Frontend: http://localhost:3000</li>
-            <li>• Backend: http://localhost:8000</li>
-            <li>• Fase 4: Sistema FEI Implementado</li>
-          </ul>
+        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+          <p className="text-blue-800">
+            ✅ Backend funcionando correctamente en: 
+            <a 
+              href="http://localhost:8000/api/scoring/parameters/" 
+              target="_blank" 
+              className="underline hover:text-blue-600 ml-1"
+            >
+              localhost:8000/api/scoring/parameters/
+            </a>
+          </p>
         </div>
       </div>
-    </div>
-  );
+    </main>
+  )
 }

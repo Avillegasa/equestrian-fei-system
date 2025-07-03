@@ -9,50 +9,15 @@
 }
 
 @layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors;
+  }
+  
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors;
+    @apply bg-blue-600 text-white hover:bg-blue-700;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-md transition-colors;
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300;
   }
-  
-  .input-field {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500;
-  }
-  
-  .card {
-    @apply bg-white shadow rounded-lg border border-gray-200;
-  }
-}
-
-/* Animaciones personalizadas */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Estilos para el sistema FEI */
-.fei-scoring-grid {
-  @apply grid gap-4 p-4 bg-gray-50 rounded-lg;
-}
-
-.fei-score-input {
-  @apply text-center font-bold text-lg border-2 border-blue-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200;
-}
-
-.fei-extreme-score {
-  @apply border-orange-400 bg-orange-50;
-}
-
-.fei-valid-score {
-  @apply border-green-400 bg-green-50;
-}
-
-.fei-invalid-score {
-  @apply border-red-400 bg-red-50;
 }

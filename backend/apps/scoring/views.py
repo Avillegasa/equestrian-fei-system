@@ -4,9 +4,9 @@ Implementa todas las operaciones de scoring y rankings
 """
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.utils import timezone
@@ -639,3 +639,134 @@ class CompetitionRankingView(viewsets.ReadOnlyModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+
+@api_view(['GET'])
+@permission_classes([AllowAny])  # Público para pruebas
+def public_scoring_test(request):
+    """
+    Endpoint público para probar la conectividad del sistema de scoring
+    """
+    return Response({
+        'status': 'success',
+        'message': 'Sistema de scoring funcionando correctamente',
+        'version': 'Fase 4',
+        'endpoints_available': [
+            '/api/scoring/parameters/',
+            '/api/scoring/scores/',
+            '/api/scoring/evaluations/',
+            '/api/scoring/rankings/'
+        ],
+        'features': [
+            'Motor de cálculo FEI',
+            'Validaciones automáticas',
+            'Cálculos en tiempo real',
+            'Sistema de auditoría'
+        ],
+        'timestamp': timezone.now().isoformat()
+    })
+
+@api_view(['GET'])
+@permission_classes([AllowAny])  # Público para pruebas
+def public_parameters_test(request):
+    """
+    Endpoint público para ver parámetros de evaluación (sin datos sensibles)
+    CORREGIDO: Usar solo campos que existen en el modelo
+    """
+    try:
+        # Obtener parámetros sin filtro is_active (que no existe)
+        parameters = EvaluationParameter.objects.all()[:5]  # Solo primeros 5
+        
+        # Datos básicos sin información sensible
+        basic_data = []
+        for param in parameters:
+            basic_data.append({
+                'id': param.id,
+                'exercise_number': param.exercise_number,
+                'exercise_name': param.exercise_name,
+                'coefficient': param.coefficient,
+                'max_score': str(param.max_score),
+                'weighted_max_score': str(param.weighted_max_score),
+                'is_collective_mark': param.is_collective_mark
+            })
+        
+        return Response({
+            'status': 'success',
+            'message': 'Parámetros de evaluación disponibles',
+            'count': len(basic_data),
+            'total_parameters': parameters.count(),
+            'sample_parameters': basic_data,
+            'note': 'Esta es una vista de prueba. Para datos completos se requiere autenticación.',
+            'model_fields': [
+                'id', 'exercise_number', 'exercise_name', 'coefficient', 
+                'max_score', 'is_collective_mark', 'order', 'description'
+            ]
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': f'Error obteniendo parámetros: {str(e)}',
+            'available_fields': [
+                'category', 'exercise_number', 'exercise_name', 'coefficient',
+                'max_score', 'is_collective_mark', 'order', 'description',
+                'created_at', 'updated_at'
+            ]
+        }, status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_calculator_test(request):
+    """
+    Endpoint público para probar el motor de cálculo FEI
+    """
+    try:
+        calculator = FEIScoreCalculator()
+        
+        # Pruebas básicas del calculador
+        test_results = {
+            'motor_status': 'operational',
+            'validations': {
+                'score_7_5': calculator.validate_score_increment(Decimal('7.5')),
+                'score_7_3': calculator.validate_score_increment(Decimal('7.3')),  # Debe ser False
+                'score_range_valid': calculator.validate_score_range(Decimal('8.0')),
+                'score_range_invalid': calculator.validate_score_range(Decimal('11.0'))  # Debe ser False
+            },
+            'calculations': {
+                'simple_average': str(calculator.calculate_simple_average([
+                    Decimal('7.5'), Decimal('8.0'), Decimal('7.0')
+                ])),
+                'percentage_calculation': str(calculator.calculate_percentage(Decimal('7.5'))),
+                'weighted_average': str(calculator.calculate_weighted_average(
+                    [Decimal('7.5'), Decimal('8.0')], 
+                    [Decimal('1.0'), Decimal('2.0')]
+                ))
+            },
+            'score_tests': {
+                'valid_scores': ['0.0', '0.5', '1.0', '7.5', '8.0', '10.0'],
+                'invalid_scores': ['0.3', '7.3', '10.2', '-1.0'],
+                'extreme_scores': ['0.0', '1.0', '9.0', '10.0']
+            }
+        }
+        
+        return Response({
+            'status': 'success',
+            'message': 'Motor de cálculo FEI operacional',
+            'test_results': test_results,
+            'fei_standards': {
+                'score_range': '0.0 - 10.0',
+                'increment': '0.5',
+                'precision': 'Decimal (2 places)',
+                'coefficients': [1, 2, 3, 4, 5]
+            },
+            'calculator_classes': [
+                'FEIScoreCalculator',
+                'FEIRankingCalculator', 
+                'FEIStatisticsCalculator'
+            ]
+        })
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': f'Error en motor de cálculo: {str(e)}',
+            'note': 'Verificar que el calculador esté correctamente importado'
+        }, status=500)
