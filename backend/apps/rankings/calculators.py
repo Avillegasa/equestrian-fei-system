@@ -9,7 +9,7 @@ from .models import (
     RankingSnapshot, RankingEntry, RankingCalculation, 
     LiveRankingUpdate, RankingConfiguration
 )
-from apps.competitions.models import Competition, Category, Participant
+from apps.competitions.models import Competition, Category, Registration
 from apps.scoring.models import JudgeEvaluation, ScoreEntry
 
 logger = logging.getLogger(__name__)
@@ -87,10 +87,11 @@ class RankingCalculator:
     
     def _get_participants_data(self) -> List[Dict[str, Any]]:
         """Obtener datos de participantes con sus evaluaciones"""
-        participants = Participant.objects.filter(
-            competition=self.competition,
-            category=self.category
-        ).select_related('rider', 'horse')
+        participants = Registration.objects.filter(
+            competition_category__competition=self.competition,
+            competition_category__category=self.category,
+            status='confirmed'  # Solo participantes confirmados
+        ).select_related('rider', 'horse', 'competition_category')
         
         participants_data = []
         

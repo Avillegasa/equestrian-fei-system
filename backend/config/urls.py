@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/auth/', include('apps.users.urls')),
     path('api/competitions/', include('apps.competitions.urls')),
     path('api/scoring/', include('apps.scoring.urls')),  # CORREGIDO
+    path('rankings/', include('apps.rankings.urls')),
 ]
 
 if settings.DEBUG:

@@ -10,7 +10,8 @@ class RankingEntrySerializer(serializers.ModelSerializer):
     """Serializer para entradas de ranking"""
     
     participant = ParticipantSerializer(read_only=True)
-    participant_name = serializers.CharField(source='participant.rider.name', read_only=True)
+    # Corregir acceso a los nombres
+    participant_name = serializers.CharField(source='participant.rider.user.get_full_name', read_only=True)
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
     position_change_indicator = serializers.SerializerMethodField()
     
@@ -136,7 +137,7 @@ class RankingDisplaySerializer(serializers.ModelSerializer):
         return [
             {
                 'position': entry.position,
-                'rider_name': entry.participant.rider.name,
+                'rider_name': entry.participant.rider.user.get_full_name(),
                 'horse_name': entry.participant.horse.name,
                 'score': float(entry.total_score),
                 'percentage': float(entry.percentage_score),
@@ -152,7 +153,7 @@ class RankingDisplaySerializer(serializers.ModelSerializer):
             'name': obj.competition.name,
             'category': obj.category.name,
             'date': obj.competition.start_date,
-            'location': obj.competition.location
+            'location': obj.competition.venue  # Cambiar de location a venue
         }
 
 

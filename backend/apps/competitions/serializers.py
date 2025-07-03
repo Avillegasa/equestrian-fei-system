@@ -251,3 +251,27 @@ class JudgeAssignmentSerializer(serializers.ModelSerializer):
             'fee', 'travel_allowance', 'accommodation_provided', 'confirmed',
             'confirmation_date', 'notes'
         ]
+
+class ParticipantSerializer(serializers.ModelSerializer):
+    """Serializer para participantes (combinación de rider y horse)"""
+    rider = RiderListSerializer(read_only=True)
+    horse = HorseListSerializer(read_only=True)
+    competition_name = serializers.CharField(source='competition_category.competition.name', read_only=True)
+    category_name = serializers.CharField(source='competition_category.category.name', read_only=True)
+    
+    class Meta:
+        model = Registration
+        fields = [
+            'id', 'rider', 'horse', 'competition_name', 'category_name',
+            'start_number', 'status', 'registered_at'
+        ]
+        
+    def to_representation(self, instance):
+        """Personalizar la representación para que sea más amigable"""
+        data = super().to_representation(instance)
+        
+        # Agregar campos adicionales para compatibilidad con rankings
+        data['competition'] = data.get('competition_name', '')
+        data['category'] = data.get('category_name', '')
+        
+        return data

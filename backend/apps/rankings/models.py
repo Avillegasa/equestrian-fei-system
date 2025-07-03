@@ -38,7 +38,7 @@ class RankingEntry(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     snapshot = models.ForeignKey(RankingSnapshot, on_delete=models.CASCADE, related_name='entries')
-    participant = models.ForeignKey('competitions.Participant', on_delete=models.CASCADE)
+    participant = models.ForeignKey('competitions.Registration', on_delete=models.CASCADE)
     
     # Posición en el ranking
     position = models.IntegerField()
