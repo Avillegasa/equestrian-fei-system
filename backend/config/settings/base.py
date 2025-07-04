@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'apps.competitions',
     'apps.scoring',  
     'apps.rankings',
+    'channels',
     'apps.websockets',
 ]
 

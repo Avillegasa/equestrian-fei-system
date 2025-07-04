@@ -1,5 +1,6 @@
 from rest_framework import permissions
 from .models import User, UserPermission
+from rest_framework.permissions import BasePermission
 
 
 class IsAdminUser(permissions.BasePermission):
@@ -325,3 +326,119 @@ def verified_required(view_func):
             return JsonResponse({'error': 'Usuario no verificado'}, status=403)
         return view_func(request, *args, **kwargs)
     return wrapper
+
+class IsJudge(BasePermission):
+    """
+    Permiso para verificar si el usuario es un juez
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return hasattr(request.user, 'judgeprofile')
+
+
+class IsOrganizer(BasePermission):
+    """
+    Permiso para verificar si el usuario es un organizador
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return hasattr(request.user, 'organizerprofile') or request.user.is_staff
+
+
+class IsJudgeOrOrganizer(BasePermission):
+    """
+    Permiso para verificar si el usuario es un juez o organizador
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return (hasattr(request.user, 'judgeprofile') or 
+                hasattr(request.user, 'organizerprofile') or 
+                request.user.is_staff)
+
+
+class IsOwnerOrOrganizer(BasePermission):
+    """
+    Permiso para verificar si el usuario es el propietario del objeto o un organizador
+    """
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Los administradores y organizadores tienen acceso completo
+        if request.user.is_staff or hasattr(request.user, 'organizerprofile'):
+            return True
+        
+        # Verificar si el usuario es el propietario del objeto
+        if hasattr(obj, 'created_by'):
+            return obj.created_by == request.user
+        if hasattr(obj, 'user'):
+            return obj.user == request.user
+        if hasattr(obj, 'organizer'):
+            return obj.organizer == request.user
+        
+        return False
+
+
+class CanManageCompetition(BasePermission):
+    """
+    Permiso para gestionar competencias
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return (hasattr(request.user, 'organizerprofile') or 
+                request.user.is_staff)
+    
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Los administradores pueden gestionar cualquier competencia
+        if request.user.is_staff:
+            return True
+        
+        # Los organizadores solo pueden gestionar sus propias competencias
+        if hasattr(request.user, 'organizerprofile'):
+            if hasattr(obj, 'organizer'):
+                return obj.organizer == request.user
+            if hasattr(obj, 'created_by'):
+                return obj.created_by == request.user
+        
+        return False
+
+
+class CanScore(BasePermission):
+    """
+    Permiso para calificar en competencias
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return (hasattr(request.user, 'judgeprofile') or 
+                hasattr(request.user, 'organizerprofile') or
+                request.user.is_staff)
+
+
+class ReadOnlyIfPublic(BasePermission):
+    """
+    Permiso de solo lectura para competencias públicas
+    """
+    def has_permission(self, request, view):
+        # Permitir lectura sin autenticación para GET, HEAD, OPTIONS
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+        
+        # Requerir autenticación para otros métodos
+        return request.user and request.user.is_authenticated
+    
+    def has_object_permission(self, request, view, obj):
+        # Permitir lectura para competencias públicas
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            if hasattr(obj, 'is_public') and obj.is_public:
+                return True
+        
+        # Verificar autenticación para otros casos
+        return request.user and request.user.is_authenticated

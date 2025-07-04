@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from decimal import Decimal
 import uuid
 from django.utils import timezone
@@ -79,7 +79,7 @@ class RankingCalculation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     competition = models.ForeignKey('competitions.Competition', on_delete=models.CASCADE)
     category = models.ForeignKey('competitions.Category', on_delete=models.CASCADE)
-    triggered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    triggered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     
     # Información del cálculo
     calculation_start = models.DateTimeField(auto_now_add=True)

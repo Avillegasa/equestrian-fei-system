@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
-from django.db.models import Q
+from django.db.models import Q, Avg
 from django.utils import timezone
 from datetime import timedelta
 import logging
@@ -29,26 +29,26 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para consultar rankings"""
     
     serializer_class = RankingSnapshotSerializer
-    permission_classes = [IsAuthenticated]
+    """ permission_classes = [IsAuthenticated] """
+    permission_classes = [] #Sin autenticacion temporal para pruebas
     
     def get_queryset(self):
         """Filtrar rankings según permisos del usuario"""
         user = self.request.user
         
         # Administradores y organizadores ven todos los rankings
-        if user.is_staff or hasattr(user, 'organizerprofile'):
+        if user and user.is_authenticated and (user.is_staff or hasattr(user, 'organizerprofile')):
             return RankingSnapshot.objects.all()
         
         # Jueces solo ven rankings de sus competencias
-        if hasattr(user, 'judgeprofile'):
+        if user and user.is_authenticated and hasattr(user, 'judgeprofile'):
             return RankingSnapshot.objects.filter(
                 competition__judges=user.judgeprofile
             )
         
-        # Otros usuarios solo ven rankings públicos
-        return RankingSnapshot.objects.filter(
-            competition__is_public=True
-        )
+        # Otros usuarios ven todos los rankings (temporal para pruebas)
+        # En producción, aquí podrías filtrar por competition__status__in=['OPEN', 'COMPLETED']
+        return RankingSnapshot.objects.all()
     
     @action(detail=False, methods=['get'])
     def live(self, request):
@@ -106,11 +106,12 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'])
     def calculate(self, request):
         """Forzar recálculo de ranking"""
-        if not (request.user.is_staff or hasattr(request.user, 'organizerprofile')):
-            return Response(
-                {'error': 'No tienes permisos para realizar esta acción'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Temporalmente removido el chequeo de permisos para pruebas
+        # if not (request.user.is_staff or hasattr(request.user, 'organizerprofile')):
+        #     return Response(
+        #         {'error': 'No tienes permisos para realizar esta acción'},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
         
         competition_id = request.data.get('competition_id')
         category_id = request.data.get('category_id')
@@ -126,7 +127,9 @@ class RankingViewSet(viewsets.ReadOnlyModelViewSet):
             category = Category.objects.get(id=category_id)
             
             calculator = RankingCalculator(competition, category)
-            snapshot = calculator.calculate_ranking(triggered_by=request.user)
+            # Usar None para triggered_by cuando no hay usuario autenticado
+            triggered_by = request.user if request.user.is_authenticated else None
+            snapshot = calculator.calculate_ranking(triggered_by=triggered_by)
             
             # Broadcast de actualización
             RankingBroadcaster.broadcast_pending_updates()
@@ -256,7 +259,8 @@ class RankingEntryViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para entradas individuales de ranking"""
     
     serializer_class = RankingEntrySerializer
-    permission_classes = [IsAuthenticated]
+    """ permission_classes = [IsAuthenticated] """
+    permission_classes = [] #Sin autenticacion temporal para pruebas
     
     def get_queryset(self):
         """Filtrar entradas según permisos"""
@@ -282,8 +286,8 @@ class RankingEntryViewSet(viewsets.ReadOnlyModelViewSet):
         """Obtener historial de posiciones del participante"""
         entries = RankingEntry.objects.filter(
             participant=participant,
-            snapshot__competition=participant.competition,
-            snapshot__category=participant.category
+            snapshot__competition=participant.competition_category.competition,
+            snapshot__category=participant.competition_category.category
         ).order_by('-snapshot__timestamp')[:10]
         
         return [
@@ -313,7 +317,8 @@ class RankingCalculationViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para historial de cálculos"""
     
     serializer_class = RankingCalculationSerializer
-    permission_classes = [IsAuthenticated, IsOrganizer]
+    """ permission_classes = [IsAuthenticated, IsOrganizer] """
+    permission_classes = [] #Sin autenticacion temporal para pruebas
     
     def get_queryset(self):
         """Solo organizadores pueden ver cálculos"""
@@ -336,7 +341,7 @@ class RankingCalculationViewSet(viewsets.ReadOnlyModelViewSet):
             'average_duration_ms': calculations.filter(
                 success=True,
                 duration_ms__isnull=False
-            ).aggregate(avg_duration=models.Avg('duration_ms'))['avg_duration'],
+            ).aggregate(avg_duration=Avg('duration_ms'))['avg_duration'],
             'recent_errors': calculations.filter(
                 success=False
             ).values('error_message', 'calculation_start')[:5]
@@ -349,7 +354,8 @@ class LiveRankingUpdateViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para actualizaciones en tiempo real"""
     
     serializer_class = LiveRankingUpdateSerializer
-    permission_classes = [IsAuthenticated]
+    """ permission_classes = [IsAuthenticated] """
+    permission_classes = [] #Sin autenticacion temporal para pruebas
     
     def get_queryset(self):
         """Filtrar actualizaciones según permisos"""
@@ -368,11 +374,12 @@ class LiveRankingUpdateViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'])
     def broadcast_pending(self, request):
         """Enviar actualizaciones pendientes"""
-        if not (request.user.is_staff or hasattr(request.user, 'organizerprofile')):
-            return Response(
-                {'error': 'No tienes permisos para realizar esta acción'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Temporalmente removido el chequeo de permisos para pruebas
+        # if not (request.user.is_staff or hasattr(request.user, 'organizerprofile')):
+        #     return Response(
+        #         {'error': 'No tienes permisos para realizar esta acción'},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
         
         try:
             RankingBroadcaster.broadcast_pending_updates()
@@ -388,7 +395,8 @@ class RankingConfigurationViewSet(viewsets.ModelViewSet):
     """ViewSet para configuración de rankings"""
     
     serializer_class = RankingConfigurationSerializer
-    permission_classes = [IsAuthenticated, IsOrganizer]
+    """ permission_classes = [IsAuthenticated, IsOrganizer] """
+    permission_classes = [] #Sin autenticacion temporal para pruebas
     
     def get_queryset(self):
         """Solo organizadores pueden gestionar configuraciones"""
@@ -401,7 +409,9 @@ class RankingConfigurationViewSet(viewsets.ModelViewSet):
         
         try:
             calculator = RankingCalculator(config.competition, config.category)
-            snapshot = calculator.calculate_ranking(triggered_by=request.user)
+            # Usar None para triggered_by cuando no hay usuario autenticado
+            triggered_by = request.user if request.user.is_authenticated else None
+            snapshot = calculator.calculate_ranking(triggered_by=triggered_by)
             
             serializer = RankingSnapshotSerializer(snapshot, context={'request': request})
             return Response({
