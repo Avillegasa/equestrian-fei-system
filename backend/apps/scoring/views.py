@@ -770,3 +770,72 @@ def public_calculator_test(request):
             'message': f'Error en motor de cálculo: {str(e)}',
             'note': 'Verificar que el calculador esté correctamente importado'
         }, status=500)
+    
+
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_rankings_test(request):
+    """Endpoint público para probar rankings"""
+    competition_id = request.GET.get('competition_id')
+    category_id = request.GET.get('category_id')
+    
+    if not competition_id or not category_id:
+        return Response({
+            'error': 'competition_id y category_id son requeridos'
+        }, status=400)
+    
+    # Simulación simple de ranking basado en calificaciones
+    from .models import ScoreEntry
+    
+    scores = ScoreEntry.objects.filter(
+        participant__competition_category__competition_id=competition_id,
+        participant__competition_category__category_id=category_id
+    )
+    
+    if not scores:
+        return Response({
+            'message': 'No hay calificaciones para esta competencia/categoría',
+            'competition_id': competition_id,
+            'category_id': category_id,
+            'scores_count': 0
+        })
+    
+    # Agrupar por participante y calcular totales
+    from collections import defaultdict
+    participant_scores = defaultdict(list)
+    
+    for score in scores:
+        participant_scores[score.participant].append({
+            'exercise': score.evaluation_parameter.exercise_name,
+            'score': float(score.score),
+            'coefficient': score.evaluation_parameter.coefficient
+        })
+    
+    # Calcular rankings básicos
+    rankings = []
+    for participant, score_list in participant_scores.items():
+        total = sum(s['score'] * s['coefficient'] for s in score_list)
+        rankings.append({
+            'participant_id': str(participant.id),
+            'participant_name': str(participant.rider),  # CORREGIDO
+            'horse_name': str(participant.horse),        # CORREGIDO
+            'total_score': total,
+            'scores': score_list
+        })
+    
+    # Ordenar por puntuación total
+    rankings.sort(key=lambda x: x['total_score'], reverse=True)
+    
+    # Agregar posiciones
+    for i, ranking in enumerate(rankings):
+        ranking['position'] = i + 1
+    
+    return Response({
+        'competition_id': competition_id,
+        'category_id': category_id,
+        'rankings': rankings,
+        'total_participants': len(rankings),
+        'timestamp': timezone.now().isoformat()
+    })
