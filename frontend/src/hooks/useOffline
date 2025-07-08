@@ -1,0 +1,327 @@
+// frontend/src/hooks/useOffline.ts
+
+import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+
+export interface OfflineState {
+  isOnline: boolean;
+  isServiceWorkerReady: boolean;
+  lastSyncTime: Date | null;
+  pendingActions: PendingAction[];
+  cacheStatus: CacheStatus | null;
+}
+
+export interface PendingAction {
+  id: string;
+  type: 'score_update' | 'participant_registration' | 'judge_assignment';
+  data: any;
+  timestamp: Date;
+  retryCount: number;
+}
+
+export interface CacheStatus {
+  totalEntries: number;
+  cachedUrls: string[];
+  lastUpdate: string;
+}
+
+const MAX_RETRY_ATTEMPTS = 3;
+const SYNC_INTERVAL = 30000; // 30 segundos
+
+export function useOffline() {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<OfflineState>({
+    isOnline: navigator.onLine,
+    isServiceWorkerReady: false,
+    lastSyncTime: null,
+    pendingActions: [],
+    cacheStatus: null,
+  });
+
+  // Inicializar Service Worker
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registrado:', registration);
+          setState(prev => ({ ...prev, isServiceWorkerReady: true }));
+        })
+        .catch((error) => {
+          console.error('Error registrando Service Worker:', error);
+        });
+    }
+  }, []);
+
+  // Escuchar cambios de conectividad
+  useEffect(() => {
+    const handleOnline = () => {
+      setState(prev => ({ ...prev, isOnline: true }));
+      syncPendingActions();
+    };
+
+    const handleOffline = () => {
+      setState(prev => ({ ...prev, isOnline: false }));
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Cargar datos pendientes del localStorage
+  useEffect(() => {
+    const loadPendingActions = () => {
+      try {
+        const stored = localStorage.getItem('pendingActions');
+        if (stored) {
+          const actions = JSON.parse(stored).map((action: any) => ({
+            ...action,
+            timestamp: new Date(action.timestamp),
+          }));
+          setState(prev => ({ ...prev, pendingActions: actions }));
+        }
+      } catch (error) {
+        console.error('Error cargando acciones pendientes:', error);
+      }
+    };
+
+    loadPendingActions();
+  }, []);
+
+  // Sincronizar automáticamente
+  useEffect(() => {
+    if (!state.isOnline) return;
+
+    const interval = setInterval(() => {
+      syncPendingActions();
+    }, SYNC_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [state.isOnline, state.pendingActions]);
+
+  // Agregar acción pendiente
+  const addPendingAction = useCallback((action: Omit<PendingAction, 'id' | 'timestamp' | 'retryCount'>) => {
+    const newAction: PendingAction = {
+      ...action,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      retryCount: 0,
+    };
+
+    setState(prev => {
+      const newPendingActions = [...prev.pendingActions, newAction];
+      // Guardar en localStorage
+      localStorage.setItem('pendingActions', JSON.stringify(newPendingActions));
+      return { ...prev, pendingActions: newPendingActions };
+    });
+
+    // Si está online, intentar sincronizar inmediatamente
+    if (state.isOnline) {
+      setTimeout(() => syncPendingActions(), 100);
+    }
+  }, [state.isOnline]);
+
+  // Sincronizar acciones pendientes
+  const syncPendingActions = useCallback(async () => {
+    if (!state.isOnline || state.pendingActions.length === 0) return;
+
+    const actionsToSync = [...state.pendingActions];
+    const failedActions: PendingAction[] = [];
+
+    for (const action of actionsToSync) {
+      try {
+        await processAction(action);
+        console.log(`Acción sincronizada: ${action.type}`);
+      } catch (error) {
+        console.error(`Error sincronizando acción ${action.type}:`, error);
+        
+        // Incrementar contador de reintentos
+        const updatedAction = {
+          ...action,
+          retryCount: action.retryCount + 1,
+        };
+
+        // Si no ha superado el máximo de reintentos, mantener en cola
+        if (updatedAction.retryCount < MAX_RETRY_ATTEMPTS) {
+          failedActions.push(updatedAction);
+        } else {
+          console.warn(`Acción ${action.type} descartada después de ${MAX_RETRY_ATTEMPTS} intentos`);
+        }
+      }
+    }
+
+    // Actualizar estado con acciones fallidas
+    setState(prev => {
+      const newState = { 
+        ...prev, 
+        pendingActions: failedActions,
+        lastSyncTime: new Date(),
+      };
+      
+      // Guardar en localStorage
+      localStorage.setItem('pendingActions', JSON.stringify(failedActions));
+      return newState;
+    });
+  }, [state.isOnline, state.pendingActions]);
+
+  // Procesar acción individual
+  const processAction = async (action: PendingAction): Promise<void> => {
+    switch (action.type) {
+      case 'score_update':
+        await fetch('/api/scores/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(action.data),
+        });
+        break;
+        
+      case 'participant_registration':
+        await fetch('/api/participants/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(action.data),
+        });
+        break;
+        
+      case 'judge_assignment':
+        await fetch('/api/judge-assignments/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(action.data),
+        });
+        break;
+        
+      default:
+        throw new Error(`Tipo de acción no soportado: ${action.type}`);
+    }
+  };
+
+  // Cachear competencia para uso offline
+  const cacheCompetition = useCallback(async (competitionId: string): Promise<boolean> => {
+    if (!state.isServiceWorkerReady) return false;
+
+    try {
+      const channel = new MessageChannel();
+      
+      return new Promise((resolve) => {
+        channel.port1.onmessage = (event) => {
+          resolve(event.data.success);
+        };
+        
+        navigator.serviceWorker.controller?.postMessage(
+          { type: 'CACHE_COMPETITION', competitionId },
+          [channel.port2]
+        );
+      });
+    } catch (error) {
+      console.error('Error cacheando competencia:', error);
+      return false;
+    }
+  }, [state.isServiceWorkerReady]);
+
+  // Limpiar cache
+  const clearCache = useCallback(async (): Promise<boolean> => {
+    if (!state.isServiceWorkerReady) return false;
+
+    try {
+      const channel = new MessageChannel();
+      
+      return new Promise((resolve) => {
+        channel.port1.onmessage = (event) => {
+          resolve(event.data.success);
+        };
+        
+        navigator.serviceWorker.controller?.postMessage(
+          { type: 'CLEAR_CACHE' },
+          [channel.port2]
+        );
+      });
+    } catch (error) {
+      console.error('Error limpiando cache:', error);
+      return false;
+    }
+  }, [state.isServiceWorkerReady]);
+
+  // Obtener estado del cache
+  const getCacheStatus = useCallback(async (): Promise<CacheStatus | null> => {
+    if (!state.isServiceWorkerReady) return null;
+
+    try {
+      const channel = new MessageChannel();
+      
+      return new Promise((resolve) => {
+        channel.port1.onmessage = (event) => {
+          if (event.data.success) {
+            setState(prev => ({ ...prev, cacheStatus: event.data.status }));
+            resolve(event.data.status);
+          } else {
+            resolve(null);
+          }
+        };
+        
+        navigator.serviceWorker.controller?.postMessage(
+          { type: 'GET_CACHE_STATUS' },
+          [channel.port2]
+        );
+      });
+    } catch (error) {
+      console.error('Error obteniendo estado del cache:', error);
+      return null;
+    }
+  }, [state.isServiceWorkerReady]);
+
+  // Limpiar acciones pendientes manualmente
+  const clearPendingActions = useCallback(() => {
+    setState(prev => ({ ...prev, pendingActions: [] }));
+    localStorage.removeItem('pendingActions');
+  }, []);
+
+  return {
+    ...state,
+    addPendingAction,
+    syncPendingActions,
+    cacheCompetition,
+    clearCache,
+    getCacheStatus,
+    clearPendingActions,
+  };
+}
+
+// Hook para uso en componentes que necesitan funcionalidad offline
+export function useOfflineCapable() {
+  const offline = useOffline();
+  
+  const executeOfflineCapable = useCallback(async (
+    action: () => Promise<any>,
+    fallbackAction?: Omit<PendingAction, 'id' | 'timestamp' | 'retryCount'>
+  ) => {
+    if (offline.isOnline) {
+      try {
+        return await action();
+      } catch (error) {
+        // Si falla estando online, agregar a cola offline
+        if (fallbackAction) {
+          offline.addPendingAction(fallbackAction);
+        }
+        throw error;
+      }
+    } else {
+      // Si está offline, agregar directamente a cola
+      if (fallbackAction) {
+        offline.addPendingAction(fallbackAction);
+        return Promise.resolve(null);
+      } else {
+        throw new Error('No hay conexión y no se proporcionó acción de respaldo');
+      }
+    }
+  }, [offline]);
+
+  return {
+    ...offline,
+    executeOfflineCapable,
+  };
+}
