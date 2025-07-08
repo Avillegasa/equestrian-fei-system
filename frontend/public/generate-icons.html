@@ -1,0 +1,76 @@
+<!-- frontend/public/generate-icons.html -->
+<!-- Archivo temporal para generar iconos usando canvas -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generador de Iconos</title>
+</head>
+<body>
+    <h1>Generador de Iconos PWA</h1>
+    <canvas id="canvas" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    <button onclick="generateIcons()">Generar Iconos</button>
+    
+    <script>
+        function generateIcons() {
+            const sizes = [72, 96, 128, 144, 152, 167, 180, 192, 384, 512];
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            sizes.forEach(size => {
+                // Limpiar canvas
+                canvas.width = size;
+                canvas.height = size;
+                ctx.clearRect(0, 0, size, size);
+                
+                // Fondo azul
+                ctx.fillStyle = '#3B82F6';
+                ctx.fillRect(0, 0, size, size);
+                
+                // Texto blanco centrado
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${size * 0.2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('FEI', size / 2, size / 2);
+                
+                // Crear enlace de descarga
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `icon-${size}x${size}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            });
+            
+            // Favicon
+            canvas.width = 32;
+            canvas.height = 32;
+            ctx.clearRect(0, 0, 32, 32);
+            ctx.fillStyle = '#3B82F6';
+            ctx.fillRect(0, 0, 32, 32);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('F', 16, 16);
+            
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'favicon-32x32.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
+</body>
+</html>
