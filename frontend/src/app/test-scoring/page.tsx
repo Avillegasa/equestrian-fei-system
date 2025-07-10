@@ -1,35 +1,12 @@
 'use client';
 
-// frontend/src/app/test-scoring/page.tsx
-
 import React, { useState, useEffect } from 'react';
-import { ScoreInputV2 } from '@/components/scoring/ScoreInputV2';
+import { ScoreInputV3 } from '@/components/scoring/ScoreInputV3';
 import { useOffline } from '@/hooks/useOffline';
 
-// Deshabilitar SSR para evitar hydration mismatch
-const NoSSRWrapper = ({ children }: { children: React.ReactNode }) => {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando página de test...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  return <>{children}</>;
-};
-
-function TestScoringPageContent() {
+export default function TestScoringPage() {
   const { isOnline, pendingActions, lastSyncTime } = useOffline();
+  const [isHydrated, setIsHydrated] = useState(false);
   const [testScores, setTestScores] = useState<Record<string, number>>({
     'movement_1': 7.5,
     'movement_2': 8.0,
@@ -37,6 +14,11 @@ function TestScoringPageContent() {
     'movement_4': 0,
     'movement_5': 0,
   });
+
+  // Fix hydration - Esperar montaje completo
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const mockMovements = [
     { id: 'movement_1', name: 'Entrada y Alto', coefficient: 1 },
@@ -63,254 +45,259 @@ function TestScoringPageContent() {
 
   const percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
 
-  return (
-    <>
-      {/* CSS de respaldo inline para offline */}
-      <style jsx>{`
-        .test-container {
-          min-height: 100vh;
-          background-color: #ffffff;
-          padding: 2rem 0;
-        }
-        .test-wrapper {
-          max-width: 56rem;
-          margin: 0 auto;
-          padding: 0 1rem;
-        }
-        .test-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 1.5rem;
-        }
-        @media (min-width: 1024px) {
-          .test-grid {
-            grid-template-columns: 1fr 2fr;
-          }
-        }
-        .test-card {
-          background: white;
-          border-radius: 0.5rem;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          padding: 1.5rem;
-          margin-bottom: 1.5rem;
-        }
-        .test-instructions {
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          border-radius: 0.5rem;
-          padding: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        .test-movement {
-          border: 1px solid #e5e7eb;
-          border-radius: 0.5rem;
-          padding: 1rem;
-          margin-bottom: 1rem;
-        }
-        .test-summary {
-          background: #f9fafb;
-          border-radius: 0.5rem;
-          padding: 1rem;
-          margin-top: 1.5rem;
-        }
-        .test-pending {
-          background: #fefce8;
-          border: 1px solid #fde047;
-          border-radius: 0.5rem;
-          padding: 1rem;
-          margin-top: 1.5rem;
-        }
-        /* FORZAR NÚMEROS NEGROS EN INPUTS - SÚPER AGRESIVO */
-        input[type="number"] {
-          color: #000000 !important;
-          font-weight: bold !important;
-          font-size: 1.125rem !important;
-        }
-        .score-input-v2 {
-          color: #000000 !important;
-          font-weight: bold !important;
-          font-size: 1.125rem !important;
-        }
-        /* Forzar en todos los contextos posibles */
-        .score-input-v2, 
-        input.score-input-v2,
-        .score-input-v2[type="number"],
-        input[type="number"].score-input-v2 {
-          color: #000000 !important;
-          font-weight: bold !important;
-        }
-      `}</style>
-      
-      <div className="test-container min-h-screen bg-white py-8">
-        <div className="test-wrapper container mx-auto px-4 max-w-4xl">
-          {/* Header */}
-          <div className="test-card bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  🧪 Test de Calificaciones Offline
-                </h1>
-                <p className="text-gray-600">
-                  Prueba el sistema de calificaciones con funcionalidad offline
-                </p>
-              </div>
-              
-              {/* Estado de conexión */}
-              <div className="mt-4 sm:mt-0 flex flex-col items-end space-y-2" style={{marginTop: '1rem'}}>
-                <div className="flex items-center space-x-2">
-                  {isOnline ? (
-                    <>
-                      <div className="w-5 h-5 rounded-full bg-green-500" title="Online" />
-                      <span className="text-green-600 font-medium" style={{color: '#059669', fontWeight: '500'}}>Online</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-5 h-5 rounded-full bg-red-500" title="Offline" />
-                      <span className="text-red-600 font-medium" style={{color: '#dc2626', fontWeight: '500'}}>Offline</span>
-                    </>
-                  )}
-                </div>
-                
-                {pendingActions.length > 0 && (
-                  <div className="flex items-center space-x-1 text-sm">
-                    <div className="w-4 h-4 rounded-full bg-yellow-500" title="Datos pendientes" />
-                    <span className="text-yellow-600" style={{color: '#ca8a04', fontSize: '0.875rem'}}>
-                      {pendingActions.length} pendientes
-                    </span>
-                  </div>
-                )}
-                
-                {lastSyncTime && (
-                  <div className="text-xs text-gray-500" style={{fontSize: '0.75rem', color: '#6b7280'}}>
-                    Última sync: {lastSyncTime.toLocaleTimeString()}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Instrucciones */}
-          <div className="test-instructions bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-blue-900 mb-2" style={{fontWeight: '600', color: '#1e3a8a', marginBottom: '0.5rem'}}>
-              📋 Instrucciones de prueba:
-            </h3>
-            <ol className="text-sm text-blue-800 space-y-1" style={{fontSize: '0.875rem', color: '#1e40af'}}>
-              <li style={{marginBottom: '0.25rem'}}><strong>1.</strong> Modifica las puntuaciones mientras estás <strong>online</strong></li>
-              <li style={{marginBottom: '0.25rem'}}><strong>2.</strong> Activa el <strong>modo offline</strong> en DevTools (Application → Service Workers → Offline)</li>
-              <li style={{marginBottom: '0.25rem'}}><strong>3.</strong> Modifica más puntuaciones y observa los indicadores</li>
-              <li style={{marginBottom: '0.25rem'}}><strong>4.</strong> Desactiva el modo offline y observa la sincronización</li>
-            </ol>
-          </div>
-
-          {/* Panel principal */}
-          <div className="test-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Panel de participantes */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
-                <div className="w-5 h-5 rounded-full bg-blue-500 mr-2" />
-                Participante de Prueba
-              </h2>
-              
-              <div className="space-y-3">
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <h3 className="font-medium text-gray-900 dark:text-white">Ana García</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Caballo: Thunder</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Categoría: Intermedio I</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Panel de calificaciones */}
-            <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
-                <div className="w-5 h-5 rounded-full bg-yellow-500 mr-2" />
-                Calificaciones FEI
-              </h2>
-              
-              <div className="space-y-4">
-                {mockMovements.map((movement) => (
-                  <div key={movement.id} className="test-movement border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium text-gray-900 dark:text-white">
-                          {movement.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Coeficiente: {movement.coefficient}x
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <ScoreInputV2
-                      participantId="1"
-                      judgeId="judge-test"
-                      evaluationId={movement.id}
-                      currentScore={testScores[movement.id] || 0}
-                      onScoreChange={(score) => handleScoreChange(movement.id, score)}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Resumen de puntuación */}
-              <div className="test-summary mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {totalScore.toFixed(1)}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Puntos totales
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {maxPossibleScore}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Máximo posible
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {percentage.toFixed(1)}%
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Porcentaje
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Panel de debugging offline */}
-          {pendingActions.length > 0 && (
-            <div className="test-pending mt-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
-                🔄 Acciones pendientes de sincronización:
-              </h3>
-              <div className="space-y-2">
-                {pendingActions.map((action) => (
-                  <div key={action.id} className="text-sm font-mono bg-yellow-100 dark:bg-yellow-800/20 p-2 rounded">
-                    <strong>Tipo:</strong> {action.type} | 
-                    <strong> ID:</strong> {action.id.substring(0, 8)}... | 
-                    <strong> Reintentos:</strong> {action.retryCount}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+  // Loading state durante hydration
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando Test de Calificaciones...</p>
         </div>
       </div>
-    </>
-  );
-}
+    );
+  }
 
-export default function TestScoringPage() {
   return (
-    <NoSSRWrapper>
-      <TestScoringPageContent />
-    </NoSSRWrapper>
+    <div className="min-h-screen bg-white py-8">
+      <div className="container mx-auto px-4 max-w-4xl">
+        
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                🏆 Test de Calificaciones Offline
+                <span className={`ml-3 px-2 py-1 text-sm rounded-full ${
+                  isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Prueba el sistema de calificaciones con funcionalidad offline
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Instrucciones */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-blue-900 mb-2">📋 Instrucciones de prueba:</h3>
+          <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
+            <li>Modifica las puntuaciones mientras estás online</li>
+            <li>Activa el modo offline en DevTools (Application → Service Workers → Offline)</li>
+            <li>Modifica más puntuaciones y observa los indicadores</li>
+            <li>Desactiva el modo offline y observa la sincronización</li>
+          </ol>
+        </div>
+
+        {/* Grid principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          
+          {/* Información del participante */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Participante de Prueba</h3>
+            <div className="space-y-2 text-sm">
+              <div><span className="font-medium">Nombre:</span> Ana García</div>
+              <div><span className="font-medium">Caballo:</span> Thunder</div>
+              <div><span className="font-medium">Categoría:</span> Intermedio I</div>
+            </div>
+          </div>
+
+          {/* Calificaciones totales */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Calificaciones FEI</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Puntuación Total:</span>
+                <span className="font-mono font-bold text-lg text-black">
+                  {totalScore.toFixed(1)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Máximo Posible:</span>
+                <span className="font-mono text-black">
+                  {maxPossibleScore.toFixed(1)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Porcentaje:</span>
+                <span className="font-mono font-bold text-lg text-black">
+                  {percentage.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Estado del sistema */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Estado del Sistema</h3>
+            <div className="space-y-3">
+              
+              {/* Conectividad */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Conectividad:</span>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    isOnline ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  <span className={`text-xs font-medium ${
+                    isOnline ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {isOnline ? 'En línea' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Acciones pendientes */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Pendientes:</span>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    pendingActions.length > 0 ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}></div>
+                  <span className="text-xs text-gray-600">
+                    {pendingActions.length} en cola
+                  </span>
+                </div>
+              </div>
+              
+              {/* Última sincronización */}
+              <div className="text-xs text-gray-500">
+                Última sync: {lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : 'Nunca'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabla de movimientos */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Movimientos y Calificaciones</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Los números deberían verse en NEGRO y en negrita. Fondo amarillo = cambios pendientes.
+            </p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Movimiento
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Coeficiente
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Puntuación FEI
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Puntos Totales
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {mockMovements.map((movement, index) => (
+                  <tr key={movement.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{movement.name}</div>
+                      <div className="text-sm text-gray-500">Movimiento #{index + 1}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {movement.coefficient}x
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <ScoreInputV3
+                        participantId="test_participant_001"
+                        judgeId="test_judge_001"
+                        evaluationId={movement.id}
+                        currentScore={testScores[movement.id]}
+                        onScoreChange={(newScore) => handleScoreChange(movement.id, newScore)}
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-mono font-bold text-black">
+                        {((testScores[movement.id] || 0) * movement.coefficient).toFixed(1)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50">
+                <tr>
+                  <td colSpan={3} className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                    TOTAL:
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-lg font-mono font-bold text-black">
+                      {totalScore.toFixed(1)} / {maxPossibleScore.toFixed(1)}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* Debug - Acciones pendientes */}
+        {pendingActions.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-semibold text-yellow-900">🔄 Acciones Pendientes de Sincronización:</h4>
+              <div className="space-x-2">
+                <button
+                  onClick={() => {
+                    const { syncPendingActions } = useOffline();
+                    syncPendingActions();
+                  }}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  disabled={!isOnline}
+                >
+                  Sincronizar Ahora
+                </button>
+                <button
+                  onClick={() => {
+                    const { clearPendingActions } = useOffline();
+                    clearPendingActions();
+                  }}
+                  className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Limpiar Cola
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {pendingActions.map((action, index) => (
+                <div key={index} className="text-sm text-yellow-800 font-mono bg-yellow-100 p-2 rounded">
+                  <div><strong>Tipo:</strong> {action.type}</div>
+                  <div><strong>ID:</strong> {action.id || 'N/A'}</div>
+                  <div><strong>Reintentos:</strong> {action.retryCount || 0}</div>
+                  <div><strong>Datos:</strong> {JSON.stringify(action.data, null, 2)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Nota importante */}
+        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-2">⚠️ Prueba de Visibilidad:</h4>
+          <div className="space-y-2 text-sm text-gray-600">
+            <p>
+              <strong>✅ CORRECTO:</strong> Números en <span className="font-mono font-bold text-black">NEGRO y NEGRITA</span>
+            </p>
+            <p>
+              <strong>❌ PROBLEMA:</strong> Si los números se ven grises, borrosos o invisibles
+            </p>
+            <p>
+              <strong>🟡 CAMBIOS PENDIENTES:</strong> Fondo amarillo con números aún en negro
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

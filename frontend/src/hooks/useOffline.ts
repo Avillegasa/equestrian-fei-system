@@ -1,6 +1,6 @@
 'use client';
 
-// frontend/src/hooks/useOffline.ts
+// frontend/src/hooks/useOffline.ts - VERSION CON DEBUG MEJORADO
 
 import { useState, useEffect, useCallback } from 'react';
 
@@ -31,8 +31,6 @@ const SYNC_INTERVAL = 30000; // 30 segundos
 
 // Función auxiliar para procesar acciones
 const processAction = async (action: PendingAction) => {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  
   switch (action.type) {
     case 'score_update':
       console.log('🔄 Procesando acción offline:', action.type, action.data);
@@ -57,12 +55,10 @@ const processAction = async (action: PendingAction) => {
       
     case 'participant_registration':
       console.log('🔄 Procesando registro de participante...');
-      // Implementar lógica para registrar participante
       break;
       
     case 'judge_assignment':
       console.log('🔄 Procesando asignación de juez...');
-      // Implementar lógica para asignar juez
       break;
       
     default:
@@ -78,6 +74,15 @@ export function useOffline() {
     pendingActions: [],
     cacheStatus: null,
   });
+
+  // DEBUG: Log del estado cada vez que cambia
+  useEffect(() => {
+    console.log('🔍 DEBUG - Estado actual:', {
+      isOnline: state.isOnline,
+      pendingActionsCount: state.pendingActions.length,
+      pendingActionIds: state.pendingActions.map(a => `${a.type}-${a.id.slice(-8)}`),
+    });
+  }, [state.isOnline, state.pendingActions.length]);
 
   // Inicializar Service Worker
   useEffect(() => {
@@ -98,14 +103,20 @@ export function useOffline() {
     if (typeof window === 'undefined') return;
 
     const handleOnline = () => {
-      setState(prev => ({ ...prev, isOnline: true }));
-      // Intentar sincronizar cuando vuelva la conexión
+      console.log('🌐 Conexión restaurada - iniciando sincronización...');
+      setState(prev => {
+        console.log('🔍 DEBUG - Acciones antes de volver online:', prev.pendingActions.length);
+        return { ...prev, isOnline: true };
+      });
+      // Intentar sincronizar cuando vuelva la conexión - CON DELAY
       setTimeout(() => {
+        console.log('🔍 DEBUG - Ejecutando sincronización después del delay...');
         syncPendingActions();
-      }, 1000);
+      }, 2000); // Aumentar delay a 2 segundos
     };
 
     const handleOffline = () => {
+      console.log('📴 Conexión perdida - modo offline activado');
       setState(prev => ({ ...prev, isOnline: false }));
     };
 
@@ -116,7 +127,7 @@ export function useOffline() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, []); // Remover dependencia de syncPendingActions para evitar recreación
 
   // Cargar datos pendientes del localStorage
   useEffect(() => {
@@ -130,7 +141,11 @@ export function useOffline() {
             ...action,
             timestamp: new Date(action.timestamp),
           }));
+          console.log(`📋 Cargadas ${actions.length} acciones pendientes del localStorage:`, 
+            actions.map(a => `${a.type}-${a.id.slice(-8)}`));
           setState(prev => ({ ...prev, pendingActions: actions }));
+        } else {
+          console.log('📋 No hay acciones pendientes en localStorage');
         }
       } catch (error) {
         console.error('Error cargando acciones pendientes:', error);
@@ -149,34 +164,84 @@ export function useOffline() {
       retryCount: 0,
     };
 
+    console.log('➕ Agregando acción pendiente:', newAction.type, newAction.id.slice(-8));
+
     setState(prev => {
       const newPendingActions = [...prev.pendingActions, newAction];
-      // Guardar en localStorage
+      console.log('🔍 DEBUG - Nuevas acciones pendientes:', newPendingActions.length);
+      
+      // Guardar en localStorage INMEDIATAMENTE
       if (typeof window !== 'undefined') {
-        localStorage.setItem('pendingActions', JSON.stringify(newPendingActions));
+        try {
+          localStorage.setItem('pendingActions', JSON.stringify(newPendingActions));
+          console.log('💾 Guardado en localStorage:', newPendingActions.length, 'acciones');
+          
+          // VERIFICAR que se guardó correctamente
+          const verification = localStorage.getItem('pendingActions');
+          if (verification) {
+            const parsed = JSON.parse(verification);
+            console.log('✅ Verificación localStorage:', parsed.length, 'acciones guardadas');
+          }
+        } catch (error) {
+          console.error('❌ Error guardando en localStorage:', error);
+        }
       }
+      
       return { ...prev, pendingActions: newPendingActions };
     });
 
-    // Si está online, intentar sincronizar inmediatamente
-    if (state.isOnline) {
-      setTimeout(() => syncPendingActions(), 100);
-    }
-  }, [state.isOnline]);
+    // NO intentar sincronizar inmediatamente si está online
+    // Dejar que sea manual o por intervalo
+  }, []);
 
-  // Sincronizar acciones pendientes
+  // Sincronizar acciones pendientes - MEJORADO CON MÁS DEBUG
   const syncPendingActions = useCallback(async () => {
-    if (!state.isOnline || state.pendingActions.length === 0) return;
+    console.log('🔍 DEBUG - syncPendingActions llamado');
+    console.log('🔍 DEBUG - Estado actual en sync:', {
+      isOnline: state.isOnline,
+      pendingCount: state.pendingActions.length
+    });
 
-    const actionsToSync = [...state.pendingActions];
+    // Obtener acciones más recientes del localStorage ANTES de sincronizar
+    let currentActions = state.pendingActions;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('pendingActions');
+        if (stored) {
+          currentActions = JSON.parse(stored).map((action: any) => ({
+            ...action,
+            timestamp: new Date(action.timestamp),
+          }));
+          console.log('🔍 DEBUG - Acciones desde localStorage:', currentActions.length);
+        }
+      } catch (error) {
+        console.error('Error leyendo localStorage en sync:', error);
+      }
+    }
+
+    if (!state.isOnline || currentActions.length === 0) {
+      console.log('🔄 No se puede sincronizar:', !state.isOnline ? 'sin conexión' : 'no hay acciones pendientes');
+      console.log('🔍 DEBUG - Detalles:', {
+        isOnline: state.isOnline,
+        actionsFromState: state.pendingActions.length,
+        actionsFromStorage: currentActions.length
+      });
+      return;
+    }
+
+    console.log(`🔄 Iniciando sincronización de ${currentActions.length} acciones...`);
+    
+    const actionsToSync = [...currentActions];
     const failedActions: PendingAction[] = [];
+    let successCount = 0;
 
     for (const action of actionsToSync) {
       try {
         await processAction(action);
-        console.log(`Acción sincronizada: ${action.type}`);
+        console.log(`✅ Acción sincronizada: ${action.type} (${action.id.slice(-8)})`);
+        successCount++;
       } catch (error) {
-        console.error(`Error sincronizando acción ${action.type}:`, error);
+        console.error(`❌ Error sincronizando acción ${action.type} (${action.id.slice(-8)}):`, error);
         
         // Incrementar contador de reintentos
         const updatedAction = {
@@ -187,11 +252,14 @@ export function useOffline() {
         // Si no ha superado el máximo de reintentos, mantener en cola
         if (updatedAction.retryCount < MAX_RETRY_ATTEMPTS) {
           failedActions.push(updatedAction);
+          console.log(`🔄 Acción ${action.type} reintentará (${updatedAction.retryCount}/${MAX_RETRY_ATTEMPTS})`);
         } else {
-          console.error(`Acción ${action.type} descartada después de ${MAX_RETRY_ATTEMPTS} reintentos`);
+          console.error(`💀 Acción ${action.type} descartada después de ${MAX_RETRY_ATTEMPTS} reintentos`);
         }
       }
     }
+
+    console.log(`📊 Sincronización completada: ${successCount} exitosas, ${failedActions.length} fallidas`);
 
     // Actualizar estado con acciones que fallaron
     setState(prev => {
@@ -203,7 +271,13 @@ export function useOffline() {
       
       // Actualizar localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('pendingActions', JSON.stringify(failedActions));
+        if (failedActions.length === 0) {
+          localStorage.removeItem('pendingActions');
+          console.log('🧹 localStorage limpiado - todas las acciones sincronizadas');
+        } else {
+          localStorage.setItem('pendingActions', JSON.stringify(failedActions));
+          console.log(`💾 ${failedActions.length} acciones guardadas en localStorage para reintento`);
+        }
       }
       
       return newState;
@@ -289,18 +363,33 @@ export function useOffline() {
 
   // Limpiar acciones pendientes manualmente
   const clearPendingActions = useCallback(() => {
+    console.log('🧹 Limpiando acciones pendientes manualmente');
     setState(prev => ({ ...prev, pendingActions: [] }));
     if (typeof window !== 'undefined') {
       localStorage.removeItem('pendingActions');
     }
   }, []);
 
-  // Sincronizar automáticamente
+  // Sincronizar automáticamente - MEJORADO
   useEffect(() => {
     if (!state.isOnline) return;
 
     const interval = setInterval(() => {
-      syncPendingActions();
+      // Verificar acciones en localStorage directamente
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('pendingActions');
+        if (stored) {
+          try {
+            const actions = JSON.parse(stored);
+            if (actions.length > 0) {
+              console.log('⏰ Sincronización automática programada - acciones en localStorage:', actions.length);
+              syncPendingActions();
+            }
+          } catch (error) {
+            console.error('Error verificando localStorage en intervalo:', error);
+          }
+        }
+      }
     }, SYNC_INTERVAL);
 
     return () => clearInterval(interval);
@@ -327,10 +416,14 @@ export function useOfflineCapable() {
   ) => {
     if (offline.isOnline) {
       try {
-        return await action();
+        const result = await action();
+        console.log('✅ Acción ejecutada online exitosamente');
+        return result;
       } catch (error) {
+        console.error('❌ Error ejecutando acción online:', error);
         // Si falla estando online, agregar a cola offline
         if (fallbackAction) {
+          console.log('💾 Guardando acción como pendiente por error online');
           offline.addPendingAction(fallbackAction);
         }
         throw error;
@@ -338,6 +431,7 @@ export function useOfflineCapable() {
     } else {
       // Si está offline, agregar directamente a cola
       if (fallbackAction) {
+        console.log('📴 Guardando acción offline');
         offline.addPendingAction(fallbackAction);
         return Promise.resolve(null);
       } else {

@@ -1,9 +1,4 @@
-'use client';
-
-// frontend/src/components/ui/OfflineWrapper.tsx
-
 import React from 'react';
-import { OfflineIndicator, OfflineStatusBar } from './OfflineIndicator';
 
 interface OfflineWrapperProps {
   children: React.ReactNode;
@@ -11,15 +6,8 @@ interface OfflineWrapperProps {
 
 export function OfflineWrapper({ children }: OfflineWrapperProps) {
   return (
-    <>
-      {/* Barra de estado offline */}
-      <OfflineStatusBar />
-      
-      {/* Contenido principal */}
+    <div>
       {children}
-      
-      {/* Indicador offline en esquina */}
-      <OfflineIndicator position="top-right" />
-    </>
+    </div>
   );
 }

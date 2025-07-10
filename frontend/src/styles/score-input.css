@@ -1,0 +1,46 @@
+/* frontend/src/styles/score-input.css */
+
+/* Estilos específicos para asegurar visibilidad de los inputs de puntuación */
+
+.score-input-v3 {
+  /* Forzar color negro en el texto */
+  color: #000000 !important;
+  
+  /* Asegurar contraste en todos los estados */
+  font-weight: 700 !important;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace !important;
+  
+  /* Prevenir problemas de herencia de color */
+  -webkit-text-fill-color: #000000 !important;
+  text-fill-color: #000000 !important;
+}
+
+.score-input-v3:focus {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  text-fill-color: #000000 !important;
+}
+
+.score-input-v3:disabled {
+  color: #6b7280 !important;
+  -webkit-text-fill-color: #6b7280 !important;
+  text-fill-color: #6b7280 !important;
+}
+
+/* Asegurar que los números sean visibles en cualquier contexto */
+.score-input-v3,
+input.score-input-v3,
+.score-input-v3[type="number"],
+input[type="number"].score-input-v3 {
+  color: #000000 !important;
+  font-weight: 700 !important;
+  -webkit-text-fill-color: #000000 !important;
+  text-fill-color: #000000 !important;
+}
+
+/* Asegurar que los totales y porcentajes también sean visibles */
+.text-black {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  text-fill-color: #000000 !important;
+}
