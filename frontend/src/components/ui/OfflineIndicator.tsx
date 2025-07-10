@@ -1,3 +1,5 @@
+'use client';
+
 // frontend/src/components/ui/OfflineIndicator.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -6,7 +8,7 @@ import {
   WifiOff, 
   Cloud, 
   CloudOff, 
-  Sync, 
+  RotateCw, 
   AlertTriangle, 
   CheckCircle,
   Clock,
@@ -55,7 +57,7 @@ export function OfflineIndicator({
   };
 
   const getStatusIcon = () => {
-    if (isSyncing) return <Sync className="w-4 h-4 animate-spin" />;
+    if (isSyncing) return <RotateCw className="w-4 h-4 animate-spin" />;
     if (!isOnline) return <WifiOff className="w-4 h-4" />;
     if (pendingActions.length > 0) return <Clock className="w-4 h-4" />;
     return <CheckCircle className="w-4 h-4" />;
@@ -104,11 +106,11 @@ export function OfflineIndicator({
         `}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
         {getStatusIcon()}
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <span className="text-sm font-medium text-gray-900 dark:text-white">
           {getStatusText()}
         </span>
+        
         {pendingActions.length > 0 && (
           <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
             {pendingActions.length}
@@ -117,26 +119,24 @@ export function OfflineIndicator({
       </div>
 
       {/* Panel Expandido */}
-      {isExpanded && showDetails && (
-        <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-t-0 rounded-b-lg shadow-lg backdrop-blur-sm bg-white/95 dark:bg-gray-800/95">
-          <div className="p-4 space-y-3">
-            {/* Header del Panel */}
+      {isExpanded && (
+        <div className="absolute top-full left-0 right-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 border-t-0 rounded-b-lg shadow-lg p-4 min-w-80">
+          <div className="space-y-4">
+            {/* Header con botón cerrar */}
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                Estado de Sincronización
-              </h3>
+              <h3 className="font-medium text-gray-900 dark:text-white">Estado de Sincronización</h3>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsExpanded(false);
                 }}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
 
-            {/* Estado de Conectividad */}
+            {/* Estado de Conexión */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Conexión</span>
@@ -144,12 +144,12 @@ export function OfflineIndicator({
                   {isOnline ? (
                     <>
                       <Wifi className="w-4 h-4 text-green-500" />
-                      <span className="text-green-600 dark:text-green-400">En línea</span>
+                      <span className="text-green-600 dark:text-green-400">Online</span>
                     </>
                   ) : (
                     <>
                       <WifiOff className="w-4 h-4 text-red-500" />
-                      <span className="text-red-600 dark:text-red-400">Sin conexión</span>
+                      <span className="text-red-600 dark:text-red-400">Offline</span>
                     </>
                   )}
                 </div>
@@ -240,7 +240,7 @@ export function OfflineIndicator({
                   disabled={isSyncing}
                   className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Sync className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <RotateCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                   <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
                 </button>
               )}

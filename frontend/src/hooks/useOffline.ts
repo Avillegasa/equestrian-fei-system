@@ -1,7 +1,8 @@
+'use client';
+
 // frontend/src/hooks/useOffline.ts
 
 import { useState, useEffect, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 
 export interface OfflineState {
   isOnline: boolean;
@@ -28,10 +29,42 @@ export interface CacheStatus {
 const MAX_RETRY_ATTEMPTS = 3;
 const SYNC_INTERVAL = 30000; // 30 segundos
 
+// Función auxiliar para procesar acciones
+const processAction = async (action: PendingAction) => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  
+  switch (action.type) {
+    case 'score_update':
+      const response = await fetch(`${baseUrl}/api/scores/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(action.data),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+      
+    case 'participant_registration':
+      // Implementar lógica para registrar participante
+      break;
+      
+    case 'judge_assignment':
+      // Implementar lógica para asignar juez
+      break;
+      
+    default:
+      throw new Error(`Tipo de acción no soportado: ${action.type}`);
+  }
+};
+
 export function useOffline() {
-  const queryClient = useQueryClient();
   const [state, setState] = useState<OfflineState>({
-    isOnline: navigator.onLine,
+    isOnline: typeof window !== 'undefined' ? navigator.onLine : true,
     isServiceWorkerReady: false,
     lastSyncTime: null,
     pendingActions: [],
@@ -40,7 +73,7 @@ export function useOffline() {
 
   // Inicializar Service Worker
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
           console.log('Service Worker registrado:', registration);
@@ -54,9 +87,14 @@ export function useOffline() {
 
   // Escuchar cambios de conectividad
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleOnline = () => {
       setState(prev => ({ ...prev, isOnline: true }));
-      syncPendingActions();
+      // Intentar sincronizar cuando vuelva la conexión
+      setTimeout(() => {
+        syncPendingActions();
+      }, 1000);
     };
 
     const handleOffline = () => {
@@ -74,6 +112,8 @@ export function useOffline() {
 
   // Cargar datos pendientes del localStorage
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const loadPendingActions = () => {
       try {
         const stored = localStorage.getItem('pendingActions');
@@ -92,17 +132,6 @@ export function useOffline() {
     loadPendingActions();
   }, []);
 
-  // Sincronizar automáticamente
-  useEffect(() => {
-    if (!state.isOnline) return;
-
-    const interval = setInterval(() => {
-      syncPendingActions();
-    }, SYNC_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [state.isOnline, state.pendingActions]);
-
   // Agregar acción pendiente
   const addPendingAction = useCallback((action: Omit<PendingAction, 'id' | 'timestamp' | 'retryCount'>) => {
     const newAction: PendingAction = {
@@ -115,7 +144,9 @@ export function useOffline() {
     setState(prev => {
       const newPendingActions = [...prev.pendingActions, newAction];
       // Guardar en localStorage
-      localStorage.setItem('pendingActions', JSON.stringify(newPendingActions));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingActions', JSON.stringify(newPendingActions));
+      }
       return { ...prev, pendingActions: newPendingActions };
     });
 
@@ -149,58 +180,29 @@ export function useOffline() {
         if (updatedAction.retryCount < MAX_RETRY_ATTEMPTS) {
           failedActions.push(updatedAction);
         } else {
-          console.warn(`Acción ${action.type} descartada después de ${MAX_RETRY_ATTEMPTS} intentos`);
+          console.error(`Acción ${action.type} descartada después de ${MAX_RETRY_ATTEMPTS} reintentos`);
         }
       }
     }
 
-    // Actualizar estado con acciones fallidas
+    // Actualizar estado con acciones que fallaron
     setState(prev => {
       const newState = { 
         ...prev, 
         pendingActions: failedActions,
-        lastSyncTime: new Date(),
+        lastSyncTime: new Date()
       };
       
-      // Guardar en localStorage
-      localStorage.setItem('pendingActions', JSON.stringify(failedActions));
+      // Actualizar localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingActions', JSON.stringify(failedActions));
+      }
+      
       return newState;
     });
   }, [state.isOnline, state.pendingActions]);
 
-  // Procesar acción individual
-  const processAction = async (action: PendingAction): Promise<void> => {
-    switch (action.type) {
-      case 'score_update':
-        await fetch('/api/scores/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(action.data),
-        });
-        break;
-        
-      case 'participant_registration':
-        await fetch('/api/participants/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(action.data),
-        });
-        break;
-        
-      case 'judge_assignment':
-        await fetch('/api/judge-assignments/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(action.data),
-        });
-        break;
-        
-      default:
-        throw new Error(`Tipo de acción no soportado: ${action.type}`);
-    }
-  };
-
-  // Cachear competencia para uso offline
+  // Cachear competencia
   const cacheCompetition = useCallback(async (competitionId: string): Promise<boolean> => {
     if (!state.isServiceWorkerReady) return false;
 
@@ -213,7 +215,10 @@ export function useOffline() {
         };
         
         navigator.serviceWorker.controller?.postMessage(
-          { type: 'CACHE_COMPETITION', competitionId },
+          { 
+            type: 'CACHE_COMPETITION', 
+            competitionId 
+          },
           [channel.port2]
         );
       });
@@ -277,8 +282,21 @@ export function useOffline() {
   // Limpiar acciones pendientes manualmente
   const clearPendingActions = useCallback(() => {
     setState(prev => ({ ...prev, pendingActions: [] }));
-    localStorage.removeItem('pendingActions');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pendingActions');
+    }
   }, []);
+
+  // Sincronizar automáticamente
+  useEffect(() => {
+    if (!state.isOnline) return;
+
+    const interval = setInterval(() => {
+      syncPendingActions();
+    }, SYNC_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [state.isOnline, syncPendingActions]);
 
   return {
     ...state,

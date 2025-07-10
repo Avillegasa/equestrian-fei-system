@@ -3,6 +3,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { OfflineWrapper } from '@/components/ui/OfflineWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -79,7 +80,10 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
       <body className={inter.className}>
-        {children}
+        {/* Wrapper que contiene todos los componentes offline */}
+        <OfflineWrapper>
+          {children}
+        </OfflineWrapper>
       </body>
     </html>
   );

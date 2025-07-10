@@ -1,4 +1,4 @@
-import os
+﻿import os
 from pathlib import Path
 from decouple import config
 
@@ -167,7 +167,7 @@ SIMPLE_JWT = {
 # Spectacular settings
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Equestrian FEI Management API',
-    'DESCRIPTION': 'API para el Sistema de Gestión de Competencias Ecuestres FEI',
+    'DESCRIPTION': 'API para el Sistema de GestiÃ³n de Competencias Ecuestres FEI',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
@@ -176,14 +176,14 @@ SPECTACULAR_SETTINGS = {
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
 
-# Configuración de email para reset de passwords
+# ConfiguraciÃ³n de email para reset de passwords
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Para desarrollo
 DEFAULT_FROM_EMAIL = 'noreply@equestrian-fei.com'
 
 # URL del frontend para enlaces de reset
 FRONTEND_URL = 'http://localhost:3000'
 
-# Configuración adicional para JWT
+# ConfiguraciÃ³n adicional para JWT
 from datetime import timedelta
 
 SIMPLE_JWT.update({
@@ -209,10 +209,10 @@ SIMPLE_JWT.update({
     'JTI_CLAIM': 'jti',
 })
 
-# Configuración para rate limiting (usando django-ratelimit)
+# ConfiguraciÃ³n para rate limiting (usando django-ratelimit)
 RATELIMIT_ENABLE = True
 
-# Configuración de logging para auditoría
+# ConfiguraciÃ³n de logging para auditorÃ­a
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
