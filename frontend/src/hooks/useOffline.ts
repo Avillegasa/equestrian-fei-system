@@ -35,7 +35,9 @@ const processAction = async (action: PendingAction) => {
   
   switch (action.type) {
     case 'score_update':
-      const response = await fetch(`${baseUrl}/api/scores/`, {
+      console.log('🔄 Procesando acción offline:', action.type, action.data);
+      
+      const response = await fetch(`/api/scores/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,16 +46,22 @@ const processAction = async (action: PendingAction) => {
       });
       
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Error en API response:', response.status, errorText);
+        throw new Error(`Error ${response.status}: ${response.statusText} - ${errorText}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      console.log('✅ Acción sincronizada exitosamente:', result);
+      return result;
       
     case 'participant_registration':
+      console.log('🔄 Procesando registro de participante...');
       // Implementar lógica para registrar participante
       break;
       
     case 'judge_assignment':
+      console.log('🔄 Procesando asignación de juez...');
       // Implementar lógica para asignar juez
       break;
       

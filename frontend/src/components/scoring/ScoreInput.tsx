@@ -1,5 +1,7 @@
 // frontend/src/components/scoring/ScoreInput.tsx
 
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useOfflineCapable } from '@/hooks/useOffline';
 import { Wifi, WifiOff, Save, AlertCircle } from 'lucide-react';
@@ -26,19 +28,46 @@ export function ScoreInput({
   const [score, setScore] = useState<number>(currentScore);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLocalChanges, setHasLocalChanges] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   // Verificar si hay cambios pendientes para esta evaluación
-  const hasPendingChanges = pendingActions.some(action => 
+  const hasPendingChanges = isClient && pendingActions.some(action => 
     action.type === 'score_update' && 
     action.data.participant_id === participantId &&
     action.data.judge_id === judgeId &&
     action.data.scores[evaluationId]
   );
 
+  // Fix hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   useEffect(() => {
     setScore(currentScore);
     setHasLocalChanges(false);
   }, [currentScore]);
+
+  // Clases CSS estáticas para evitar hydration mismatch
+  const baseClasses = "w-20 px-3 py-2 text-center border rounded-md font-mono text-lg font-bold transition-colors focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50";
+  
+  const getInputClasses = () => {
+    if (!isClient) {
+      // SSR: clases básicas sin estados dinámicos
+      return `${baseClasses} bg-white border-gray-300 text-black`;
+    }
+    
+    // Cliente: clases dinámicas solo después de hidratación
+    if (readonly) {
+      return `${baseClasses} bg-gray-100 cursor-not-allowed text-gray-500`;
+    }
+    
+    if (hasLocalChanges || hasPendingChanges) {
+      return `${baseClasses} border-yellow-400 text-yellow-800 bg-yellow-50`;
+    }
+    
+    return `${baseClasses} bg-white border-gray-300 text-black`;
+  };
 
   const handleScoreUpdate = async (newScore: number) => {
     if (readonly) return;
@@ -133,14 +162,18 @@ export function ScoreInput({
         </label>
         <div className="flex items-center space-x-2">
           {/* Estado de conexión */}
-          {isOnline ? (
-            <Wifi className="w-4 h-4 text-green-500" />
-          ) : (
-            <WifiOff className="w-4 h-4 text-orange-500" />
+          {isClient && (
+            <>
+              {isOnline ? (
+                <Wifi className="w-4 h-4 text-green-500" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-orange-500" />
+              )}
+            </>
           )}
           
           {/* Indicador de cambios pendientes */}
-          {(hasLocalChanges || hasPendingChanges) && (
+          {isClient && (hasLocalChanges || hasPendingChanges) && (
             <div className="flex items-center space-x-1">
               <AlertCircle className="w-4 h-4 text-yellow-500" />
               <span className="text-xs text-yellow-600 dark:text-yellow-400">
@@ -171,19 +204,7 @@ export function ScoreInput({
           value={score}
           onChange={handleInputChange}
           disabled={readonly || isLoading}
-          className={`
-            w-20 px-3 py-2 text-center border rounded-md font-mono text-lg
-            ${readonly 
-              ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' 
-              : 'bg-white dark:bg-gray-900'
-            }
-            ${hasLocalChanges || hasPendingChanges
-              ? 'border-yellow-400 dark:border-yellow-500'
-              : 'border-gray-300 dark:border-gray-600'
-            }
-            focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            disabled:opacity-50 transition-colors
-          `}
+          className={getInputClasses()}
         />
 
         {/* Botón incrementar */}
@@ -198,7 +219,7 @@ export function ScoreInput({
 
       {/* Indicadores de estado adicionales */}
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        {!isOnline && (
+        {isClient && !isOnline && (
           <div className="flex items-center space-x-1 text-orange-600 dark:text-orange-400">
             <WifiOff className="w-3 h-3" />
             <span>Modo offline - cambios se sincronizarán automáticamente</span>

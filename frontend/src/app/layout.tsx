@@ -83,23 +83,83 @@ export default function RootLayout({
         <style dangerouslySetInnerHTML={{
           __html: `
             html { 
-              background-color: #f8fafc; 
+              background-color: #ffffff !important; 
             }
             body { 
-              background-color: #f8fafc; 
-              color: #1e293b; 
-              font-family: system-ui, -apple-system, sans-serif;
-              margin: 0;
-              padding: 0;
+              background-color: #ffffff !important; 
+              color: #000000 !important; 
+              font-family: system-ui, -apple-system, sans-serif !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
-            @media (prefers-color-scheme: dark) {
-              html { 
-                background-color: #0f172a; 
+            /* Forzar estilos básicos de layout */
+            .container { 
+              max-width: 1200px !important; 
+              margin: 0 auto !important; 
+              padding: 1rem !important; 
+            }
+            .grid { 
+              display: grid !important; 
+            }
+            .grid-cols-1 { 
+              grid-template-columns: repeat(1, minmax(0, 1fr)) !important; 
+            }
+            .lg\\:grid-cols-3 { 
+              grid-template-columns: repeat(1, minmax(0, 1fr)) !important; 
+            }
+            @media (min-width: 1024px) {
+              .lg\\:grid-cols-3 { 
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important; 
               }
-              body { 
-                background-color: #0f172a; 
-                color: #f1f5f9; 
-              }
+            }
+            .gap-6 { 
+              gap: 1.5rem !important; 
+            }
+            .bg-white { 
+              background-color: #ffffff !important; 
+            }
+            .bg-gray-50 { 
+              background-color: #f9fafb !important; 
+            }
+            .rounded-lg { 
+              border-radius: 0.5rem !important; 
+            }
+            .shadow-md { 
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important; 
+            }
+            .p-6 { 
+              padding: 1.5rem !important; 
+            }
+            .p-4 { 
+              padding: 1rem !important; 
+            }
+            .mb-6 { 
+              margin-bottom: 1.5rem !important; 
+            }
+            .mb-4 { 
+              margin-bottom: 1rem !important; 
+            }
+            .space-y-4 > * + * { 
+              margin-top: 1rem !important; 
+            }
+            .flex { 
+              display: flex !important; 
+            }
+            .items-center { 
+              align-items: center !important; 
+            }
+            .justify-between { 
+              justify-content: space-between !important; 
+            }
+            .text-xl { 
+              font-size: 1.25rem !important; 
+            }
+            .font-semibold { 
+              font-weight: 600 !important; 
+            }
+            .border { 
+              border-width: 1px !important; 
+              border-color: #e5e7eb !important; 
             }
           `
         }} />
