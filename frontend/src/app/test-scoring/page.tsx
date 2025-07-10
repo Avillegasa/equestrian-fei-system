@@ -126,12 +126,12 @@ export default function TestScoringPage() {
               <div className="flex items-center space-x-2">
                 {isOnline ? (
                   <>
-                    <Wifi className="w-5 h-5 text-green-500" style={{width: '1.25rem', height: '1.25rem', color: '#10b981'}} />
+                    <div className="w-5 h-5 rounded-full bg-green-500" title="Online" />
                     <span className="text-green-600 font-medium" style={{color: '#059669', fontWeight: '500'}}>Online</span>
                   </>
                 ) : (
                   <>
-                    <WifiOff className="w-5 h-5 text-red-500" style={{width: '1.25rem', height: '1.25rem', color: '#ef4444'}} />
+                    <div className="w-5 h-5 rounded-full bg-red-500" title="Offline" />
                     <span className="text-red-600 font-medium" style={{color: '#dc2626', fontWeight: '500'}}>Offline</span>
                   </>
                 )}
@@ -139,7 +139,7 @@ export default function TestScoringPage() {
               
               {pendingActions.length > 0 && (
                 <div className="flex items-center space-x-1 text-sm">
-                  <Database className="w-4 h-4 text-yellow-500" style={{width: '1rem', height: '1rem', color: '#eab308'}} />
+                  <div className="w-4 h-4 rounded-full bg-yellow-500" title="Datos pendientes" />
                   <span className="text-yellow-600" style={{color: '#ca8a04', fontSize: '0.875rem'}}>
                     {pendingActions.length} pendientes
                   </span>
@@ -173,7 +173,7 @@ export default function TestScoringPage() {
           {/* Panel de participantes */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
-              <Users className="w-5 h-5 mr-2" />
+              <div className="w-5 h-5 rounded-full bg-blue-500 mr-2" />
               Participante de Prueba
             </h2>
             
@@ -189,7 +189,7 @@ export default function TestScoringPage() {
           {/* Panel de calificaciones */}
           <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
-              <Award className="w-5 h-5 mr-2" />
+              <div className="w-5 h-5 rounded-full bg-yellow-500 mr-2" />
               Calificaciones FEI
             </h2>
             
@@ -269,6 +269,6 @@ export default function TestScoringPage() {
         )}
       </div>
     </div>
-    </>
-);
+    </>      
+  );
 }
