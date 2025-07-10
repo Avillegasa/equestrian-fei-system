@@ -1,9 +1,10 @@
-// frontend/src/app/layout.tsx
+// frontend/src/app/layout.tsx - Agregar al final del body
 
 import './globals.css'
-import '../styles/score-input.css'  // Agregar esta línea
+import '../styles/score-input.css'
 import { Inter } from 'next/font/google'
-import { OfflineWrapper } from '@/components/ui/OfflineWrapper'  // ← CORRECCIÓN AQUÍ
+import { OfflineWrapper } from '@/components/ui/OfflineWrapper'
+import { GlobalOfflineIndicator } from '@/components/ui/GlobalOfflineIndicator'
 import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -37,12 +38,14 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      {/* SUPRIMIR hydration warnings para el body - extensiones del navegador añaden atributos */}
       <body className={inter.className} suppressHydrationWarning={true}>
         {/* Wrapper que contiene todos los componentes offline */}
         <OfflineWrapper>
           {children}
         </OfflineWrapper>
+        
+        {/* NUEVO: Indicador flotante global */}
+        <GlobalOfflineIndicator />
         
         {/* Toast notifications */}
         <Toaster

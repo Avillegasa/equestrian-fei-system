@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { ScoreInputV3 } from '@/components/scoring/ScoreInputV3';
 import { useOffline } from '@/hooks/useOffline';
+import { ConnectivityToasts } from '@/components/ui/ConnectivityToasts';
+import { CacheManager } from '@/components/ui/CacheManager';
 
 export default function TestScoringPage() {
-  const { isOnline, pendingActions, lastSyncTime } = useOffline();
+  const { isOnline, pendingActions, lastSyncTime, syncPendingActions, clearPendingActions } = useOffline();
   const [isHydrated, setIsHydrated] = useState(false);
   const [testScores, setTestScores] = useState<Record<string, number>>({
     'movement_1': 7.5,
@@ -45,6 +47,20 @@ export default function TestScoringPage() {
 
   const percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
 
+  // Manejar sincronización manual
+  const handleManualSync = async () => {
+    try {
+      await syncPendingActions();
+    } catch (error) {
+      console.error('Error en sincronización manual:', error);
+    }
+  };
+
+  // Manejar limpieza manual
+  const handleClearQueue = () => {
+    clearPendingActions();
+  };
+
   // Loading state durante hydration
   if (!isHydrated) {
     return (
@@ -59,14 +75,14 @@ export default function TestScoringPage() {
 
   return (
     <div className="min-h-screen bg-white py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+      <div className="container mx-auto px-4 max-w-6xl">
         
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                🏆 Test de Calificaciones Offline
+                🏆 Test Completo de Sistema Offline
                 <span className={`ml-3 px-2 py-1 text-sm rounded-full ${
                   isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                 }`}>
@@ -74,25 +90,33 @@ export default function TestScoringPage() {
                 </span>
               </h1>
               <p className="text-gray-600 mt-1">
-                Prueba el sistema de calificaciones con funcionalidad offline
+                Prueba completa: calificaciones offline + cache de competencias
               </p>
             </div>
           </div>
         </div>
 
-        {/* Instrucciones */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">📋 Instrucciones de prueba:</h3>
-          <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
-            <li>Modifica las puntuaciones mientras estás online</li>
-            <li>Activa el modo offline en DevTools (Application → Service Workers → Offline)</li>
-            <li>Modifica más puntuaciones y observa los indicadores</li>
-            <li>Desactiva el modo offline y observa la sincronización</li>
-          </ol>
+        {/* Progreso de pasos */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-green-900 mb-2">📋 Progreso del Testing:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <span className="text-green-600">✅</span>
+              <span className="text-green-800"><strong>Paso 6:</strong> Calificaciones offline</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-green-600">✅</span>
+              <span className="text-green-800"><strong>Paso 7:</strong> Sincronización automática</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-blue-600">🔄</span>
+              <span className="text-blue-800"><strong>Paso 8:</strong> Cache de competencias</span>
+            </div>
+          </div>
         </div>
 
-        {/* Grid principal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Grid principal con cache manager */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
           
           {/* Información del participante */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -168,6 +192,11 @@ export default function TestScoringPage() {
               </div>
             </div>
           </div>
+
+          {/* NUEVO: Cache Manager */}
+          <div className="lg:row-span-2">
+            <CacheManager />
+          </div>
         </div>
 
         {/* Tabla de movimientos */}
@@ -175,7 +204,7 @@ export default function TestScoringPage() {
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Movimientos y Calificaciones</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Los números deberían verse en NEGRO y en negrita. Fondo amarillo = cambios pendientes.
+              Los números están en NEGRO y NEGRITA. Los toasts aparecen en la esquina superior derecha.
             </p>
           </div>
           
@@ -244,25 +273,19 @@ export default function TestScoringPage() {
 
         {/* Debug - Acciones pendientes */}
         {pendingActions.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex justify-between items-center mb-2">
               <h4 className="font-semibold text-yellow-900">🔄 Acciones Pendientes de Sincronización:</h4>
               <div className="space-x-2">
                 <button
-                  onClick={() => {
-                    const { syncPendingActions } = useOffline();
-                    syncPendingActions();
-                  }}
-                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  onClick={handleManualSync}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                   disabled={!isOnline}
                 >
                   Sincronizar Ahora
                 </button>
                 <button
-                  onClick={() => {
-                    const { clearPendingActions } = useOffline();
-                    clearPendingActions();
-                  }}
+                  onClick={handleClearQueue}
                   className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   Limpiar Cola
@@ -282,21 +305,25 @@ export default function TestScoringPage() {
           </div>
         )}
 
-        {/* Nota importante */}
-        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 className="font-semibold text-gray-900 mb-2">⚠️ Prueba de Visibilidad:</h4>
-          <div className="space-y-2 text-sm text-gray-600">
-            <p>
-              <strong>✅ CORRECTO:</strong> Números en <span className="font-mono font-bold text-black">NEGRO y NEGRITA</span>
-            </p>
-            <p>
-              <strong>❌ PROBLEMA:</strong> Si los números se ven grises, borrosos o invisibles
-            </p>
-            <p>
-              <strong>🟡 CAMBIOS PENDIENTES:</strong> Fondo amarillo con números aún en negro
-            </p>
+        {/* Instrucciones del Paso 8 */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 mb-2">🎯 Paso 8: Cache de Competencias</h4>
+          <div className="space-y-2 text-sm text-blue-800">
+            <p><strong>📋 Instrucciones:</strong></p>
+            <ol className="list-decimal list-inside space-y-1 ml-4">
+              <li>Presiona <strong>"🌐 Preparar para Offline"</strong> (lado derecho)</li>
+              <li>Observa la barra de progreso mientras cachea los datos</li>
+              <li>Verifica el panel de "📦 Datos Cacheados"</li>
+              <li>Usa <strong>"🧪 Test Datos Offline"</strong> para verificar disponibilidad</li>
+              <li>Ve offline y prueba que los datos estén disponibles</li>
+              <li>Usa <strong>"🗑️ Limpiar Cache"</strong> para resetear</li>
+            </ol>
+            <p className="mt-2"><strong>✅ Objetivo:</strong> Verificar que se pueden cachear datos de competencias para uso offline</p>
           </div>
         </div>
+
+        {/* Toasts de conectividad */}
+        <ConnectivityToasts />
       </div>
     </div>
   );
