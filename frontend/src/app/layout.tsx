@@ -78,6 +78,31 @@ export default function RootLayout({
         
         {/* Prevent zoom on input focus (optional) */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        
+        {/* CSS básico inline para offline */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            html { 
+              background-color: #f8fafc; 
+            }
+            body { 
+              background-color: #f8fafc; 
+              color: #1e293b; 
+              font-family: system-ui, -apple-system, sans-serif;
+              margin: 0;
+              padding: 0;
+            }
+            @media (prefers-color-scheme: dark) {
+              html { 
+                background-color: #0f172a; 
+              }
+              body { 
+                background-color: #0f172a; 
+                color: #f1f5f9; 
+              }
+            }
+          `
+        }} />
       </head>
       <body className={inter.className}>
         {/* Wrapper que contiene todos los componentes offline */}

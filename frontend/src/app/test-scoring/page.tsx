@@ -1,301 +1,214 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+// frontend/src/app/test-scoring/page.tsx
 
-interface APITestResult {
-  endpoint: string;
-  status: 'loading' | 'success' | 'error';
-  data?: any;
-  error?: string;
-}
+import React, { useState } from 'react';
+import { ScoreInput } from '@/components/scoring/ScoreInput';
+import { useOffline } from '@/hooks/useOffline';
+import { Wifi, WifiOff, Database, Users, Award } from 'lucide-react';
 
 export default function TestScoringPage() {
-  const [apiTests, setApiTests] = useState<APITestResult[]>([]);
-  const [isTestingAll, setIsTestingAll] = useState(false);
+  const { isOnline, pendingActions, lastSyncTime } = useOffline();
+  const [testScores, setTestScores] = useState<Record<string, number>>({
+    'movement_1': 7.5,
+    'movement_2': 8.0,
+    'movement_3': 6.5,
+    'movement_4': 0,
+    'movement_5': 0,
+  });
 
-  // Endpoints a probar - ACTUALIZADOS para incluir endpoints públicos
-  const endpoints = [
-    // Endpoints públicos (sin autenticación)
-    { name: 'Sistema General', url: '/api/scoring/test/', requiresAuth: false },
-    { name: 'Motor de Cálculo', url: '/api/scoring/test/calculator/', requiresAuth: false },
-    { name: 'Parámetros (Demo)', url: '/api/scoring/test/parameters/', requiresAuth: false },
-    
-    // Endpoints protegidos (requieren autenticación)
-    { name: 'Parameters (Auth)', url: '/api/scoring/parameters/', requiresAuth: true },
-    { name: 'Scores (Auth)', url: '/api/scoring/scores/', requiresAuth: true },
-    { name: 'Evaluations (Auth)', url: '/api/scoring/evaluations/', requiresAuth: true },
-    { name: 'Rankings (Auth)', url: '/api/scoring/rankings/', requiresAuth: true },
+  const mockParticipants = [
+    { id: '1', name: 'Ana García', horse: 'Thunder' },
+    { id: '2', name: 'Carlos López', horse: 'Stella' },
+    { id: '3', name: 'María Rodríguez', horse: 'Apollo' },
   ];
 
-  // Función para probar un endpoint
-  const testEndpoint = async (endpoint: { name: string; url: string; requiresAuth: boolean }) => {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const fullURL = `${baseURL}${endpoint.url}`;
+  const mockMovements = [
+    { id: 'movement_1', name: 'Entrada y Alto', coefficient: 1 },
+    { id: 'movement_2', name: 'Paso Reunido', coefficient: 2 },
+    { id: 'movement_3', name: 'Trote de Trabajo', coefficient: 1 },
+    { id: 'movement_4', name: 'Galope Reunido', coefficient: 2 },
+    { id: 'movement_5', name: 'Saludo Final', coefficient: 1 },
+  ];
 
-    try {
-      const response = await fetch(fullURL, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return {
-          endpoint: endpoint.name,
-          status: 'success' as const,
-          data: data,
-        };
-      } else if (response.status === 401 && endpoint.requiresAuth) {
-        // 401 es esperado para endpoints protegidos
-        return {
-          endpoint: endpoint.name,
-          status: 'success' as const,
-          data: { 
-            message: '✅ Endpoint protegido funcionando (401 esperado)',
-            status: 401,
-            note: 'Este endpoint requiere autenticación'
-          },
-        };
-      } else {
-        return {
-          endpoint: endpoint.name,
-          status: 'error' as const,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-        };
-      }
-    } catch (error) {
-      return {
-        endpoint: endpoint.name,
-        status: 'error' as const,
-        error: error instanceof Error ? error.message : 'Error desconocido',
-      };
-    }
+  const handleScoreChange = (movementId: string, newScore: number) => {
+    setTestScores(prev => ({
+      ...prev,
+      [movementId]: newScore
+    }));
   };
 
-  // Probar todos los endpoints
-  const testAllEndpoints = async () => {
-    setIsTestingAll(true);
-    setApiTests([]);
+  const totalScore = mockMovements.reduce((total, movement) => {
+    return total + (testScores[movement.id] || 0) * movement.coefficient;
+  }, 0);
 
-    for (const endpoint of endpoints) {
-      // Mostrar estado de carga
-      setApiTests(prev => [...prev, {
-        endpoint: endpoint.name,
-        status: 'loading'
-      }]);
+  const maxPossibleScore = mockMovements.reduce((total, movement) => {
+    return total + 10 * movement.coefficient;
+  }, 0);
 
-      const result = await testEndpoint(endpoint);
-      
-      // Actualizar con el resultado
-      setApiTests(prev => 
-        prev.map(test => 
-          test.endpoint === endpoint.name ? result : test
-        )
-      );
-
-      // Esperar un poco entre requests
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    setIsTestingAll(false);
-  };
-
-  // Probar automáticamente al cargar
-  useEffect(() => {
-    testAllEndpoints();
-  }, []);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'text-green-600 bg-green-50';
-      case 'error': return 'text-red-600 bg-red-50';
-      case 'loading': return 'text-blue-600 bg-blue-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success': return '✅';
-      case 'error': return '❌';
-      case 'loading': return '⏳';
-      default: return '⚪';
-    }
-  };
-
-  // Contar resultados
-  const successCount = apiTests.filter(test => test.status === 'success').length;
-  const errorCount = apiTests.filter(test => test.status === 'error').length;
-  const totalTests = apiTests.length;
+  const percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            🧪 Pruebas de Integración - Fase 4
-          </h1>
-          <p className="text-lg text-gray-600">
-            Verificación de comunicación entre Frontend y Backend
-          </p>
-        </div>
-
-        {/* Resumen de resultados */}
-        {totalTests > 0 && (
-          <div className="bg-white rounded-lg border shadow-sm p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              📊 Resumen de Pruebas
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{successCount}</div>
-                <div className="text-sm text-gray-600">Exitosas</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{errorCount}</div>
-                <div className="text-sm text-gray-600">Con Errores</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{totalTests}</div>
-                <div className="text-sm text-gray-600">Total</div>
-              </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="container mx-auto px-4 max-w-4xl">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                🧪 Test de Calificaciones Offline
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Prueba el sistema de calificaciones con funcionalidad offline
+              </p>
             </div>
             
-            {successCount === totalTests && totalTests > 0 && (
-              <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                <p className="text-green-800 font-medium text-center">
-                  🎉 ¡Todas las pruebas pasaron exitosamente!
-                </p>
+            {/* Estado de conexión */}
+            <div className="mt-4 sm:mt-0 flex flex-col items-end space-y-2">
+              <div className="flex items-center space-x-2">
+                {isOnline ? (
+                  <>
+                    <Wifi className="w-5 h-5 text-green-500" />
+                    <span className="text-green-600 dark:text-green-400 font-medium">Online</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-5 h-5 text-red-500" />
+                    <span className="text-red-600 dark:text-red-400 font-medium">Offline</span>
+                  </>
+                )}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Información del sistema */}
-        <div className="bg-blue-50 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-blue-900 mb-4">
-            ℹ️ Configuración del Sistema
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <strong>Frontend URL:</strong> {typeof window !== 'undefined' ? window.location.origin : 'localhost:3000'}
-            </div>
-            <div>
-              <strong>Backend URL:</strong> {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}
-            </div>
-          </div>
-        </div>
-
-        {/* Botón de prueba */}
-        <div className="mb-8">
-          <button
-            onClick={testAllEndpoints}
-            disabled={isTestingAll}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              isTestingAll
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {isTestingAll ? '🔄 Probando...' : '🔄 Probar Nuevamente'}
-          </button>
-        </div>
-
-        {/* Resultados de las pruebas */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            📊 Resultados de Pruebas API
-          </h2>
-
-          {apiTests.map((test, index) => (
-            <div key={index} className="bg-white rounded-lg border shadow-sm">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {getStatusIcon(test.status)} {test.endpoint}
-                  </h3>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(test.status)}`}>
-                    {test.status.toUpperCase()}
+              
+              {pendingActions.length > 0 && (
+                <div className="flex items-center space-x-1 text-sm">
+                  <Database className="w-4 h-4 text-yellow-500" />
+                  <span className="text-yellow-600 dark:text-yellow-400">
+                    {pendingActions.length} pendientes
                   </span>
                 </div>
+              )}
+              
+              {lastSyncTime && (
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Última sync: {lastSyncTime.toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-                {test.status === 'loading' && (
-                  <div className="flex items-center text-blue-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                    Probando endpoint...
-                  </div>
-                )}
+        {/* Instrucciones */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+            📋 Instrucciones de prueba:
+          </h3>
+          <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+            <li><strong>1.</strong> Modifica las puntuaciones mientras estás <strong>online</strong></li>
+            <li><strong>2.</strong> Activa el <strong>modo offline</strong> en DevTools (Application → Service Workers → Offline)</li>
+            <li><strong>3.</strong> Modifica más puntuaciones y observa los indicadores</li>
+            <li><strong>4.</strong> Desactiva el modo offline y observa la sincronización</li>
+          </ol>
+        </div>
 
-                {test.status === 'success' && (
-                  <div>
-                    <p className="text-green-600 mb-2">✅ Conexión exitosa</p>
-                    {test.data && (
-                      <details className="bg-gray-50 rounded p-3">
-                        <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-800">
-                          Ver respuesta JSON
-                        </summary>
-                        <pre className="mt-2 text-xs text-gray-800 overflow-auto max-h-64">
-                          {JSON.stringify(test.data, null, 2)}
-                        </pre>
-                      </details>
-                    )}
-                  </div>
-                )}
-
-                {test.status === 'error' && (
-                  <div>
-                    <p className="text-red-600 mb-2">❌ Error de conexión</p>
-                    <div className="bg-red-50 rounded p-3">
-                      <code className="text-sm text-red-800">
-                        {test.error}
-                      </code>
-                    </div>
-                  </div>
-                )}
+        {/* Panel principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Panel de participantes */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+              <Users className="w-5 h-5 mr-2" />
+              Participante de Prueba
+            </h2>
+            
+            <div className="space-y-3">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h3 className="font-medium text-gray-900 dark:text-white">Ana García</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Caballo: Thunder</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Categoría: Intermedio I</p>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Diagnóstico mejorado */}
-        <div className="mt-8 bg-gray-50 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            🔍 Diagnóstico
-          </h2>
-          <div className="space-y-2 text-sm text-gray-600">
-            <p>• <strong>Endpoints públicos:</strong> Deben mostrar ✅ - No requieren autenticación</p>
-            <p>• <strong>Endpoints (Auth):</strong> ✅ con 401 es correcto - Requieren login</p>
-            <p>• <strong>Si hay errores CORS:</strong> Verificar configuración de Django CORS</p>
-            <p>• <strong>Si hay errores 404:</strong> Verificar que los endpoints públicos estén agregados</p>
-            <p>• <strong>Si "Motor de Cálculo" es ✅:</strong> El sistema FEI funciona correctamente</p>
           </div>
-        </div>
 
-        {/* Enlaces útiles */}
-        <div className="mt-8 bg-yellow-50 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-yellow-900 mb-4">
-            🔗 Enlaces de Prueba Directa
-          </h2>
-          <div className="space-y-2">
-            {endpoints.filter(e => !e.requiresAuth).map((endpoint, index) => {
-              const fullURL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${endpoint.url}`;
-              return (
-                <div key={index}>
-                  <a
-                    href={fullURL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline"
-                  >
-                    {endpoint.name}: {fullURL}
-                  </a>
+          {/* Panel de calificaciones */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+              <Award className="w-5 h-5 mr-2" />
+              Calificaciones FEI
+            </h2>
+            
+            <div className="space-y-4">
+              {mockMovements.map((movement) => (
+                <div key={movement.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {movement.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Coeficiente: {movement.coefficient}x
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <ScoreInput
+                    participantId="1"
+                    judgeId="judge-test"
+                    evaluationId={movement.id}
+                    currentScore={testScores[movement.id] || 0}
+                    onScoreChange={(score) => handleScoreChange(movement.id, score)}
+                  />
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Resumen de puntuación */}
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {totalScore.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Puntos totales
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {maxPossibleScore}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Máximo posible
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {percentage.toFixed(1)}%
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Porcentaje
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Panel de debugging offline */}
+        {pendingActions.length > 0 && (
+          <div className="mt-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+              🔄 Acciones pendientes de sincronización:
+            </h3>
+            <div className="space-y-2">
+              {pendingActions.map((action) => (
+                <div key={action.id} className="text-sm font-mono bg-yellow-100 dark:bg-yellow-800/20 p-2 rounded">
+                  <strong>Tipo:</strong> {action.type} | 
+                  <strong> ID:</strong> {action.id.substring(0, 8)}... | 
+                  <strong> Reintentos:</strong> {action.retryCount}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
