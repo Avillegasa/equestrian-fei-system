@@ -1,5 +1,5 @@
 // 📦 UI Components Premium - Sistema FEI (CORREGIDO)
-// Componentes base renovados con diseño ecuestre - SIN dependencias externas problemáticas
+// Archivo: frontend/src/components/ui/index.tsx (CAMBIAR EXTENSIÓN A .tsx)
 
 import React, { forwardRef, ReactNode, ButtonHTMLAttributes, InputHTMLAttributes } from 'react';
 
@@ -14,45 +14,86 @@ interface BaseProps {
   children?: ReactNode;
 }
 
+interface IconProps {
+  className?: string;
+  size?: number;
+}
+
 type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'ghost' | 'equestrian';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 type BadgeVariant = 'primary' | 'success' | 'warning' | 'error' | 'info' | 'gray' | 'equestrian';
 type AlertVariant = 'success' | 'warning' | 'error' | 'info';
 
 // === ÍCONOS SIMPLES INTERNOS ===
-const CheckIcon = ({ className = "", size = 16 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
-    <polyline points="20,6 9,17 4,12" />
-  </svg>
-);
+const CheckIcon: React.FC<IconProps> = ({ className = "", size = 16 }) => {
+  return React.createElement('svg', {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    className: className
+  }, React.createElement('polyline', { points: "20,6 9,17 4,12" }));
+};
 
-const XMarkIcon = ({ className = "", size = 16 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
+const XMarkIcon: React.FC<IconProps> = ({ className = "", size = 16 }) => {
+  return React.createElement('svg', {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    className: className
+  }, 
+    React.createElement('line', { x1: "18", y1: "6", x2: "6", y2: "18" }),
+    React.createElement('line', { x1: "6", y1: "6", x2: "18", y2: "18" })
+  );
+};
 
-const ChevronDownIcon = ({ className = "", size = 16 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
-    <polyline points="6,9 12,15 18,9" />
-  </svg>
-);
+const ChevronDownIcon: React.FC<IconProps> = ({ className = "", size = 16 }) => {
+  return React.createElement('svg', {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    className: className
+  }, React.createElement('polyline', { points: "6,9 12,15 18,9" }));
+};
 
-const ExclamationTriangleIcon = ({ className = "", size = 16 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
-    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-    <path d="M12 9v4" />
-    <path d="m12 17 .01 0" />
-  </svg>
-);
+const ExclamationTriangleIcon: React.FC<IconProps> = ({ className = "", size = 16 }) => {
+  return React.createElement('svg', {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    className: className
+  }, 
+    React.createElement('path', { d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" }),
+    React.createElement('path', { d: "M12 9v4" }),
+    React.createElement('path', { d: "m12 17 .01 0" })
+  );
+};
 
-const InformationCircleIcon = ({ className = "", size = 16 }: { className?: string; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
-    <circle cx="12" cy="12" r="10" />
-    <path d="m9,12 2,2 4,-4" />
-  </svg>
-);
+const InformationCircleIcon: React.FC<IconProps> = ({ className = "", size = 16 }) => {
+  return React.createElement('svg', {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    className: className
+  }, 
+    React.createElement('circle', { cx: "12", cy: "12", r: "10" }),
+    React.createElement('path', { d: "m9,12 2,2 4,-4" })
+  );
+};
 
 // === BUTTON PREMIUM ===
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -265,7 +306,6 @@ export const ScoreInput = forwardRef<HTMLInputElement, ScoreInputProps>(
           )}
         </div>
         
-        {/* Overlay para cerrar dropdown */}
         {showDropdown && (
           <div 
             className="fixed inset-0 z-40" 
@@ -531,21 +571,14 @@ export const Alert: React.FC<AlertProps> = ({
   );
 };
 
-// === LOADING SKELETON ===
-interface SkeletonProps extends BaseProps {
+// === COMPONENTES SIMPLES SIN JSX ===
+export const Skeleton: React.FC<{
   variant?: 'text' | 'rectangle' | 'circle' | 'card';
   lines?: number;
   width?: string;
   height?: string;
-}
-
-export const Skeleton: React.FC<SkeletonProps> = ({
-  variant = 'text',
-  lines = 1,
-  width,
-  height,
-  className
-}) => {
+  className?: string;
+}> = ({ variant = 'text', lines = 1, width, height, className }) => {
   const baseClasses = 'animate-pulse bg-gray-200 rounded';
   
   if (variant === 'text') {
@@ -576,24 +609,6 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     );
   }
   
-  if (variant === 'card') {
-    return (
-      <div className={cn('p-6 bg-white rounded-xl border border-gray-200', className)}>
-        <div className="flex items-center space-x-4 mb-4">
-          <Skeleton variant="circle" width="40px" />
-          <div className="flex-1">
-            <Skeleton variant="text" lines={2} />
-          </div>
-        </div>
-        <Skeleton variant="rectangle" height="120px" />
-        <div className="mt-4 flex space-x-2">
-          <Skeleton variant="rectangle" width="80px" height="32px" />
-          <Skeleton variant="rectangle" width="80px" height="32px" />
-        </div>
-      </div>
-    );
-  }
-  
   return (
     <div
       className={cn(baseClasses, className)}
@@ -605,64 +620,95 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   );
 };
 
-// === NOTIFICATION TOAST ===
-interface NotificationProps extends BaseProps {
+export const RankingPosition: React.FC<{
+  position: number;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  animated?: boolean;
+  className?: string;
+}> = ({ position, size = 'md', animated = false, className }) => {
+  const [mounted, setMounted] = React.useState(false);
+  
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  const sizes = {
+    sm: 'w-6 h-6 text-xs',
+    md: 'w-8 h-8 text-sm',
+    lg: 'w-10 h-10 text-base',
+    xl: 'w-12 h-12 text-lg'
+  };
+  
+  const getPositionStyle = (pos: number) => {
+    if (pos === 1) {
+      return 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-900 shadow-lg border-2 border-yellow-300';
+    }
+    if (pos === 2) {
+      return 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-900 shadow-lg border-2 border-gray-200';
+    }
+    if (pos === 3) {
+      return 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-900 shadow-lg border-2 border-orange-300';
+    }
+    return 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 shadow-md border border-blue-200';
+  };
+  
+  if (!mounted) {
+    return (
+      <div className={cn(
+        'inline-flex items-center justify-center rounded-full font-bold',
+        sizes[size],
+        getPositionStyle(position),
+        className
+      )}>
+        {position}
+      </div>
+    );
+  }
+  
+  return (
+    <div className={cn(
+      'inline-flex items-center justify-center rounded-full font-bold',
+      sizes[size],
+      getPositionStyle(position),
+      animated && 'animate-bounce',
+      className
+    )}>
+      {position <= 3 ? (position === 1 ? '🥇' : position === 2 ? '🥈' : '🥉') : position}
+    </div>
+  );
+};
+
+// === COMPONENTES BÁSICOS ADICIONALES ===
+export const Notification: React.FC<{
   title?: string;
   variant?: AlertVariant;
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+  position?: string;
   duration?: number;
   onClose?: () => void;
   show?: boolean;
-}
-
-export const Notification: React.FC<NotificationProps> = ({
-  title,
-  variant = 'info',
-  position = 'top-right',
-  duration = 5000,
-  onClose,
-  show = true,
-  className,
-  children
-}) => {
+  className?: string;
+  children?: ReactNode;
+}> = ({ title, variant = 'info', show = true, onClose, className, children }) => {
   const [isVisible, setIsVisible] = React.useState(show);
   
   React.useEffect(() => {
-    if (show && duration > 0) {
+    if (show) {
       const timer = setTimeout(() => {
         setIsVisible(false);
         onClose?.();
-      }, duration);
+      }, 5000);
       
       return () => clearTimeout(timer);
     }
-  }, [show, duration, onClose]);
-  
-  const positions = {
-    'top-right': 'top-4 right-4',
-    'top-left': 'top-4 left-4',
-    'bottom-right': 'bottom-4 right-4',
-    'bottom-left': 'bottom-4 left-4',
-    'top-center': 'top-4 left-1/2 transform -translate-x-1/2',
-    'bottom-center': 'bottom-4 left-1/2 transform -translate-x-1/2'
-  };
-  
-  const variants = {
-    success: 'border-green-200 bg-green-50 text-green-800',
-    warning: 'border-yellow-200 bg-yellow-50 text-yellow-800',
-    error: 'border-red-200 bg-red-50 text-red-800',
-    info: 'border-blue-200 bg-blue-50 text-blue-800'
-  };
+  }, [show, onClose]);
   
   if (!isVisible) return null;
   
   return (
     <div className={cn(
-      'fixed z-50 max-w-sm w-full',
-      'bg-white rounded-xl shadow-premium border p-4',
+      'fixed top-4 right-4 z-50 max-w-sm w-full',
+      'bg-white rounded-xl shadow-lg border p-4',
       'animate-slide-in',
-      positions[position],
-      variants[variant],
       className
     )}>
       <div className="flex items-start">
@@ -682,7 +728,7 @@ export const Notification: React.FC<NotificationProps> = ({
             setIsVisible(false);
             onClose?.();
           }}
-          className="ml-3 flex-shrink-0 rounded-md p-1 hover:bg-black hover:bg-opacity-10 transition-colors"
+          className="ml-3 flex-shrink-0 rounded-md p-1 hover:bg-gray-100 transition-colors"
         >
           <XMarkIcon className="w-4 h-4" />
         </button>
@@ -691,208 +737,42 @@ export const Notification: React.FC<NotificationProps> = ({
   );
 };
 
-// === RANKING POSITION INDICATOR ===
-interface RankingPositionProps extends BaseProps {
-  position: number;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
-  showIcon?: boolean;
-  animated?: boolean;
-}
-
-export const RankingPosition: React.FC<RankingPositionProps> = ({
-  position,
-  size = 'md',
-  showIcon = true,
-  animated = false,
-  className
-}) => {
-  const sizes = {
-    sm: 'w-6 h-6 text-xs',
-    md: 'w-8 h-8 text-sm',
-    lg: 'w-10 h-10 text-base',
-    xl: 'w-12 h-12 text-lg'
-  };
-  
-  const getPositionStyle = (pos: number) => {
-    if (pos === 1) {
-      return {
-        classes: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-900 shadow-lg border-2 border-yellow-300',
-        icon: '👑'
-      };
-    }
-    if (pos === 2) {
-      return {
-        classes: 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-900 shadow-lg border-2 border-gray-200',
-        icon: '🥈'
-      };
-    }
-    if (pos === 3) {
-      return {
-        classes: 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-900 shadow-lg border-2 border-orange-300',
-        icon: '🥉'
-      };
-    }
-    return {
-      classes: 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 shadow-md border border-blue-200',
-      icon: '⭐'
-    };
-  };
-  
-  const { classes, icon } = getPositionStyle(position);
-  
-  return (
-    <div     className={cn(
-      'inline-flex items-center justify-center rounded-full font-bold',
-      sizes[size],
-      classes,
-      animated && 'animate-bounce',
-      className
-    )}>
-      {showIcon && position <= 3 ? icon : position}
-    </div>
-  );
-};
-
-// === GLASS CARD PREMIUM ===
-interface GlassCardProps extends BaseProps {
-  header?: ReactNode;
-  footer?: ReactNode;
-  blur?: 'sm' | 'md' | 'lg';
-  opacity?: number;
-}
-
-export const GlassCard: React.FC<GlassCardProps> = ({
-  header,
-  footer,
-  blur = 'md',
-  opacity = 0.1,
-  className,
-  children
-}) => {
-  const blurClasses = {
-    sm: 'backdrop-blur-sm',
-    md: 'backdrop-blur-md',
-    lg: 'backdrop-blur-lg'
-  };
-  
-  return (
-    <div className={cn(
-      'rounded-xl border border-white border-opacity-20 shadow-lg',
-      'bg-white bg-opacity-10',
-      blurClasses[blur],
-      className
-    )}>
-      {header && (
-        <div className="p-6 border-b border-white border-opacity-20">
-          {header}
-        </div>
-      )}
-      
-      <div className="p-6">
-        {children}
-      </div>
-      
-      {footer && (
-        <div className="p-6 border-t border-white border-opacity-20">
-          {footer}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// === COMPONENTE DE SCORE STATUS ===
+// Componentes adicionales simples
 export const ScoreStatusIcon: React.FC<{
   score: number;
   className?: string;
   size?: number;
 }> = ({ score, className = '', size = 24 }) => {
-  const getIconAndColor = (score: number) => {
-    if (score >= 9) {
-      return { 
-        icon: '⭐', 
-        color: 'text-green-600', 
-        bg: 'bg-green-100',
-        label: 'Excelente' 
-      };
-    }
-    if (score >= 7) {
-      return { 
-        icon: '👍', 
-        color: 'text-blue-600', 
-        bg: 'bg-blue-100',
-        label: 'Muy Bueno' 
-      };
-    }
-    if (score >= 5) {
-      return { 
-        icon: '👌', 
-        color: 'text-yellow-600', 
-        bg: 'bg-yellow-100',
-        label: 'Bueno' 
-      };
-    }
-    if (score >= 3) {
-      return { 
-        icon: '👎', 
-        color: 'text-orange-600', 
-        bg: 'bg-orange-100',
-        label: 'Satisfactorio' 
-      };
-    }
-    return { 
-      icon: '❌', 
-      color: 'text-red-600', 
-      bg: 'bg-red-100',
-      label: 'Insuficiente' 
-    };
+  const getStatusEmoji = (score: number) => {
+    if (score >= 9) return '⭐';
+    if (score >= 7) return '👍';
+    if (score >= 5) return '👌';
+    if (score >= 3) return '👎';
+    return '❌';
   };
-  
-  const { icon, color, bg, label } = getIconAndColor(score);
   
   return (
     <div 
-      className={cn(
-        'inline-flex items-center justify-center rounded-full p-1',
-        bg, color, className
-      )}
-      style={{ 
-        width: size, 
-        height: size,
-        fontSize: size * 0.6 
-      }}
-      title={`${label}: ${score}/10`}
+      className={cn('inline-flex items-center justify-center rounded-full p-1', className)}
+      style={{ width: size, height: size, fontSize: size * 0.6 }}
+      title={`Score: ${score}/10`}
     >
-      {icon}
+      {getStatusEmoji(score)}
     </div>
   );
 };
 
-// === COMPONENTE DE CONECTIVIDAD ===
 export const ConnectivityIcon: React.FC<{
   isOnline: boolean;
-  className?: string;
-  size?: number;
   showLabel?: boolean;
-}> = ({ isOnline, className = '', size = 24, showLabel = false }) => {
+  className?: string;
+}> = ({ isOnline, showLabel = false, className = '' }) => {
   return (
     <div className={cn('flex items-center space-x-2', className)}>
       <div className="relative">
-        <div 
-          className={cn(
-            'rounded-full flex items-center justify-center',
-            isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-          )}
-          style={{ width: size, height: size }}
-        >
+        <span className="text-lg">
           {isOnline ? '🟢' : '🔴'}
-        </div>
-        <div 
-          className={cn(
-            'absolute -top-1 -right-1 w-3 h-3 rounded-full',
-            isOnline ? 'bg-green-500 animate-ping' : 'bg-red-500'
-          )}
-        />
+        </span>
       </div>
       {showLabel && (
         <span className={cn(
@@ -906,45 +786,16 @@ export const ConnectivityIcon: React.FC<{
   );
 };
 
-// === COMPONENTE DE CARGA CON PROGRESO ===
 export const LoadingIcon: React.FC<{
   progress?: number;
   className?: string;
   size?: number;
-  color?: string;
-}> = ({ progress, className = '', size = 24, color = 'currentColor' }) => {
+}> = ({ progress, className = '', size = 24 }) => {
   if (progress !== undefined) {
     return (
       <div className={cn('relative', className)} style={{ width: size, height: size }}>
-        <svg
-          className="transform -rotate-90"
-          width={size}
-          height={size}
-          viewBox="0 0 20 20"
-        >
-          <circle
-            cx="10"
-            cy="10"
-            r="8"
-            stroke="currentColor"
-            strokeWidth="2"
-            fill="transparent"
-            className="text-gray-200"
-          />
-          <circle
-            cx="10"
-            cy="10"
-            r="8"
-            stroke={color}
-            strokeWidth="2"
-            fill="transparent"
-            strokeDasharray={2 * Math.PI * 8}
-            strokeDashoffset={2 * Math.PI * 8 - (progress / 100) * 2 * Math.PI * 8}
-            className="transition-all duration-300"
-          />
-        </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-medium" style={{ color }}>
+          <span className="text-xs font-medium">
             {Math.round(progress)}%
           </span>
         </div>
@@ -953,46 +804,19 @@ export const LoadingIcon: React.FC<{
   }
   
   return (
-    <svg
-      className={cn('animate-spin', className)}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke={color}
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill={color}
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
+    <div className={cn('animate-spin', className)} style={{ width: size, height: size }}>
+      ⟳
+    </div>
   );
 };
 
-// === TABLA PREMIUM ===
-interface TableProps {
+export const Table: React.FC<{
   headers: string[];
   data: Array<Record<string, any>>;
   className?: string;
   striped?: boolean;
   hoverable?: boolean;
-}
-
-export const Table: React.FC<TableProps> = ({
-  headers,
-  data,
-  className,
-  striped = true,
-  hoverable = true
-}) => {
+}> = ({ headers, data, className, striped = true, hoverable = true }) => {
   return (
     <div className={cn('overflow-hidden rounded-xl shadow-soft', className)}>
       <table className="w-full border-collapse bg-white">
@@ -1034,24 +858,14 @@ export const Table: React.FC<TableProps> = ({
   );
 };
 
-// === MODAL SIMPLE ===
-interface ModalProps {
+export const Modal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-}
-
-export const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-  className,
-  size = 'md'
-}) => {
+}> = ({ isOpen, onClose, title, children, className, size = 'md' }) => {
   const sizes = {
     sm: 'max-w-md',
     md: 'max-w-lg',
@@ -1063,20 +877,17 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Overlay */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
       
-      {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className={cn(
-          'relative w-full transform rounded-xl bg-white shadow-premium transition-all',
+          'relative w-full transform rounded-xl bg-white shadow-lg transition-all',
           sizes[size],
           className
         )}>
-          {/* Header */}
           {title && (
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -1091,7 +902,6 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
           )}
           
-          {/* Content */}
           <div className="p-6">
             {children}
           </div>
@@ -1101,20 +911,12 @@ export const Modal: React.FC<ModalProps> = ({
   );
 };
 
-// === TOOLTIP SIMPLE ===
-interface TooltipProps {
+export const Tooltip: React.FC<{
   content: string;
   children: ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
   className?: string;
-}
-
-export const Tooltip: React.FC<TooltipProps> = ({
-  content,
-  children,
-  position = 'top',
-  className
-}) => {
+}> = ({ content, children, position = 'top', className }) => {
   const [isVisible, setIsVisible] = React.useState(false);
   
   const positions = {
@@ -1139,6 +941,45 @@ export const Tooltip: React.FC<TooltipProps> = ({
           className
         )}>
           {content}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const GlassCard: React.FC<{
+  header?: ReactNode;
+  footer?: ReactNode;
+  blur?: 'sm' | 'md' | 'lg';
+  className?: string;
+  children?: ReactNode;
+}> = ({ header, footer, blur = 'md', className, children }) => {
+  const blurClasses = {
+    sm: 'backdrop-blur-sm',
+    md: 'backdrop-blur-md',
+    lg: 'backdrop-blur-lg'
+  };
+  
+  return (
+    <div className={cn(
+      'rounded-xl border border-white border-opacity-20 shadow-lg',
+      'bg-white bg-opacity-10',
+      blurClasses[blur],
+      className
+    )}>
+      {header && (
+        <div className="p-6 border-b border-white border-opacity-20">
+          {header}
+        </div>
+      )}
+      
+      <div className="p-6">
+        {children}
+      </div>
+      
+      {footer && (
+        <div className="p-6 border-t border-white border-opacity-20">
+          {footer}
         </div>
       )}
     </div>
