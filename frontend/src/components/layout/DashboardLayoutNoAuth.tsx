@@ -2,7 +2,6 @@
 
 import { useState, Fragment } from 'react';
 import { Dialog, Transition, Menu } from '@headlessui/react';
-import { useAuth } from '@/contexts/AuthContext';
 import { User, UserRole } from '@/types/auth';
 
 import Logo from '../ui/Logo'
@@ -44,10 +43,10 @@ interface DashboardLayoutProps {
 interface NavigationItem {
   name: string;
   href: string;
-  icon: string; // Cambiado para usar string keys
+  icon: string;
   current?: boolean;
   roles?: UserRole[];
-  badge?: string; // Añadido para badges
+  badge?: string;
 }
 
 // Navegación renovada con iconos temáticos y badges
@@ -123,16 +122,13 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function DashboardLayout({ children, user, title }: DashboardLayoutProps) {
+export default function DashboardLayoutNoAuth({ children, user, title }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // const { logout } = useAuth(); // Comentado para pruebas
-  const logout = () => {
-    console.log('logout mock');
-    window.location.href = '/auth/login';
-  };
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/auth/login';
+
+  // Mock logout para pruebas
+  const handleLogout = () => {
+    console.log('Mock logout');
+    alert('Mock logout - En producción esto cerraría sesión');
   };
 
   // Filtrar navegación según el rol del usuario
