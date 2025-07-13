@@ -1,11 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
 /* === IMPORTS === */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* === CSS VARIABLES PARA THEMING === */
 @layer base {
@@ -683,4 +684,27 @@
   100% {
     background-position: 200% 0;
   }
+}
+
+
+/* === TEST DIRECTO === */
+.test-gold {
+  background-color: #D4AF37 !important;
+  color: white !important;
+  padding: 1rem !important;
+  margin: 1rem !important;
+  border-radius: 8px !important;
+}
+
+.test-gradient {
+  background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%) !important;
+  color: white !important;
+  padding: 1rem !important;
+  border-radius: 8px !important;
+}
+
+.test-hover:hover {
+  background-color: #059669 !important;
+  transform: translateY(-2px) !important;
+  transition: all 0.2s ease !important;
 }

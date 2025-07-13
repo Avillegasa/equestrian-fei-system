@@ -1,4 +1,4 @@
-// 🧪 Página de Prueba Completa - Sistema de Diseño Premium FEI
+// 🧪 Página de Prueba Simplificada - SIN errores de hidratación
 // Archivo: frontend/src/app/test-design/page.tsx
 
 "use client";
@@ -12,25 +12,47 @@ import {
   Badge,
   Progress,
   Alert,
-  RankingPosition,
   Skeleton,
-  Notification,
-  GlassCard,
-  ScoreStatusIcon,
-  ConnectivityIcon,
-  LoadingIcon,
-  Table,
-  Modal,
-  Tooltip
+  Table
 } from '@/components/ui';
-import { EquestrianIcons } from '@/components/icons/equestrian';
+
+// Componente RankingPosition simplificado para evitar hidratación
+const RankingPositionSimple: React.FC<{
+  position: number;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  animated?: boolean;
+  className?: string;
+}> = ({ position, size = 'md', animated = false, className = '' }) => {
+  const sizes = {
+    sm: 'w-6 h-6 text-xs',
+    md: 'w-8 h-8 text-sm',
+    lg: 'w-10 h-10 text-base',
+    xl: 'w-12 h-12 text-lg'
+  };
+  
+  const getPositionStyle = (pos: number) => {
+    if (pos === 1) {
+      return 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-yellow-900 shadow-lg border-2 border-yellow-300';
+    }
+    if (pos === 2) {
+      return 'bg-gradient-to-br from-gray-300 to-gray-500 text-gray-900 shadow-lg border-2 border-gray-200';
+    }
+    if (pos === 3) {
+      return 'bg-gradient-to-br from-orange-400 to-orange-600 text-orange-900 shadow-lg border-2 border-orange-300';
+    }
+    return 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 shadow-md border border-blue-200';
+  };
+  
+  return (
+    <div className={`inline-flex items-center justify-center rounded-full font-bold ${sizes[size]} ${getPositionStyle(position)} ${animated ? 'animate-bounce' : ''} ${className}`}>
+      {position}
+    </div>
+  );
+};
 
 export default function TestDesignSystemPage() {
   const [score, setScore] = useState(7.5);
   const [loading, setLoading] = useState(false);
-  const [showNotification, setShowNotification] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
 
   const simulateLoading = () => {
     setLoading(true);
@@ -46,6 +68,25 @@ export default function TestDesignSystemPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-8">
+
+          {/* === TEST DIRECTO CSS === */}
+    <div className="max-w-7xl mx-auto p-4">
+      <div className="test-gold">
+        🧪 TEST: ¿Se ve este fondo dorado?
+      </div>
+      
+      <div className="test-gradient">
+        🧪 TEST: ¿Se ve este gradiente de oro a azul?
+      </div>
+      
+      <button className="test-hover bg-gray-200 p-4 rounded">
+        🧪 TEST: Hover aquí - ¿Cambia de color?
+      </button>
+      
+      <div className="bg-red-500 text-white p-4 rounded mt-4">
+        🧪 TEST: ¿Se ve este fondo rojo (Tailwind básico)?
+      </div>
+    </div>
       
       {/* Header de la página de pruebas */}
       <div className="max-w-7xl mx-auto mb-8">
@@ -155,12 +196,6 @@ export default function TestDesignSystemPage() {
                   {loading ? 'Cargando...' : 'Simular Carga'}
                 </Button>
                 <Button disabled>Deshabilitado</Button>
-                <Button 
-                  variant="success" 
-                  icon={<EquestrianIcons.Horse size={18} />}
-                >
-                  Con Ícono
-                </Button>
               </div>
             </div>
           </div>
@@ -178,7 +213,6 @@ export default function TestDesignSystemPage() {
               <Input
                 label="Input Básico"
                 placeholder="Escribe algo aquí..."
-                icon={<EquestrianIcons.Rider size={18} />}
               />
             </div>
 
@@ -229,7 +263,9 @@ export default function TestDesignSystemPage() {
             {/* Card básica */}
             <Card variant="default">
               <div className="text-center">
-                <EquestrianIcons.Competition size={48} className="mx-auto mb-3 text-blue-600" />
+                <div className="w-12 h-12 mx-auto mb-3 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl">
+                  🏆
+                </div>
                 <h3 className="font-bold mb-2">Card Básica</h3>
                 <p className="text-gray-600 text-sm">
                   Esta es una card con diseño estándar
@@ -240,7 +276,9 @@ export default function TestDesignSystemPage() {
             {/* Card ecuestre */}
             <Card variant="equestrian">
               <div className="text-center">
-                <EquestrianIcons.Medal size={48} className="mx-auto mb-3 text-equestrian-gold-600" />
+                <div className="w-12 h-12 mx-auto mb-3 bg-equestrian-gold-600 rounded-full flex items-center justify-center text-white text-xl">
+                  🥇
+                </div>
                 <h3 className="font-bold mb-2">Card Ecuestre</h3>
                 <p className="text-gray-600 text-sm">
                   Card con tema ecuestre premium
@@ -249,34 +287,17 @@ export default function TestDesignSystemPage() {
             </Card>
 
             {/* Card interactiva */}
-            <Card 
-              interactive 
-              onClick={() => setShowModal(true)}
-              className="cursor-pointer"
-            >
+            <Card interactive>
               <div className="text-center">
-                <EquestrianIcons.Judge size={48} className="mx-auto mb-3 text-purple-600" />
+                <div className="w-12 h-12 mx-auto mb-3 bg-purple-600 rounded-full flex items-center justify-center text-white text-xl">
+                  👨‍⚖️
+                </div>
                 <h3 className="font-bold mb-2">Card Interactiva</h3>
                 <p className="text-gray-600 text-sm">
-                  Haz click para abrir modal
+                  Hover para ver efecto
                 </p>
               </div>
             </Card>
-          </div>
-
-          {/* Glass Card */}
-          <div className="mt-6 relative">
-            <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl"></div>
-            <div className="absolute inset-4">
-              <GlassCard>
-                <div className="text-white text-center">
-                  <h3 className="font-bold mb-2">Glass Card</h3>
-                  <p className="text-sm opacity-90">
-                    Efecto glassmorphism sobre fondo colorido
-                  </p>
-                </div>
-              </GlassCard>
-            </div>
           </div>
         </Card>
 
@@ -327,40 +348,20 @@ export default function TestDesignSystemPage() {
                 {/* Ranking Positions */}
                 <div className="flex items-center space-x-4">
                   <span className="text-sm font-medium w-20">Rankings:</span>
-                  <RankingPosition position={1} animated />
-                  <RankingPosition position={2} />
-                  <RankingPosition position={3} />
-                  <RankingPosition position={4} />
+                  <RankingPositionSimple position={1} animated />
+                  <RankingPositionSimple position={2} />
+                  <RankingPositionSimple position={3} />
+                  <RankingPositionSimple position={4} />
                 </div>
 
-                {/* Score Status */}
+                {/* Score Status usando texto */}
                 <div className="flex items-center space-x-4">
                   <span className="text-sm font-medium w-20">Scores:</span>
-                  <ScoreStatusIcon score={9.5} />
-                  <ScoreStatusIcon score={8.0} />
-                  <ScoreStatusIcon score={6.5} />
-                  <ScoreStatusIcon score={4.0} />
-                  <ScoreStatusIcon score={2.0} />
-                </div>
-
-                {/* Conectividad */}
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium w-20">Estado:</span>
-                  <ConnectivityIcon isOnline={isOnline} showLabel />
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => setIsOnline(!isOnline)}
-                  >
-                    Toggle
-                  </Button>
-                </div>
-
-                {/* Loading */}
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium w-20">Carga:</span>
-                  <LoadingIcon progress={75} />
-                  <LoadingIcon />
+                  <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-800 text-xs font-bold">9.5</div>
+                  <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold">8.0</div>
+                  <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">6.5</div>
+                  <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-800 text-xs font-bold">4.0</div>
+                  <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-800 text-xs font-bold">2.0</div>
                 </div>
               </div>
             </div>
@@ -382,22 +383,13 @@ export default function TestDesignSystemPage() {
               Hay 3 calificaciones pendientes de sincronización.
             </Alert>
             
-            <Alert variant="error" title="Error" dismissible>
+            <Alert variant="error" title="Error">
               No se pudo conectar con el servidor. Verificando conexión...
             </Alert>
             
             <Alert variant="info" title="Información">
               El ranking se actualiza automáticamente cada 30 segundos.
             </Alert>
-          </div>
-
-          <div className="mt-6">
-            <Button 
-              onClick={() => setShowNotification(true)}
-              variant="primary"
-            >
-              Mostrar Notificación Toast
-            </Button>
           </div>
         </Card>
 
@@ -415,40 +407,7 @@ export default function TestDesignSystemPage() {
           />
         </Card>
 
-        {/* Sección 8: Íconos Temáticos */}
-        <Card className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 flex items-center">
-            🐎 Íconos Temáticos Ecuestres
-          </h2>
-          
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-6">
-            {[
-              { icon: EquestrianIcons.Horse, label: 'Caballo' },
-              { icon: EquestrianIcons.Rider, label: 'Jinete' },
-              { icon: EquestrianIcons.Competition, label: 'Competencia' },
-              { icon: EquestrianIcons.Judge, label: 'Juez' },
-              { icon: EquestrianIcons.Dressage, label: 'Dressage' },
-              { icon: EquestrianIcons.Score, label: 'Puntuación' },
-              { icon: EquestrianIcons.Ranking, label: 'Ranking' },
-              { icon: EquestrianIcons.Medal, label: 'Medalla' },
-              { icon: EquestrianIcons.Timer, label: 'Tiempo' },
-              { icon: EquestrianIcons.Arena, label: 'Arena' },
-              { icon: EquestrianIcons.Stats, label: 'Estadísticas' },
-              { icon: EquestrianIcons.Live, label: 'En Vivo' }
-            ].map((item, index) => (
-              <Tooltip key={index} content={item.label}>
-                <div className="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                  <item.icon size={32} className="text-gray-600 mb-2" />
-                  <span className="text-xs text-gray-500 text-center">
-                    {item.label}
-                  </span>
-                </div>
-              </Tooltip>
-            ))}
-          </div>
-        </Card>
-
-        {/* Sección 9: Loading States */}
+        {/* Sección 8: Loading States */}
         <Card className="mb-8">
           <h2 className="text-2xl font-bold mb-6 flex items-center">
             ⏳ Estados de Carga
@@ -478,69 +437,28 @@ export default function TestDesignSystemPage() {
           </div>
         </Card>
 
-        {/* Sección 10: Responsive Test */}
-        <Card>
-          <h2 className="text-2xl font-bold mb-6 flex items-center">
-            📱 Test Responsive
+        {/* Test de estilos específicos */}
+        <Card className="mb-8">
+          <h2 className="text-2xl font-bold mb-6">
+            🎨 Test de Estilos Ecuestre
           </h2>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <Card key={index} variant="default" className="text-center">
-                <EquestrianIcons.Horse size={24} className="mx-auto mb-2 text-blue-600" />
-                <p className="text-sm">Item {index + 1}</p>
-              </Card>
-            ))}
-          </div>
-          
-          <Alert variant="info" className="mt-6">
-            <strong>Test Responsive:</strong> Redimensiona la ventana para ver cómo se adaptan los componentes.
-          </Alert>
-        </Card>
-      </div>
-
-      {/* Modal de ejemplo */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Modal de Prueba"
-        size="md"
-      >
-        <div className="space-y-4">
-          <p>Este es un modal de ejemplo del sistema de diseño.</p>
-          
-          <div className="flex items-center space-x-4">
-            <EquestrianIcons.Horse size={32} className="text-equestrian-gold-600" />
-            <div>
-              <h3 className="font-semibold">Modal Funcional</h3>
-              <p className="text-sm text-gray-600">
-                Todos los componentes funcionan correctamente dentro del modal.
-              </p>
+          <div className="space-y-4">
+            <div className="p-4 bg-equestrian-gold-100 border border-equestrian-gold-300 rounded-lg">
+              <p className="text-equestrian-gold-800">Fondo dorado ecuestre - ¿Se ve bien?</p>
+            </div>
+            
+            <div className="p-4 bg-gradient-equestrian rounded-lg text-white">
+              <p>Gradiente ecuestre de oro a azul - ¿Se ve el gradiente?</p>
+            </div>
+            
+            <div className="flex space-x-4">
+              <button className="btn btn-primary">Botón CSS directo</button>
+              <div className="badge badge-primary">Badge CSS directo</div>
             </div>
           </div>
-          
-          <div className="flex space-x-3">
-            <Button variant="equestrian" onClick={() => setShowModal(false)}>
-              Cerrar Modal
-            </Button>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Notificación de ejemplo */}
-      {showNotification && (
-        <Notification
-          title="¡Sistema Funcionando!"
-          variant="success"
-          position="top-right"
-          onClose={() => setShowNotification(false)}
-        >
-          Todos los componentes del sistema de diseño están funcionando correctamente.
-        </Notification>
-      )}
+        </Card>
+      </div>
     </div>
   );
 }
