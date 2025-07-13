@@ -1,12 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-
-/* === IMPORTS === */
+/* === IMPORTS PRIMERO === */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
+
+/* === TAILWIND DIRECTIVES === */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* === CSS VARIABLES PARA THEMING === */
 @layer base {
@@ -317,113 +317,6 @@
     @apply shadow-md border border-blue-200;
   }
   
-  /* 📱 RESPONSIVE UTILITIES */
-  .container-responsive {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
-  
-  .grid-responsive {
-    @apply grid gap-6;
-    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
-  }
-  
-  .grid-responsive-cards {
-    @apply grid gap-4;
-    @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-3;
-  }
-  
-  /* 🎭 ANIMACIONES ESPECÍFICAS */
-  .animate-score-update {
-    animation: scoreUpdate 0.8s ease-out;
-  }
-  
-  .animate-ranking-change {
-    animation: rankingChange 1s ease-in-out;
-  }
-  
-  .animate-fade-in-up {
-    animation: fadeInUp 0.6s ease-out;
-  }
-  
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  @keyframes scoreUpdate {
-    0% {
-      transform: scale(1);
-      background-color: rgba(59, 130, 246, 0.1);
-    }
-    50% {
-      transform: scale(1.05);
-      background-color: rgba(59, 130, 246, 0.2);
-    }
-    100% {
-      transform: scale(1);
-      background-color: transparent;
-    }
-  }
-  
-  @keyframes rankingChange {
-    0% {
-      transform: translateY(0);
-      background-color: rgba(212, 175, 55, 0.1);
-    }
-    50% {
-      transform: translateY(-4px);
-      background-color: rgba(212, 175, 55, 0.2);
-    }
-    100% {
-      transform: translateY(0);
-      background-color: transparent;
-    }
-  }
-  
-  /* ✨ GLASSMORPHISM */
-  .glass {
-    @apply bg-white bg-opacity-10 backdrop-blur-lg border border-white border-opacity-20;
-    @apply shadow-lg rounded-xl;
-  }
-  
-  .glass-dark {
-    @apply bg-black bg-opacity-10 backdrop-blur-lg border border-white border-opacity-10;
-    @apply shadow-lg rounded-xl;
-  }
-  
-  /* 🎨 TEXT GRADIENTS */
-  .text-gradient-primary {
-    @apply bg-gradient-to-r from-equestrian-gold-500 to-equestrian-blue-600;
-    @apply bg-clip-text text-transparent font-bold;
-  }
-  
-  .text-gradient-success {
-    @apply bg-gradient-to-r from-equestrian-green-500 to-equestrian-green-600;
-    @apply bg-clip-text text-transparent font-bold;
-  }
-  
-  /* 🔍 FOCUS STATES MEJORADOS */
-  .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-equestrian-gold-500;
-    @apply transition-all duration-200;
-  }
-  
-  .focus-ring-blue {
-    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-equestrian-blue-500;
-    @apply transition-all duration-200;
-  }
-  
-  .focus-ring-green {
-    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-equestrian-green-500;
-    @apply transition-all duration-200;
-  }
-  
   /* 📋 TABLES PREMIUM */
   .table-premium {
     @apply w-full border-collapse bg-white rounded-xl overflow-hidden shadow-soft;
@@ -499,51 +392,31 @@
     @apply notification border-blue-200 bg-blue-50;
   }
   
-  /* 📲 TOUCH OPTIMIZATIONS */
-  .touch-target {
-    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  /* 🎨 TEXT GRADIENTS */
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-equestrian-gold-500 to-equestrian-blue-600;
+    @apply bg-clip-text text-transparent font-bold;
   }
   
-  .touch-friendly {
-    @apply touch-target p-3 rounded-xl transition-all duration-200;
-    @apply active:scale-95 active:bg-gray-100;
+  .text-gradient-success {
+    @apply bg-gradient-to-r from-equestrian-green-500 to-equestrian-green-600;
+    @apply bg-clip-text text-transparent font-bold;
   }
   
-  /* 📱 MOBILE SPECIFIC */
-  @media (max-width: 768px) {
-    .mobile-padding {
-      @apply px-4 py-2;
-    }
-    
-    .mobile-text {
-      @apply text-base leading-relaxed;
-    }
-    
-    .mobile-button {
-      @apply w-full py-4 text-lg;
-    }
+  /* 🔍 FOCUS STATES MEJORADOS */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-equestrian-gold-500;
+    @apply transition-all duration-200;
   }
   
-  /* 💻 TABLET SPECIFIC */
-  @media (min-width: 768px) and (max-width: 1024px) {
-    .tablet-grid {
-      @apply grid-cols-2 gap-6;
-    }
-    
-    .tablet-sidebar {
-      @apply w-20 hover:w-64 transition-all duration-300;
-    }
+  .focus-ring-blue {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-equestrian-blue-500;
+    @apply transition-all duration-200;
   }
   
-  /* 🖥️ DESKTOP OPTIMIZATIONS */
-  @media (min-width: 1024px) {
-    .desktop-hover {
-      @apply hover:shadow-premium hover:-translate-y-1 transition-all duration-200;
-    }
-    
-    .desktop-grid {
-      @apply grid-cols-4 gap-8;
-    }
+  .focus-ring-green {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-equestrian-green-500;
+    @apply transition-all duration-200;
   }
 }
 
@@ -622,53 +495,6 @@
   }
 }
 
-/* === PRINT STYLES === */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .print-only {
-    display: block !important;
-  }
-  
-  * {
-    color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-  
-  .card, .table-premium {
-    break-inside: avoid;
-  }
-}
-
-/* === DARK MODE OVERRIDES === */
-@media (prefers-color-scheme: dark) {
-  .auto-dark {
-    @apply dark:bg-gray-900 dark:text-gray-100;
-  }
-  
-  .auto-dark .card {
-    @apply dark:bg-gray-800 dark:border-gray-700;
-  }
-  
-  .auto-dark .input {
-    @apply dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100;
-  }
-}
-
-/* === VENDOR PREFIXES Y FALLBACKS === */
-.backdrop-blur-fallback {
-  background-color: rgba(255, 255, 255, 0.8);
-}
-
-@supports (backdrop-filter: blur(10px)) {
-  .backdrop-blur-fallback {
-    background-color: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-  }
-}
-
 /* === LOADING STATES === */
 .skeleton {
   @apply bg-gray-200 rounded animate-pulse;
@@ -685,7 +511,6 @@
     background-position: 200% 0;
   }
 }
-
 
 /* === TEST DIRECTO === */
 .test-gold {
