@@ -6,7 +6,18 @@ module.exports = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        'equestrian-gold': 'rgb(212, 175, 55)',
+        'equestrian-blue': 'rgb(30, 58, 138)',
+        'equestrian-green': 'rgb(5, 150, 105)',
+      },
+      fontFamily: {
+        'sans': ['Inter', 'system-ui', 'sans-serif'],
+        'mono': ['JetBrains Mono', 'Monaco', 'monospace'],
+        'accent': ['Playfair Display', 'serif'],
+      },
+    },
   },
   plugins: [],
 }
