@@ -1,7 +1,7 @@
 // 📊 Analytics Dashboard - Subfase 6.5.4.3
 // Archivo: frontend/src/components/rankings/AnalyticsDashboard.tsx
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, 
@@ -40,7 +40,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar
-} from 'recharts'
+} from 'recharts';
 
 // === TIPOS Y INTERFACES ===
 interface JudgeData {
@@ -86,6 +86,28 @@ interface AnalyticsDashboardProps {
   className?: string;
 }
 
+// === COMPONENTE CHART WRAPPER CLIENT-ONLY ===
+const ClientOnlyChart = ({ children, height = "250px" }: { children: React.ReactNode; height?: string }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-sm text-gray-500">Cargando gráfico...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <div>{children}</div>;
+};
+
 // === COMPONENTE MÉTRICA CARD ===
 const MetricCard = ({ 
   title, 
@@ -104,6 +126,12 @@ const MetricCard = ({
   color?: 'blue' | 'green' | 'purple' | 'orange' | 'red';
   delay?: number;
 }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const colorClasses = {
     blue: 'from-blue-500 to-blue-600 text-blue-600',
     green: 'from-green-500 to-green-600 text-green-600',
@@ -131,9 +159,13 @@ const MetricCard = ({
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className={`p-4 rounded-xl bg-gradient-to-br ${colorClasses[color]} bg-opacity-10`}>
-            <Icon className={`w-8 h-8 ${colorClasses[color].split(' ')[2]}`} />
+            {mounted ? (
+              <Icon className={`w-8 h-8 ${colorClasses[color].split(' ')[2]}`} />
+            ) : (
+              <div className="w-8 h-8 bg-gray-300 rounded animate-pulse" />
+            )}
           </div>
-          {trend && (
+          {trend && mounted && (
             <div className="flex items-center gap-1">
               {trendIcons[trend]}
             </div>
@@ -184,7 +216,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 }) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'hour' | 'day' | 'week'>('hour');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'overview' | 'judges' | 'performance' | 'distribution'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'judges' | 'performance'>('overview');
+  const [mounted, setMounted] = useState(false);
+
+  // Solo renderizar gráficos en el cliente
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Cálculos derivados
   const completionRate = useMemo(() => {
@@ -242,6 +280,32 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     }
   };
 
+  // Loading component mientras se monta
+  if (!mounted) {
+    return (
+      <div className={`bg-gray-50 min-h-screen ${className}`}>
+        <div className="bg-white shadow-sm border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <BarChart3 className="w-8 h-8 text-blue-600" />
+                Analytics Dashboard
+              </h1>
+              <p className="text-gray-600 mt-1">{analyticsData.competition_name}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando dashboard de analytics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`bg-gray-50 min-h-screen ${className}`}>
       {/* Header */}
@@ -298,8 +362,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           {[
             { id: 'overview', label: 'Resumen', icon: Eye },
             { id: 'judges', label: 'Jueces', icon: Users },
-            { id: 'performance', label: 'Rendimiento', icon: Target },
-            { id: 'distribution', label: 'Distribución', icon: PieChart }
+            { id: 'performance', label: 'Rendimiento', icon: Target }
           ].map(tab => (
             <motion.button
               key={tab.id}
@@ -385,8 +448,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <Clock className="w-6 h-6 text-blue-600" />
                     Actividad por Hora
                   </h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <ClientOnlyChart height="256px">
+                    <ResponsiveContainer width="100%" height={256}>
                       <AreaChart data={analyticsData.hourly_activity} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
@@ -408,7 +471,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                         />
                       </AreaChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ClientOnlyChart>
                 </motion.div>
 
                 {/* Rendimiento por categoría */}
@@ -422,8 +485,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                     <TrendingUp className="w-6 h-6 text-green-600" />
                     Rendimiento por Categoría
                   </h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <ClientOnlyChart height="256px">
+                    <ResponsiveContainer width="100%" height={256}>
                       <BarChart data={analyticsData.categories} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis dataKey="category" stroke="#6b7280" fontSize={12} />
@@ -432,7 +495,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                         <Bar dataKey="average_score" fill="#10B981" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ClientOnlyChart>
                 </motion.div>
               </div>
 
@@ -520,8 +583,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Análisis Multidimensional de Jueces
                 </h3>
-                <div className="h-96">
-                  <ResponsiveContainer width="100%" height="100%">
+                <ClientOnlyChart height="384px">
+                  <ResponsiveContainer width="100%" height={384}>
                     <RadarChart data={judgeRadarData} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
                       <PolarGrid stroke="#e5e7eb" />
                       <PolarAngleAxis dataKey="judge" className="text-sm" />
@@ -558,7 +621,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       <Tooltip content={<CustomTooltip />} />
                     </RadarChart>
                   </ResponsiveContainer>
-                </div>
+                </ClientOnlyChart>
               </motion.div>
 
               {/* Tabla de eficiencia de jueces */}
@@ -666,151 +729,6 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </motion.div>
           )}
 
-          {/* TAB: DISTRIBUCIÓN */}
-          {activeTab === 'distribution' && (
-            <motion.div
-              key="distribution"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              {/* Distribución de puntuaciones - VERSION ALTERNATIVA SIN PIE CHART */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <motion.div 
-                  className="bg-white rounded-xl shadow-lg p-6"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <PieChart className="w-5 h-5 text-purple-600" />
-                    Distribución de Puntuaciones
-                  </h3>
-                  
-                  {/* Gráfico de barras horizontal alternativo */}
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={analyticsData.score_distribution} layout="horizontal">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis type="number" stroke="#6b7280" />
-                      <YAxis dataKey="score_range" type="category" stroke="#6b7280" width={80} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="count">
-                        {analyticsData.score_distribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={scoreDistributionColors[index % scoreDistributionColors.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </motion.div>
-
-                <motion.div 
-                  className="bg-white rounded-xl shadow-lg p-6"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Estadísticas de Distribución
-                  </h3>
-                  <div className="space-y-4">
-                    {analyticsData.score_distribution.map((dist, index) => (
-                      <motion.div
-                        key={dist.score_range}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + index * 0.1 }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: scoreDistributionColors[index % scoreDistributionColors.length] }}
-                          />
-                          <span className="font-medium text-gray-900">
-                            {dist.score_range}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-gray-900">
-                            {dist.count} participantes
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {dist.percentage.toFixed(1)}%
-                          </div>
-                          {/* Barra de progreso visual */}
-                          <div className="w-20 h-2 bg-gray-200 rounded-full mt-1">
-                            <div 
-                              className="h-full rounded-full"
-                              style={{ 
-                                width: `${dist.percentage}%`,
-                                backgroundColor: scoreDistributionColors[index % scoreDistributionColors.length]
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Gráfico de área adicional para mostrar distribución */}
-              <motion.div 
-                className="bg-white rounded-xl shadow-lg p-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Curva de Distribución de Puntuaciones
-                </h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <AreaChart data={analyticsData.score_distribution}>
-                    <defs>
-                      <linearGradient id="colorDistribution" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="score_range" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#8B5CF6" 
-                      fillOpacity={1} 
-                      fill="url(#colorDistribution)" 
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </motion.div>
-
-              {/* Heat map de categorías vs horarios */}
-              <motion.div 
-                className="bg-white rounded-xl shadow-lg p-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Mapa de Calor - Actividad por Categoría y Hora
-                </h3>
-                <div className="text-center text-gray-600 py-8">
-                  <Activity className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <p>Heat map en desarrollo - Próximamente disponible</p>
-                  <p className="text-sm mt-2">
-                    Visualización de actividad de evaluación por categoría y franja horaria
-                  </p>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-
           {/* TAB: RENDIMIENTO */}
           {activeTab === 'performance' && (
             <motion.div
@@ -832,8 +750,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   <TrendingUp className="w-6 h-6 text-green-600" />
                   Tendencias de Rendimiento por Categoría
                 </h3>
-                <div className="h-96">
-                  <ResponsiveContainer width="100%" height="100%">
+                <ClientOnlyChart height="384px">
+                  <ResponsiveContainer width="100%" height={384}>
                     <LineChart data={analyticsData.categories} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="category" stroke="#6b7280" fontSize={12} />
@@ -858,7 +776,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                       />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </ClientOnlyChart>
               </motion.div>
 
               {/* Comparación de categorías */}
@@ -872,8 +790,8 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Participación por Categoría
                   </h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <ClientOnlyChart height="256px">
+                    <ResponsiveContainer width="100%" height={256}>
                       <BarChart data={analyticsData.categories} layout="horizontal" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis type="number" stroke="#6b7280" fontSize={12} />
@@ -882,7 +800,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                         <Bar dataKey="participants_count" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </ClientOnlyChart>
                 </motion.div>
 
                 <motion.div 
