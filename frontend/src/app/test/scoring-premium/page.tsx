@@ -3,21 +3,18 @@
 
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PremiumScoringPanel } from '@/components/scoring/PremiumScoringPanel';
 import { 
   mockScoringSession, 
   mockParticipants, 
   mockEvaluationParameters,
   mockScoringApi 
 } from '@/lib/test-data/premium-scoring-data';
+import { SimpleScoringPanel } from '@/components/scoring/SimpleScoringPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Toaster } from 'sonner';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { 
-  Play, 
-  Pause, 
   RotateCcw, 
   Settings,
   Users,
@@ -36,11 +33,21 @@ const queryClient = new QueryClient({
 
 function TestingScoringContent() {
   // Estados para la demostración
-  const [participants, setParticipants] = useState(mockParticipants);
-  const [evaluationParameters, setEvaluationParameters] = useState(mockEvaluationParameters);
+  const [participants, setParticipants] = useState(mockParticipants || []);
+  const [evaluationParameters, setEvaluationParameters] = useState(mockEvaluationParameters || []);
   const [currentParticipantIndex, setCurrentParticipantIndex] = useState(0);
   const [isTestingMode, setIsTestingMode] = useState(true);
   const [testScenario, setTestScenario] = useState<'basic' | 'advanced' | 'extreme'>('basic');
+
+  // Verificación de seguridad
+  if (!participants || participants.length === 0) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-xl font-bold text-gray-800">Cargando datos de prueba...</h2>
+        <p className="text-gray-600">Verificando componentes...</p>
+      </div>
+    );
+  }
 
   // Simular actualización de puntuación
   const handleScoreUpdate = async (participantId: number, parameterId: number, score: number, justification?: string) => {
@@ -199,6 +206,14 @@ function TestingScoringContent() {
                 <div className="text-sm font-medium text-gray-700">Escenarios de Prueba:</div>
                 <div className="grid grid-cols-3 gap-1">
                   <Button 
+                    size="sm" 
+                    variant={testScenario === 'basic' ? 'default' : 'outline'}
+                    onClick={() => loadTestScenario('basic')}
+                    className="text-xs"
+                  >
+                    Básico
+                  </Button>
+                  <Button 
                     size="sm"
                     variant={testScenario === 'advanced' ? 'default' : 'outline'}
                     onClick={() => loadTestScenario('advanced')}
@@ -251,6 +266,17 @@ function TestingScoringContent() {
                   #{participants[currentParticipantIndex]?.participant_number}
                 </div>
               </div>
+
+              {/* Atajos de teclado */}
+              <div className="bg-white rounded p-2 text-xs">
+                <div className="font-medium text-gray-800 mb-1">Atajos:</div>
+                <div className="space-y-1 text-gray-600">
+                  <div>← → : Cambiar participante</div>
+                  <div>↑ ↓ : Cambiar parámetro</div>
+                  <div>1-9 : Puntuación rápida</div>
+                  <div>R : Reset datos</div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -268,7 +294,7 @@ function TestingScoringContent() {
       )}
 
       {/* Componente Principal */}
-      <PremiumScoringPanel
+      <SimpleScoringPanel
         participants={participants}
         currentParticipantIndex={currentParticipantIndex}
         evaluationParameters={evaluationParameters}
@@ -321,7 +347,44 @@ export default function TestPremiumScoringPage() {
           </div>
         </div>
 
+        {/* Instrucciones de Testing */}
+        <div className="bg-yellow-50 border-b border-yellow-200 p-3">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center space-x-2 text-yellow-800">
+              <Clock className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                Modo Testing Activo: Usa el panel lateral para probar diferentes escenarios
+              </span>
+            </div>
+          </div>
+        </div>
+
         <TestingScoringContent />
+
+        {/* Footer de información */}
+        <div className="bg-gray-800 text-white p-4 mt-8">
+          <div className="max-w-7xl mx-auto text-center">
+            <h3 className="font-semibold mb-2">🎯 Objetivos de Testing</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="font-medium text-blue-300">🎨 Visual</div>
+                <div>Gradientes, animaciones, colores</div>
+              </div>
+              <div>
+                <div className="font-medium text-green-300">📱 Touch</div>
+                <div>Botones, gestos, responsive</div>
+              </div>
+              <div>
+                <div className="font-medium text-purple-300">⚡ Performance</div>
+                <div>Fluidez, velocidad, memoria</div>
+              </div>
+              <div>
+                <div className="font-medium text-amber-300">✅ Funcional</div>
+                <div>Validación FEI, guardado, errores</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </QueryClientProvider>
   );
