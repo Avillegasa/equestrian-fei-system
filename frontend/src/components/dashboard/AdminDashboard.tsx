@@ -76,6 +76,39 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
       href: '/admin/settings',
       color: 'bg-gray-500 hover:bg-gray-600',
     },
+    {
+    title: 'Rankings Premium',
+    description: 'Ver rankings con diseño premium',
+    icon: (
+      <svg className="h-8 w-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+      </svg>
+    ),
+    href: '/rankings/premium',
+    color: 'bg-yellow-500 hover:bg-yellow-600',
+  },
+  {
+    title: 'Display Público',
+    description: 'Pantalla cinematográfica para espectadores',
+    icon: (
+      <svg className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2h4a1 1 0 011 1v14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1h4z" />
+      </svg>
+    ),
+    href: '/public-display',
+    color: 'bg-indigo-500 hover:bg-indigo-600',
+  },
+  {
+    title: 'Analytics Dashboard',
+    description: 'Métricas y estadísticas avanzadas',
+    icon: (
+      <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+    href: '/analytics',
+    color: 'bg-green-500 hover:bg-green-600',
+  }
   ];
 
   return (
