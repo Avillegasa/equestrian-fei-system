@@ -26,8 +26,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import type { LoginCredentials } from '@/types/api-types';
+
 // ===== COMPONENTES UI (usando el sistema de diseño corregido) =====
-import { 
+import ui from '@/components/ui';
+const { 
   Card, 
   CardHeader, 
   CardContent, 
@@ -41,10 +43,7 @@ import {
   EyeOffIcon,
   HorseIcon,
   TrophyIcon
-} from '@/components/ui';
-
-
-
+} = ui;
 
 // ===== COMPONENTE PRINCIPAL =====
 export default function LoginPage() {
@@ -234,7 +233,7 @@ export default function LoginPage() {
               {/* Campo Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
+                <input
                   id="email"
                   name="email"
                   type="email"
@@ -243,8 +242,7 @@ export default function LoginPage() {
                   placeholder="tu@email.com"
                   autoComplete="email"
                   disabled={isSubmitting || isLoading}
-                  error={validationErrors.email}
-                  className="w-full"
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 {validationErrors.email && (
                   <p className="text-sm text-red-600">{validationErrors.email}</p>
@@ -255,7 +253,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">Contraseña</Label>
                 <div className="relative">
-                  <Input
+                  <input
                     id="password"
                     name="password"
                     type={showPassword ? 'text' : 'password'}
@@ -264,8 +262,7 @@ export default function LoginPage() {
                     placeholder="Tu contraseña"
                     autoComplete="current-password"
                     disabled={isSubmitting || isLoading}
-                    error={validationErrors.password}
-                    className="w-full pr-12"
+                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-12 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                   <button
                     type="button"

@@ -1,8 +1,24 @@
-// 🔌 Cliente API Centralizado - Sistema FEI (Versión Mejorada)
-// Archivo: frontend/lib/api.ts
+/**
+ * Cliente API Centralizado - Sistema FEI
+ * ====================================== 
+ * 
+ * Cliente API completo que maneja toda la comunicación con el backend Django.
+ * Incluye autenticación JWT, refresh automático, manejo de errores, y 
+ * servicios para todas las entidades del sistema.
+ * 
+ * Características:
+ * - Refresh automático de tokens
+ * - Manejo de errores centralizado  
+ * - Tipado TypeScript completo
+ * - Interceptors para logging
+ * - Compatibilidad SSR (Next.js)
+ * 
+ * Archivo: frontend/src/lib/api.ts
+ * Autor: Sistema FEI - Fase 6.6 Día 8
+ * Fecha: 17 Julio 2025
+ */
 
-// ===== IMPORTAR TODOS LOS TIPOS =====
-import type {
+import type { 
   ApiResponse,
   PaginatedResponse,
   User,
@@ -36,13 +52,14 @@ import type {
   LiveRankingUpdate,
 } from '../types/api-types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+// ===== CONFIGURACIÓN =====
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
 // ===== GESTIÓN DE TOKENS MEJORADA =====
-class TokenManager {
-  private static readonly TOKEN_KEY = 'fei_auth_token';
-  private static readonly REFRESH_TOKEN_KEY = 'fei_refresh_token';
-  private static readonly USER_KEY = 'fei_user';
+export class TokenManager {
+  private static readonly TOKEN_KEY = 'accessToken';
+  private static readonly REFRESH_TOKEN_KEY = 'refreshToken';
+  private static readonly USER_KEY = 'currentUser';
 
   static getToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -91,7 +108,7 @@ class TokenManager {
   }
 }
 
-// ===== CLIENTE API BASE MEJORADO =====
+// ===== CLIENTE API BASE =====
 class ApiClient {
   private baseURL: string;
   private isRefreshing = false;
@@ -99,6 +116,56 @@ class ApiClient {
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL;
+  }
+
+  private async handleTokenRefresh(): Promise<boolean> {
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = this.performTokenRefresh();
+    
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+    }
+  }
+
+  private async performTokenRefresh(): Promise<boolean> {
+    const refreshToken = TokenManager.getRefreshToken();
+    
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/users/auth/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+      
+      if (data.access) {
+        TokenManager.setToken(data.access);
+        console.log('🔄 Token refreshed successfully');
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Error refreshing token:', error);
+      return false;
+    }
   }
 
   private async request<T = any>(
@@ -129,7 +196,7 @@ class ApiClient {
       
       let response = await fetch(url, config);
 
-      // Manejar token expirado con refresh automático mejorado
+      // Manejar token expirado con refresh automático
       if (response.status === 401 && token && !this.isRefreshing) {
         console.log('🔄 Token expirado, intentando refresh...');
         
@@ -184,57 +251,22 @@ class ApiClient {
     }
   }
 
-  private async handleTokenRefresh(): Promise<boolean> {
-    // Evitar múltiples refresh simultáneos
-    if (this.isRefreshing) {
-      if (this.refreshPromise) {
-        return this.refreshPromise;
-      }
-    }
-
-    this.isRefreshing = true;
-    this.refreshPromise = this.performTokenRefresh();
-
-    try {
-      const result = await this.refreshPromise;
-      this.isRefreshing = false;
-      this.refreshPromise = null;
-      return result;
-    } catch (error) {
-      this.isRefreshing = false;
-      this.refreshPromise = null;
-      return false;
-    }
-  }
-
-  private async performTokenRefresh(): Promise<boolean> {
-    const refreshToken = TokenManager.getRefreshToken();
-    if (!refreshToken) return false;
-
-    try {
-      const response = await fetch(`${this.baseURL}/users/auth/token/refresh/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        TokenManager.setToken(data.access);
-        console.log('✅ Token refreshed successfully');
-        return true;
-      }
-    } catch (error) {
-      console.error('❌ Error refreshing token:', error);
-    }
-
-    return false;
-  }
-
-  // ===== MÉTODOS HTTP =====
+  // Métodos HTTP
   async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
-    const url = params ? `${endpoint}?${new URLSearchParams(params).toString()}` : endpoint;
-    return this.request<T>(url, { method: 'GET' });
+    let url = endpoint;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    return this.request<T>(url);
   }
 
   async post<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
@@ -266,13 +298,10 @@ class ApiClient {
 // ===== INSTANCIA GLOBAL =====
 const apiClient = new ApiClient();
 
-// ===== SERVICIOS ESPECÍFICOS MEJORADOS =====
+// ===== SERVICIOS ESPECÍFICOS =====
 
-// 🔐 AUTENTICACIÓN MEJORADA
-export const authAPI = {
-  /**
-   * Login de usuario
-   */
+// 🔐 AUTENTICACIÓN
+const authAPI = {
   login: async (credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> => {
     const response = await apiClient.post<AuthResponse>('/users/auth/login/', credentials);
     if (response.success && response.data) {
@@ -292,9 +321,6 @@ export const authAPI = {
     return { success: true, data: { message: 'Logout exitoso' } };
   },
 
-  /**
-   * Registro de nuevo usuario
-   */
   register: async (userData: RegisterData): Promise<ApiResponse<AuthResponse>> => {
     const response = await apiClient.post<AuthResponse>('/users/auth/register/', userData);
     if (response.success && response.data) {
@@ -309,91 +335,47 @@ export const authAPI = {
     return apiClient.get<User>('/users/current/');
   },
 
-  updateProfile: async (userData: Partial<User>): Promise<ApiResponse<User>> => {
-    const response = await apiClient.patch<User>('/users/profile/', userData);
-    if (response.success && response.data) {
-      TokenManager.setUser(response.data);
-    }
-    return response;
-  },
-
-  /**
-   * Cambiar contraseña
-   */
   changePassword: async (passwordData: PasswordChangeData): Promise<ApiResponse<{ message: string }>> => {
     return apiClient.post('/users/auth/password/change/', passwordData);
   },
 
-  // Métodos de conveniencia
   isAuthenticated: (): boolean => TokenManager.isAuthenticated(),
   getStoredUser: (): User | null => TokenManager.getUser(),
 };
 
-// 🏆 COMPETENCIAS MEJORADAS
-export const competitionsAPI = {
-  /**
-   * Obtener lista de competencias
-   */
+// 🏆 COMPETENCIAS
+const competitionsAPI = {
   getAll: async (params?: CompetitionFilters): Promise<ApiResponse<PaginatedResponse<Competition>>> => {
-    return apiClient.get<PaginatedResponse<Competition>>('/competitions/competitions/', params);
-  },
-
-  getPublic: async (params?: {
-    upcoming?: boolean;
-    search?: string;
-  }): Promise<ApiResponse<Competition[]>> => {
-    return apiClient.get<Competition[]>('/competitions/public/competitions/', params);
+    return apiClient.get<PaginatedResponse<Competition>>('/competitions/', params);
   },
 
   getById: async (id: number): Promise<ApiResponse<Competition>> => {
-    return apiClient.get<Competition>(`/competitions/competitions/${id}/`);
+    return apiClient.get<Competition>(`/competitions/${id}/`);
   },
 
-  /**
-   * Crear nueva competencia
-   */
   create: async (competitionData: CompetitionFormData): Promise<ApiResponse<Competition>> => {
-    return apiClient.post<Competition>('/competitions/competitions/', competitionData);
+    return apiClient.post<Competition>('/competitions/', competitionData);
   },
 
-  update: async (id: number, competitionData: Partial<Competition>): Promise<ApiResponse<Competition>> => {
-    return apiClient.patch<Competition>(`/competitions/competitions/${id}/`, competitionData);
+  update: async (id: number, competitionData: Partial<CompetitionFormData>): Promise<ApiResponse<Competition>> => {
+    return apiClient.patch<Competition>(`/competitions/${id}/`, competitionData);
   },
 
   delete: async (id: number): Promise<ApiResponse<void>> => {
-    return apiClient.delete(`/competitions/competitions/${id}/`);
+    return apiClient.delete(`/competitions/${id}/`);
   },
 
-  getParticipants: async (id: number): Promise<ApiResponse<Registration[]>> => {
-    return apiClient.get<Registration[]>(`/competitions/competitions/${id}/participants/`);
+  getCategories: async (competitionId: number): Promise<ApiResponse<Category[]>> => {
+    return apiClient.get<Category[]>(`/competitions/${competitionId}/categories/`);
   },
 
-  addParticipant: async (id: number, participantData: {
-    rider_id: number;
-    horse_id: number;
-    category_id: number;
-    special_requirements?: string;
-  }): Promise<ApiResponse<Registration>> => {
-    return apiClient.post<Registration>(`/competitions/competitions/${id}/participants/`, participantData);
-  },
-
-  getCategories: async (id: number): Promise<ApiResponse<Category[]>> => {
-    return apiClient.get<Category[]>(`/competitions/competitions/${id}/categories/`);
-  },
-
-  /**
-   * Asignar juez a competencia
-   */
-  assignJudge: async (competitionId: number, judgeData: JudgeAssignmentData): Promise<ApiResponse<JudgePosition>> => {
-    return apiClient.post<JudgePosition>(`/competitions/competitions/${competitionId}/assign_judge/`, judgeData);
+  getStatistics: async (id: number): Promise<ApiResponse<CompetitionStatistics>> => {
+    return apiClient.get<CompetitionStatistics>(`/competitions/${id}/statistics/`);
   },
 };
 
-// 👥 USUARIOS MEJORADOS
-export const usersAPI = {
-  /**
-   * Obtener lista de usuarios
-   */
+// 👥 USUARIOS
+const usersAPI = {
   getAll: async (params?: UserFilters): Promise<ApiResponse<PaginatedResponse<User>>> => {
     return apiClient.get<PaginatedResponse<User>>('/users/', params);
   },
@@ -406,178 +388,70 @@ export const usersAPI = {
     return apiClient.patch<User>(`/users/${id}/`, userData);
   },
 
-  verifyUser: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient.post(`/users/${id}/verify/`);
-  },
-
-  toggleStatus: async (id: number): Promise<ApiResponse<{ message: string }>> => {
-    return apiClient.post(`/users/${id}/toggle-status/`);
-  },
-
-  getJudges: async (): Promise<ApiResponse<User[]>> => {
-    return apiClient.get<User[]>('/users/judges/');
-  },
-
-  getJudgesByDiscipline: async (discipline: string): Promise<ApiResponse<User[]>> => {
-    return apiClient.get<User[]>(`/users/judges/discipline/${discipline}/`);
-  },
-
-  createJudgeProfile: async (judgeData: any): Promise<ApiResponse<any>> => {
-    return apiClient.post('/users/judge/profile/create/', judgeData);
-  },
-
-  createOrganizerProfile: async (organizerData: any): Promise<ApiResponse<any>> => {
-    return apiClient.post('/users/organizer/profile/create/', organizerData);
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return apiClient.delete(`/users/${id}/`);
   },
 };
 
-// 🎯 CALIFICACIÓN (SCORING) MEJORADA
-export const scoringAPI = {
+// 🧮 CALIFICACIÓN
+const scoringAPI = {
   getEvaluationParameters: async (categoryId: number): Promise<ApiResponse<EvaluationParameter[]>> => {
-    return apiClient.get<EvaluationParameter[]>('/scoring/parameters/', { category_id: categoryId });
+    return apiClient.get<EvaluationParameter[]>(`/scoring/categories/${categoryId}/parameters/`);
   },
 
-  /**
-   * Ingresar/actualizar calificación
-   */
   submitScore: async (scoreData: ScoreFormData): Promise<ApiResponse<ScoreEntry>> => {
-    return apiClient.post<ScoreEntry>('/scoring/entries/', scoreData);
+    return apiClient.post<ScoreEntry>('/scoring/scores/', scoreData);
   },
 
-  updateScore: async (scoreId: number, scoreData: {
-    score: number;
-    justification?: string;
-    reason?: string;
-  }): Promise<ApiResponse<ScoreEntry>> => {
-    return apiClient.patch<ScoreEntry>(`/scoring/entries/${scoreId}/`, scoreData);
+  updateScore: async (scoreId: number, scoreData: Partial<ScoreFormData>): Promise<ApiResponse<ScoreEntry>> => {
+    return apiClient.patch<ScoreEntry>(`/scoring/scores/${scoreId}/`, scoreData);
   },
 
-  getParticipantScores: async (participantId: number): Promise<ApiResponse<ScoreEntry[]>> => {
-    return apiClient.get<ScoreEntry[]>('/scoring/entries/', { participant_id: participantId });
+  getScores: async (params?: ScoreFilters): Promise<ApiResponse<PaginatedResponse<ScoreEntry>>> => {
+    return apiClient.get<PaginatedResponse<ScoreEntry>>('/scoring/scores/', params);
   },
 
-  getJudgeEvaluations: async (competitionId: number, judgeId?: number): Promise<ApiResponse<any[]>> => {
-    const params = judgeId ? { competition_id: competitionId, judge_id: judgeId } : { competition_id: competitionId };
-    return apiClient.get<any[]>('/scoring/evaluations/', params);
-  },
-
-  /**
-   * Validar puntuaciones de un participante
-   */
-  validateScores: async (participantId: number): Promise<ApiResponse<ScoreValidation>> => {
-    return apiClient.post('/scoring/entries/validate_scores/', { participant_id: participantId });
-  },
-
-  /**
-   * Obtener progreso de calificación de una competencia
-   */
-  getProgress: async (competitionId: number, categoryId?: number): Promise<ApiResponse<CompetitionStatistics>> => {
-    const params = categoryId 
-      ? { competition_id: competitionId, category_id: categoryId }
-      : { competition_id: competitionId };
-    return apiClient.get('/scoring/progress/', params);
-  },
-
-  // Nuevos métodos para endpoints específicos
-  getPublicParameters: async (): Promise<ApiResponse<any>> => {
-    return apiClient.get('/scoring/public-parameters/');
-  },
-
-  testCalculator: async (): Promise<ApiResponse<any>> => {
-    return apiClient.get('/scoring/public-calculator-test/');
+  validateScore: async (scoreData: ScoreFormData): Promise<ApiResponse<ScoreValidation>> => {
+    return apiClient.post<ScoreValidation>('/scoring/validate/', scoreData);
   },
 };
 
-// 🏅 RANKINGS MEJORADOS
-export const rankingsAPI = {
-  getCompetitionRankings: async (competitionId: number, categoryId?: number): Promise<ApiResponse<{
-    competition_id: number;
-    category_id?: number;
-    rankings: RankingEntry[];
-    calculated_at: string;
-    total_participants: number;
-  }>> => {
-    const params = categoryId 
-      ? { competition_id: competitionId, category_id: categoryId }
-      : { competition_id: competitionId };
-    return apiClient.get('/rankings/api/rankings/', params);
+// 🏅 RANKINGS
+const rankingsAPI = {
+  getByCompetition: async (competitionId: number, params?: RankingFilters): Promise<ApiResponse<RankingEntry[]>> => {
+    return apiClient.get<RankingEntry[]>(`/rankings/competition/${competitionId}/`, params);
   },
 
-  /**
-   * Obtener rankings en vivo
-   */
-  getLiveRankings: async (competitionId: number, categoryId?: number): Promise<ApiResponse<LiveRankingUpdate>> => {
-    const params = categoryId 
-      ? { competition_id: competitionId, category_id: categoryId }
-      : { competition_id: competitionId };
-    return apiClient.get('/rankings/api/live-ranking/', params);
+  getByCategory: async (categoryId: number, params?: RankingFilters): Promise<ApiResponse<RankingEntry[]>> => {
+    return apiClient.get<RankingEntry[]>(`/rankings/category/${categoryId}/`, params);
   },
 
-  calculateRankings: async (competitionId: number, categoryId?: number): Promise<ApiResponse<any>> => {
-    return apiClient.post('/rankings/api/calculate-ranking/', {
-      competition_id: competitionId,
-      category_id: categoryId
-    });
+  getLive: async (competitionId: number): Promise<ApiResponse<LiveRankingUpdate[]>> => {
+    return apiClient.get<LiveRankingUpdate[]>(`/rankings/live/${competitionId}/`);
   },
 
-  getRankingHistory: async (competitionId: number, categoryId?: number, limit: number = 10): Promise<ApiResponse<any[]>> => {
-    return apiClient.get('/rankings/api/ranking-history/', {
-      competition_id: competitionId,
-      category_id: categoryId,
-      limit: limit
-    });
-  },
-
-  /**
-   * Obtener estadísticas de rankings
-   */
-  getStatistics: async (competitionId: number, categoryId?: number): Promise<ApiResponse<RankingStatistics>> => {
-    const params = categoryId 
-      ? { competition_id: competitionId, category_id: categoryId }
-      : { competition_id: competitionId };
-    return apiClient.get('/rankings/api/ranking-stats/', params);
-  },
-
-  exportRankings: async (competitionId: number, format: 'pdf' | 'excel' = 'pdf'): Promise<ApiResponse<any>> => {
-    return apiClient.get(`/rankings/api/export/`, { 
-      competition_id: competitionId, 
-      format: format 
-    });
-  },
-
-  getParticipantHistory: async (participantId: number): Promise<ApiResponse<any[]>> => {
-    return apiClient.get(`/rankings/api/participants/${participantId}/history/`);
+  getStatistics: async (competitionId: number): Promise<ApiResponse<RankingStatistics>> => {
+    return apiClient.get<RankingStatistics>(`/rankings/statistics/${competitionId}/`);
   },
 };
 
-// 📊 REPORTES MEJORADOS
-export const reportsAPI = {
-  getCompetitionReport: async (competitionId: number): Promise<ApiResponse<any>> => {
-    return apiClient.get(`/reports/competitions/${competitionId}/`);
+// 📊 REPORTES
+const reportsAPI = {
+  generateCompetitionReport: async (competitionId: number): Promise<ApiResponse<Blob>> => {
+    return apiClient.get(`/reports/competition/${competitionId}/pdf/`);
   },
 
-  getFEIReport: async (competitionId: number): Promise<ApiResponse<any>> => {
-    return apiClient.get(`/reports/competitions/${competitionId}/fei/`);
-  },
-
-  getAuditReport: async (competitionId: number): Promise<ApiResponse<any>> => {
-    return apiClient.get(`/reports/competitions/${competitionId}/audit/`);
-  },
-
-  exportReport: async (competitionId: number, type: 'competition' | 'fei' | 'audit', format: 'pdf' | 'excel' = 'pdf'): Promise<ApiResponse<any>> => {
-    return apiClient.get(`/reports/competitions/${competitionId}/${type}/export/`, { format });
+  generateRankingReport: async (categoryId: number): Promise<ApiResponse<Blob>> => {
+    return apiClient.get(`/reports/ranking/${categoryId}/pdf/`);
   },
 };
 
-// 🐎 CABALLOS Y JINETES
-export const horsesAPI = {
+// 🐎 CABALLOS
+const horsesAPI = {
   getAll: async (params?: { search?: string; page?: number }): Promise<ApiResponse<PaginatedResponse<Horse>>> => {
     return apiClient.get<PaginatedResponse<Horse>>('/competitions/horses/', params);
   },
 
-  /**
-   * Crear nuevo caballo
-   */
   create: async (horseData: HorseFormData): Promise<ApiResponse<Horse>> => {
     return apiClient.post<Horse>('/competitions/horses/', horseData);
   },
@@ -591,14 +465,12 @@ export const horsesAPI = {
   },
 };
 
-export const ridersAPI = {
+// 🤠 JINETES
+const ridersAPI = {
   getAll: async (params?: { search?: string; page?: number }): Promise<ApiResponse<PaginatedResponse<Rider>>> => {
     return apiClient.get<PaginatedResponse<Rider>>('/competitions/riders/', params);
   },
 
-  /**
-   * Crear nuevo jinete
-   */
   create: async (riderData: RiderFormData): Promise<ApiResponse<Rider>> => {
     return apiClient.post<Rider>('/competitions/riders/', riderData);
   },
@@ -612,9 +484,8 @@ export const ridersAPI = {
   },
 };
 
-// ===== EXPORTAR API PRINCIPAL =====
+// ===== EXPORTACIONES =====
 export default apiClient;
-export { TokenManager };
 
 // ===== MÉTODOS DE CONVENIENCIA =====
 export const api = {
@@ -628,7 +499,7 @@ export const api = {
   riders: ridersAPI,
 };
 
-// ===== EXPORTAR SERVICIOS INDIVIDUALES =====
+// ===== SERVICIOS INDIVIDUALES (SIN DUPLICADOS) =====
 export {
   authAPI,
   competitionsAPI,
@@ -640,37 +511,5 @@ export {
   ridersAPI,
 };
 
-// ===== RE-EXPORTAR TODOS LOS TIPOS DESDE EL ARCHIVO DE TIPOS =====
-export type {
-  ApiResponse,
-  PaginatedResponse,
-  User,
-  Competition,
-  Category,
-  Horse,
-  Rider,
-  Registration,
-  ScoreEntry,
-  EvaluationParameter,
-  JudgePosition,
-  RankingEntry,
-  AuthResponse,
-  LoginCredentials,
-  RegisterData,
-  PasswordChangeData,
-  CompetitionFormData,
-  HorseFormData,
-  RiderFormData,
-  RegistrationFormData,
-  ScoreFormData,
-  JudgeAssignmentData,
-  CompetitionFilters,
-  UserFilters,
-  RegistrationFilters,
-  ScoreFilters,
-  RankingFilters,
-  CompetitionStatistics,
-  RankingStatistics,
-  ScoreValidation,
-  LiveRankingUpdate,
-} from '../types/api-types';
+
+export { apiClient };
