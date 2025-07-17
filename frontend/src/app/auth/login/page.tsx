@@ -26,8 +26,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import type { LoginCredentials } from '@/types/api-types';
-
-// ===== COMPONENTES UI (usando el sistema de diseño existente) =====
+// ===== COMPONENTES UI (usando el sistema de diseño corregido) =====
 import { 
   Card, 
   CardHeader, 
@@ -43,6 +42,9 @@ import {
   HorseIcon,
   TrophyIcon
 } from '@/components/ui';
+
+
+
 
 // ===== COMPONENTE PRINCIPAL =====
 export default function LoginPage() {
