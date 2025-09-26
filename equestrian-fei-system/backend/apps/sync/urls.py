@@ -6,6 +6,10 @@ from .views import (
     SystemStatsViewSet, MonitoringViewSet, LoggingViewSet,
     NotificationViewSet, ImportExportViewSet, OfflineSyncViewSet
 )
+from .offline_views import (
+    OfflineSyncSessionViewSet, SyncActionViewSet,
+    ConflictResolutionViewSet, OfflineStorageViewSet
+)
 
 app_name = 'sync'
 
@@ -22,6 +26,12 @@ router.register(r'logging', LoggingViewSet, basename='logging')
 router.register(r'notifications', NotificationViewSet, basename='notifications')
 router.register(r'import-export', ImportExportViewSet, basename='import-export')
 router.register(r'offline-sync', OfflineSyncViewSet, basename='offline-sync')
+
+# Nuevas rutas para sincronización offline
+router.register(r'sync-sessions', OfflineSyncSessionViewSet, basename='sync-sessions')
+router.register(r'sync-actions', SyncActionViewSet, basename='sync-actions')
+router.register(r'conflicts', ConflictResolutionViewSet, basename='conflicts')
+router.register(r'offline-storage', OfflineStorageViewSet, basename='offline-storage')
 
 urlpatterns = [
     path('', include(router.urls)),

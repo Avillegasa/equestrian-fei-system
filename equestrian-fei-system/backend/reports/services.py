@@ -26,10 +26,12 @@ except ImportError:
     logger.warning("ReportLab no disponible. Funcionalidad PDF limitada.")
 
 try:
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    ANALYTICS_AVAILABLE = True
+    # import pandas as pd
+    # import matplotlib.pyplot as plt
+    # import seaborn as sns
+    # ANALYTICS_AVAILABLE = True
+    ANALYTICS_AVAILABLE = False
+    logger.warning("Pandas/Matplotlib temporalmente deshabilitado. Analíticas limitadas.")
 except ImportError:
     ANALYTICS_AVAILABLE = False
     logger.warning("Pandas/Matplotlib no disponible. Analíticas limitadas.")

@@ -17,7 +17,33 @@ import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
 
+// Páginas de gestión
+import UsersPage from './pages/UsersPage';
+import CompetitionsPage from './pages/CompetitionsPage';
+import ApprovalsPage from './pages/ApprovalsPage';
+import ActivityLogPage from './pages/ActivityLogPage';
+
 import './styles/App.css'
+
+// Componente para redirigir al dashboard correcto según el rol
+const DashboardRedirect = () => {
+  const { user } = useAuth();
+
+  if (!user?.role) {
+    return <Navigate to="/login" replace />;
+  }
+
+  switch (user.role) {
+    case 'admin':
+      return <Navigate to="/admin" replace />;
+    case 'organizer':
+      return <Navigate to="/organizer" replace />;
+    case 'judge':
+      return <Navigate to="/judge" replace />;
+    default:
+      return <DashboardPage />;
+  }
+};
 
 function App() {
   const { isLoading } = useAuth();
@@ -53,14 +79,14 @@ function App() {
             } 
           />
 
-          {/* Rutas protegidas generales */}
-          <Route 
-            path="/dashboard" 
+          {/* Ruta de dashboard inteligente - redirige según el rol */}
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardPage />
+                <DashboardRedirect />
               </ProtectedRoute>
-            } 
+            }
           />
           <Route 
             path="/profile" 
@@ -80,29 +106,72 @@ function App() {
           />
 
           {/* Rutas específicas por rol */}
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <AdminRoute>
                 <AdminDashboard />
               </AdminRoute>
-            } 
+            }
           />
-          <Route 
-            path="/organizer" 
+          <Route
+            path="/organizer"
             element={
               <OrganizerRoute>
                 <OrganizerDashboard />
               </OrganizerRoute>
-            } 
+            }
           />
-          <Route 
-            path="/judge" 
+          <Route
+            path="/judge"
             element={
               <JudgeRoute>
                 <JudgeDashboard />
               </JudgeRoute>
-            } 
+            }
+          />
+
+
+          {/* Rutas específicas del admin con prefijo /admin/ */}
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <UsersPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/competitions"
+            element={
+              <AdminRoute>
+                <CompetitionsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <AdminRoute>
+                <ReportsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/approvals"
+            element={
+              <AdminRoute>
+                <ApprovalsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/activity-log"
+            element={
+              <AdminRoute>
+                <ActivityLogPage />
+              </AdminRoute>
+            }
           />
 
           {/* Redirect root a dashboard */}

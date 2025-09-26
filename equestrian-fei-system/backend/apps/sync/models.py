@@ -319,6 +319,286 @@ class CacheEntry(models.Model):
         self.save(update_fields=['access_count', 'last_accessed'])
 
 
+class SyncSession(models.Model):
+    """Sesiones de sincronización offline"""
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En Progreso'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sync_sessions')
+    device_id = models.CharField(max_length=255, verbose_name="ID del dispositivo")
+
+    # Tiempos
+    start_time = models.DateTimeField(auto_now_add=True, verbose_name="Hora de inicio")
+    end_time = models.DateTimeField(null=True, blank=True, verbose_name="Hora de fin")
+
+    # Estado y progreso
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Estado")
+    actions_count = models.IntegerField(default=0, verbose_name="Total de acciones")
+    successful_actions = models.IntegerField(default=0, verbose_name="Acciones exitosas")
+    failed_actions = models.IntegerField(default=0, verbose_name="Acciones fallidas")
+
+    # Metadatos
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Sesión de Sincronización"
+        verbose_name_plural = "Sesiones de Sincronización"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'device_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['start_time']),
+        ]
+
+    def __str__(self):
+        return f"Sesión {self.device_id} - {self.get_status_display()}"
+
+    def complete(self, success=True):
+        """Marcar sesión como completada"""
+        self.status = 'completed' if success else 'failed'
+        self.end_time = timezone.now()
+        self.save(update_fields=['status', 'end_time'])
+
+    @property
+    def duration(self):
+        """Duración de la sesión"""
+        if self.start_time and self.end_time:
+            return self.end_time - self.start_time
+        elif self.start_time:
+            return timezone.now() - self.start_time
+        return None
+
+    @property
+    def success_rate(self):
+        """Tasa de éxito de la sincronización"""
+        if self.actions_count == 0:
+            return 0
+        return (self.successful_actions / self.actions_count) * 100
+
+
+class SyncAction(models.Model):
+    """Acciones de sincronización offline"""
+    ACTION_TYPES = [
+        ('create', 'Crear'),
+        ('update', 'Actualizar'),
+        ('delete', 'Eliminar'),
+        ('score_update', 'Actualizar Puntuación'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('processing', 'Procesando'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+        ('conflict', 'Conflicto'),
+    ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Baja'),
+        ('normal', 'Normal'),
+        ('high', 'Alta'),
+        ('urgent', 'Urgente'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sync_session = models.ForeignKey(SyncSession, on_delete=models.CASCADE, related_name='sync_actions')
+
+    # Tipo y configuración
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPES, verbose_name="Tipo de acción")
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='normal', verbose_name="Prioridad")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Estado")
+
+    # Objeto sincronizado (GenericForeignKey)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.UUIDField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    # Datos
+    data = models.JSONField(verbose_name="Datos de la acción")
+    original_data = models.JSONField(null=True, blank=True, verbose_name="Datos originales")
+
+    # Reintentos y errores
+    retry_count = models.IntegerField(default=0, verbose_name="Número de reintentos")
+    max_retries = models.IntegerField(default=3, verbose_name="Máximo reintentos")
+    error_message = models.TextField(blank=True, verbose_name="Mensaje de error")
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(null=True, blank=True, verbose_name="Procesado en")
+
+    class Meta:
+        verbose_name = "Acción de Sincronización"
+        verbose_name_plural = "Acciones de Sincronización"
+        ordering = ['priority', '-created_at']
+        indexes = [
+            models.Index(fields=['sync_session', 'status']),
+            models.Index(fields=['action_type']),
+            models.Index(fields=['priority', 'status']),
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} - {self.get_status_display()}"
+
+    def can_retry(self):
+        """Verificar si se puede reintentar"""
+        return self.status == 'failed' and self.retry_count < self.max_retries
+
+    def mark_processing(self):
+        """Marcar acción como en procesamiento"""
+        self.status = 'processing'
+        self.save(update_fields=['status'])
+
+    def mark_completed(self):
+        """Marcar acción como completada"""
+        self.status = 'completed'
+        self.processed_at = timezone.now()
+        self.save(update_fields=['status', 'processed_at'])
+
+    def mark_failed(self, error_message=None):
+        """Marcar acción como fallida"""
+        self.status = 'failed'
+        self.retry_count += 1
+        if error_message:
+            self.error_message = error_message
+        self.save(update_fields=['status', 'retry_count', 'error_message'])
+
+    def mark_conflict(self, error_message=None):
+        """Marcar acción como conflicto"""
+        self.status = 'conflict'
+        if error_message:
+            self.error_message = error_message
+        self.save(update_fields=['status', 'error_message'])
+
+
+class ConflictResolution(models.Model):
+    """Resolución de conflictos en sincronización"""
+    RESOLUTION_STRATEGIES = [
+        ('server_wins', 'Servidor Gana'),
+        ('client_wins', 'Cliente Gana'),
+        ('last_write_wins', 'Última Escritura Gana'),
+        ('manual_resolution', 'Resolución Manual'),
+        ('merge', 'Fusionar'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('resolved', 'Resuelto'),
+        ('rejected', 'Rechazado'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sync_action = models.OneToOneField(SyncAction, on_delete=models.CASCADE, related_name='conflict_resolution')
+
+    # Configuración del conflicto
+    strategy = models.CharField(max_length=20, choices=RESOLUTION_STRATEGIES, verbose_name="Estrategia de resolución")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Estado")
+
+    # Datos del conflicto
+    server_data = models.JSONField(verbose_name="Datos del servidor")
+    client_data = models.JSONField(verbose_name="Datos del cliente")
+    resolved_data = models.JSONField(null=True, blank=True, verbose_name="Datos resueltos")
+
+    # Metadatos
+    conflict_fields = models.JSONField(default=list, verbose_name="Campos en conflicto")
+    resolution_notes = models.TextField(blank=True, verbose_name="Notas de resolución")
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name="Resuelto en")
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='resolved_conflicts')
+
+    class Meta:
+        verbose_name = "Resolución de Conflicto"
+        verbose_name_plural = "Resoluciones de Conflictos"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Conflicto {self.sync_action.id} - {self.get_status_display()}"
+
+    def resolve(self, resolved_data, resolved_by=None, notes=""):
+        """Resolver el conflicto"""
+        self.resolved_data = resolved_data
+        self.status = 'resolved'
+        self.resolved_at = timezone.now()
+        self.resolved_by = resolved_by
+        self.resolution_notes = notes
+        self.save()
+
+        # Marcar la acción como completada
+        self.sync_action.mark_completed()
+
+
+class OfflineStorage(models.Model):
+    """Almacenamiento offline para datos críticos"""
+    STORAGE_TYPES = [
+        ('score_entry', 'Entrada de Puntuación'),
+        ('evaluation', 'Evaluación'),
+        ('participant_data', 'Datos de Participante'),
+        ('competition_data', 'Datos de Competencia'),
+        ('user_action', 'Acción de Usuario'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='offline_storage')
+    device_id = models.CharField(max_length=255, verbose_name="ID del dispositivo")
+
+    # Tipo y configuración
+    storage_type = models.CharField(max_length=20, choices=STORAGE_TYPES, verbose_name="Tipo de almacenamiento")
+    storage_key = models.CharField(max_length=255, verbose_name="Clave de almacenamiento")
+
+    # Datos
+    data = models.JSONField(verbose_name="Datos almacenados")
+    metadata = models.JSONField(default=dict, verbose_name="Metadatos")
+
+    # Control de versiones
+    version = models.IntegerField(default=1, verbose_name="Versión")
+    checksum = models.CharField(max_length=255, verbose_name="Checksum")
+
+    # Estado
+    is_synced = models.BooleanField(default=False, verbose_name="Sincronizado")
+    sync_priority = models.IntegerField(default=5, verbose_name="Prioridad de sincronización")
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_accessed = models.DateTimeField(auto_now=True, verbose_name="Último acceso")
+
+    class Meta:
+        verbose_name = "Almacenamiento Offline"
+        verbose_name_plural = "Almacenamientos Offline"
+        ordering = ['-updated_at']
+        unique_together = ['user', 'device_id', 'storage_key']
+        indexes = [
+            models.Index(fields=['user', 'device_id']),
+            models.Index(fields=['storage_type']),
+            models.Index(fields=['is_synced']),
+            models.Index(fields=['sync_priority']),
+        ]
+
+    def __str__(self):
+        return f"{self.storage_key} - {self.get_storage_type_display()}"
+
+    def mark_synced(self):
+        """Marcar como sincronizado"""
+        self.is_synced = True
+        self.save(update_fields=['is_synced'])
+
+    def update_data(self, new_data):
+        """Actualizar datos y versión"""
+        self.data = new_data
+        self.version += 1
+        self.is_synced = False
+        self.save(update_fields=['data', 'version', 'is_synced'])
+
+
 class BackupRecord(models.Model):
     """Registro de respaldos"""
     BACKUP_TYPES = [

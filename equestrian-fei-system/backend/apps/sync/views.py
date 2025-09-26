@@ -8,7 +8,8 @@ import logging
 
 from .models import (
     ExternalSystem, SyncJob, SyncRecord, DataMap,
-    CacheEntry, BackupRecord
+    CacheEntry, BackupRecord, SyncSession, SyncAction,
+    ConflictResolution, OfflineStorage
 )
 from .serializers import (
     ExternalSystemSerializer, ExternalSystemListSerializer,
@@ -26,6 +27,7 @@ from .services.logging_service import logging_service
 from .services.notification_service import notification_service
 from .services.import_export_service import import_export_service
 from .services.offline_sync_service import offline_sync_service
+# from .managers import SyncManager, ConflictResolver  # Temporalmente comentado
 from apps.users.permissions import IsAdminUser
 
 logger = logging.getLogger(__name__)

@@ -43,8 +43,8 @@ const DashboardPage = () => {
       case 'admin':
         return [
           { href: '/admin', label: 'Panel de Administración', icon: '⚙️' },
-          { href: '/users', label: 'Gestión de Usuarios', icon: '👥' },
-          { href: '/competitions', label: 'Gestión de Competencias', icon: '🏆' }
+          { href: '/admin/users', label: 'Gestión de Usuarios', icon: '👥' },
+          { href: '/admin/competitions', label: 'Gestión de Competencias', icon: '🏆' }
         ];
       case 'organizer':
         return [

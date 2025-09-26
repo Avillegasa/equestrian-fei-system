@@ -22,9 +22,10 @@ from .notification_service import notification_service
 logger = logging.getLogger(__name__)
 
 try:
-    import pandas as pd
-    import openpyxl
-    PANDAS_AVAILABLE = True
+    # Temporalmente deshabilitado debido a incompatibilidad de numpy/pandas
+    # import pandas as pd
+    # import openpyxl
+    PANDAS_AVAILABLE = False
 except ImportError:
     PANDAS_AVAILABLE = False
     logger.warning("Pandas/openpyxl no disponible. Funcionalidad Excel limitada.")
