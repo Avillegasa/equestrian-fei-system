@@ -304,13 +304,13 @@ const JudgeDashboard = () => {
             </Link>
 
             <Link
-              to="/judge/certificate"
-              className="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-lg shadow transition-colors"
+              to="/judge/scoring/1"
+              className="bg-orange-600 hover:bg-orange-700 text-white p-6 rounded-lg shadow transition-colors"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">🏅</div>
-                <h3 className="text-lg font-semibold">Certificación</h3>
-                <p className="text-sm opacity-90">Gestionar licencias</p>
+                <div className="text-3xl mb-2">⚖️</div>
+                <h3 className="text-lg font-semibold">Calificar en Vivo</h3>
+                <p className="text-sm opacity-90">Sistema de puntuación</p>
               </div>
             </Link>
           </div>

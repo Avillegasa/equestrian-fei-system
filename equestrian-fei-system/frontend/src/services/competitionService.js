@@ -3,15 +3,178 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 class CompetitionService {
-  // =============== DISCIPLINAS ===============
-  async getDisciplines() {
+  constructor() {
+    this.useLocalStorage = import.meta.env.VITE_USE_LOCAL_STORAGE === 'true' || false;
+    this.initLocalStorage();
+  }
+
+  initLocalStorage() {
+    if (!localStorage.getItem('fei_competitions')) {
+      localStorage.setItem('fei_competitions', JSON.stringify([
+        {
+          id: 1,
+          name: 'FEI Dressage Madrid 2024',
+          short_name: 'FDM2024',
+          description: 'Competencia oficial de dressage',
+          competition_type: 'international',
+          start_date: '2025-10-03T09:00:00',
+          end_date: '2025-10-06T18:00:00',
+          registration_start: '2024-12-01T00:00:00',
+          registration_end: '2025-09-25T23:59:59',
+          discipline: 'dressage',
+          venue_name: 'Club Hípico Madrid',
+          venue_city: 'Madrid',
+          venue_country: 'España',
+          max_participants: 50,
+          entry_fee: 150.00,
+          status: 'open_registration',
+          created_at: '2024-11-01T10:00:00Z'
+        }
+      ]));
+    }
+
+    if (!localStorage.getItem('fei_categories')) {
+      localStorage.setItem('fei_categories', JSON.stringify([
+        {
+          id: 1,
+          name: 'Juvenil 1.20m',
+          code: 'JUV120',
+          category_type: 'height',
+          level: 'intermediate',
+          min_height_cm: 115,
+          max_height_cm: 125,
+          max_participants: 50,
+          entry_fee: 75.00,
+          is_active: true
+        },
+        {
+          id: 2,
+          name: 'Senior 1.40m',
+          code: 'SEN140',
+          category_type: 'height',
+          level: 'advanced',
+          min_height_cm: 135,
+          max_height_cm: 145,
+          max_participants: 40,
+          entry_fee: 150.00,
+          is_active: true
+        }
+      ]));
+    }
+  }
+
+  async makeRequest(method, url, data = null) {
+    // Si el backend no está disponible, usar localStorage
+    if (this.useLocalStorage || import.meta.env.NODE_ENV === 'development') {
+      return this.handleLocalStorageRequest(method, url, data);
+    }
+
     try {
-      const response = await axios.get(`${API_BASE_URL}/disciplines/`);
+      const response = await axios({ method, url, data });
       return response.data;
     } catch (error) {
-      console.error('Error obteniendo disciplinas:', error);
-      throw error;
+      // Fallback a localStorage si el backend falla
+      console.warn('Backend no disponible, usando localStorage:', error.message);
+      return this.handleLocalStorageRequest(method, url, data);
     }
+  }
+
+  handleLocalStorageRequest(method, url, data) {
+    const urlParts = url.replace(API_BASE_URL, '').split('/').filter(p => p);
+    const resource = urlParts[0];
+    const id = urlParts[1];
+
+    switch (resource) {
+      case 'competitions':
+        return this.handleCompetitionsRequest(method, id, data);
+      case 'categories':
+        return this.handleCategoriesRequest(method, id, data);
+      default:
+        return { results: [], message: 'Recurso no encontrado en localStorage' };
+    }
+  }
+
+  handleCompetitionsRequest(method, id, data) {
+    const competitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
+
+    switch (method) {
+      case 'get':
+        if (id) {
+          return competitions.find(c => c.id == id) || null;
+        }
+        return { results: competitions };
+
+      case 'post':
+        const newCompetition = {
+          ...data,
+          id: Math.max(...competitions.map(c => c.id), 0) + 1,
+          created_at: new Date().toISOString(),
+          status: 'draft'
+        };
+        competitions.push(newCompetition);
+        localStorage.setItem('fei_competitions', JSON.stringify(competitions));
+        return newCompetition;
+
+      case 'put':
+        const index = competitions.findIndex(c => c.id == id);
+        if (index !== -1) {
+          competitions[index] = { ...competitions[index], ...data };
+          localStorage.setItem('fei_competitions', JSON.stringify(competitions));
+          return competitions[index];
+        }
+        throw new Error('Competencia no encontrada');
+
+      case 'delete':
+        const filteredCompetitions = competitions.filter(c => c.id != id);
+        localStorage.setItem('fei_competitions', JSON.stringify(filteredCompetitions));
+        return { success: true };
+
+      default:
+        throw new Error('Método no soportado');
+    }
+  }
+
+  handleCategoriesRequest(method, id, data) {
+    const categories = JSON.parse(localStorage.getItem('fei_categories') || '[]');
+
+    switch (method) {
+      case 'get':
+        if (id) {
+          return categories.find(c => c.id == id) || null;
+        }
+        return { results: categories };
+
+      case 'post':
+        const newCategory = {
+          ...data,
+          id: Math.max(...categories.map(c => c.id), 0) + 1,
+          is_active: true
+        };
+        categories.push(newCategory);
+        localStorage.setItem('fei_categories', JSON.stringify(categories));
+        return newCategory;
+
+      case 'put':
+        const index = categories.findIndex(c => c.id == id);
+        if (index !== -1) {
+          categories[index] = { ...categories[index], ...data };
+          localStorage.setItem('fei_categories', JSON.stringify(categories));
+          return categories[index];
+        }
+        throw new Error('Categoría no encontrada');
+
+      case 'delete':
+        const filteredCategories = categories.filter(c => c.id != id);
+        localStorage.setItem('fei_categories', JSON.stringify(filteredCategories));
+        return { success: true };
+
+      default:
+        throw new Error('Método no soportado');
+    }
+  }
+  // =============== DISCIPLINAS ===============
+  async getDisciplines() {
+    return this.makeRequest('get', `${API_BASE_URL}/disciplines/`);
   }
 
   async getDisciplineById(id) {
@@ -26,13 +189,7 @@ class CompetitionService {
 
   // =============== CATEGORÍAS ===============
   async getCategories() {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/categories/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error obteniendo categorías:', error);
-      throw error;
-    }
+    return this.makeRequest('get', `${API_BASE_URL}/categories/`);
   }
 
   async getCategoriesByType() {
@@ -51,6 +208,30 @@ class CompetitionService {
       return response.data;
     } catch (error) {
       console.error('Error obteniendo categoría:', error);
+      throw error;
+    }
+  }
+
+  async createCategory(categoryData) {
+    return this.makeRequest('post', `${API_BASE_URL}/categories/`, categoryData);
+  }
+
+  async updateCategory(id, categoryData) {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/categories/${id}/`, categoryData);
+      return response.data;
+    } catch (error) {
+      console.error('Error actualizando categoría:', error);
+      throw error;
+    }
+  }
+
+  async deleteCategory(id) {
+    try {
+      await axios.delete(`${API_BASE_URL}/categories/${id}/`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error eliminando categoría:', error);
       throw error;
     }
   }
@@ -108,33 +289,15 @@ class CompetitionService {
 
   // =============== COMPETENCIAS ===============
   async getCompetitions(params = {}) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/`, { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error obteniendo competencias:', error);
-      throw error;
-    }
+    return this.makeRequest('get', `${API_BASE_URL}/competitions/`);
   }
 
   async getCompetitionById(id) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/${id}/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error obteniendo competencia:', error);
-      throw error;
-    }
+    return this.makeRequest('get', `${API_BASE_URL}/competitions/${id}/`);
   }
 
   async createCompetition(competitionData) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/competitions/`, competitionData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creando competencia:', error);
-      throw error;
-    }
+    return this.makeRequest('post', `${API_BASE_URL}/competitions/`, competitionData);
   }
 
   async updateCompetition(id, competitionData) {

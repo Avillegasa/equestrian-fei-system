@@ -20,8 +20,14 @@ import JudgeDashboard from './pages/JudgeDashboard';
 // Páginas de gestión
 import UsersPage from './pages/UsersPage';
 import CompetitionsPage from './pages/CompetitionsPage';
+import CategoriesPage from './pages/CategoriesPage';
+import CompetitionStaffPage from './pages/CompetitionStaffPage';
+import ParticipantsPage from './pages/ParticipantsPage';
+import CompetitionSchedulePage from './pages/CompetitionSchedulePage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ActivityLogPage from './pages/ActivityLogPage';
+import ScoringPage from './pages/ScoringPage';
+import RankingsPage from './pages/RankingsPage';
 
 import './styles/App.css'
 
@@ -96,13 +102,21 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/reports" 
+          <Route
+            path="/reports"
             element={
               <ProtectedRoute>
                 <ReportsPage />
               </ProtectedRoute>
-            } 
+            }
+          />
+          <Route
+            path="/rankings/:competitionId"
+            element={
+              <ProtectedRoute>
+                <RankingsPage />
+              </ProtectedRoute>
+            }
           />
 
           {/* Rutas específicas por rol */}
@@ -130,6 +144,14 @@ function App() {
               </JudgeRoute>
             }
           />
+          <Route
+            path="/judge/scoring/:competitionId"
+            element={
+              <JudgeRoute>
+                <ScoringPage />
+              </JudgeRoute>
+            }
+          />
 
 
           {/* Rutas específicas del admin con prefijo /admin/ */}
@@ -146,6 +168,38 @@ function App() {
             element={
               <AdminRoute>
                 <CompetitionsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/categories"
+            element={
+              <AdminRoute>
+                <CategoriesPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/competitions/:competitionId/staff"
+            element={
+              <AdminRoute>
+                <CompetitionStaffPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/competitions/:competitionId/participants"
+            element={
+              <AdminRoute>
+                <ParticipantsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/competitions/:competitionId/schedule"
+            element={
+              <AdminRoute>
+                <CompetitionSchedulePage />
               </AdminRoute>
             }
           />

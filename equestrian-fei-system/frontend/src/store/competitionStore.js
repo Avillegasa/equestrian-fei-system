@@ -91,16 +91,79 @@ const useCompetitionStore = create(
       set({ categoriesLoading: true, error: null });
       try {
         const data = await competitionService.getCategoriesByType();
-        set({ 
+        set({
           categories: data,
-          categoriesLoading: false 
+          categoriesLoading: false
         });
       } catch (error) {
         console.error('Error cargando categorías por tipo:', error);
-        set({ 
+        set({
           error: error.response?.data?.detail || 'Error cargando categorías',
-          categoriesLoading: false 
+          categoriesLoading: false
         });
+      }
+    },
+
+    createCategory: async (categoryData) => {
+      set({ categoriesLoading: true, error: null, validationErrors: {} });
+      try {
+        const newCategory = await competitionService.createCategory(categoryData);
+        set(state => ({
+          categories: [newCategory, ...state.categories],
+          categoriesLoading: false
+        }));
+        return { success: true, data: newCategory };
+      } catch (error) {
+        console.error('Error creando categoría:', error);
+        const errorData = error.response?.data || {};
+        set({
+          error: errorData.detail || errorData.message || 'Error creando categoría',
+          validationErrors: errorData,
+          categoriesLoading: false
+        });
+        return { success: false, error: errorData };
+      }
+    },
+
+    updateCategory: async (id, categoryData) => {
+      set({ categoriesLoading: true, error: null, validationErrors: {} });
+      try {
+        const updatedCategory = await competitionService.updateCategory(id, categoryData);
+        set(state => ({
+          categories: state.categories.map(cat =>
+            cat.id === id ? updatedCategory : cat
+          ),
+          categoriesLoading: false
+        }));
+        return { success: true, data: updatedCategory };
+      } catch (error) {
+        console.error('Error actualizando categoría:', error);
+        const errorData = error.response?.data || {};
+        set({
+          error: errorData.detail || 'Error actualizando categoría',
+          validationErrors: errorData,
+          categoriesLoading: false
+        });
+        return { success: false, error: errorData };
+      }
+    },
+
+    deleteCategory: async (id) => {
+      set({ categoriesLoading: true, error: null });
+      try {
+        await competitionService.deleteCategory(id);
+        set(state => ({
+          categories: state.categories.filter(cat => cat.id !== id),
+          categoriesLoading: false
+        }));
+        return { success: true };
+      } catch (error) {
+        console.error('Error eliminando categoría:', error);
+        set({
+          error: error.response?.data?.detail || 'Error eliminando categoría',
+          categoriesLoading: false
+        });
+        return { success: false, error: error.response?.data };
       }
     },
 
