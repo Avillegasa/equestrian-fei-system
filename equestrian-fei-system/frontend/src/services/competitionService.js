@@ -28,10 +28,15 @@ class CompetitionService {
           max_participants: 50,
           entry_fee: 150.00,
           status: 'open_registration',
+          participants: 0,
           created_at: '2024-11-01T10:00:00Z'
         }
       ]));
     }
+
+    // Mensaje de debug para verificar inicialización
+    const comps = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
+    console.log('🔧 localStorage inicializado con', comps.length, 'competencias');
 
     if (!localStorage.getItem('fei_categories')) {
       localStorage.setItem('fei_categories', JSON.stringify([
@@ -64,13 +69,25 @@ class CompetitionService {
   }
 
   async makeRequest(method, url, data = null) {
-    // Si el backend no está disponible, usar localStorage
-    if (this.useLocalStorage || import.meta.env.NODE_ENV === 'development') {
+    // SIEMPRE usar localStorage en desarrollo para evitar conflictos con backend incompleto
+    const isDevelopment = import.meta.env.MODE === 'development' ||
+                         window.location.hostname === 'localhost' ||
+                         window.location.hostname === '127.0.0.1';
+
+    if (this.useLocalStorage || isDevelopment) {
+      console.log('💾 Usando localStorage (modo desarrollo)');
       return this.handleLocalStorageRequest(method, url, data);
     }
 
     try {
       const response = await axios({ method, url, data });
+
+      // Verificar si el backend retornó rutas en lugar de datos
+      if (response.data && typeof response.data === 'object' && response.data.competitions) {
+        console.warn('⚠️ Backend retornó rutas API, usando localStorage en su lugar');
+        return this.handleLocalStorageRequest(method, url, data);
+      }
+
       return response.data;
     } catch (error) {
       // Fallback a localStorage si el backend falla
@@ -94,33 +111,68 @@ class CompetitionService {
     }
   }
 
+  // Normalizar datos de competencia para compatibilidad con frontend
+  normalizeCompetitionData(competition) {
+    if (!competition) return null;
+
+    return {
+      ...competition,
+      // Añadir campos derivados para compatibilidad con CompetitionsPage
+      location: competition.location || `${competition.venue_city}, ${competition.venue_country}`,
+      organizer: competition.organizer || competition.venue_name || 'N/A',
+      participants: competition.participants || 0,
+      maxParticipants: competition.max_participants || competition.maxParticipants || 0,
+      startDate: competition.start_date ? new Date(competition.start_date).toLocaleDateString() : 'N/A',
+      endDate: competition.end_date ? new Date(competition.end_date).toLocaleDateString() : 'N/A',
+      // Mantener los campos originales también
+      start_date: competition.start_date,
+      end_date: competition.end_date,
+    };
+  }
+
   handleCompetitionsRequest(method, id, data) {
     const competitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
 
     switch (method) {
       case 'get':
         if (id) {
-          return competitions.find(c => c.id == id) || null;
+          const comp = competitions.find(c => c.id == id) || null;
+          return this.normalizeCompetitionData(comp);
         }
-        return { results: competitions };
+        // Normalizar todas las competencias
+        console.log('📂 Competencias en localStorage (raw):', competitions.length);
+        const normalizedCompetitions = competitions.map(c => this.normalizeCompetitionData(c));
+        console.log('🔄 Competencias normalizadas:', normalizedCompetitions.length);
+        console.log('📋 Datos normalizados:', normalizedCompetitions);
+        return { results: normalizedCompetitions };
 
       case 'post':
+        // Generar ID seguro incluso con array vacío
+        const maxId = competitions.length > 0
+          ? Math.max(...competitions.map(c => c.id || 0))
+          : 0;
+
         const newCompetition = {
           ...data,
-          id: Math.max(...competitions.map(c => c.id), 0) + 1,
+          id: maxId + 1,
           created_at: new Date().toISOString(),
-          status: 'draft'
+          status: 'open_registration', // Cambiado de 'draft' a 'open_registration'
+          participants: 0, // Inicializar contadores
         };
+
+        console.log('📝 Creando nueva competencia:', newCompetition);
         competitions.push(newCompetition);
         localStorage.setItem('fei_competitions', JSON.stringify(competitions));
-        return newCompetition;
+        console.log('✅ Competencia guardada en localStorage');
+        console.log('📊 Total competencias en localStorage:', competitions.length);
+        return this.normalizeCompetitionData(newCompetition);
 
       case 'put':
         const index = competitions.findIndex(c => c.id == id);
         if (index !== -1) {
           competitions[index] = { ...competitions[index], ...data };
           localStorage.setItem('fei_competitions', JSON.stringify(competitions));
-          return competitions[index];
+          return this.normalizeCompetitionData(competitions[index]);
         }
         throw new Error('Competencia no encontrada');
 
@@ -148,18 +200,39 @@ class CompetitionService {
         const newCategory = {
           ...data,
           id: Math.max(...categories.map(c => c.id), 0) + 1,
-          is_active: true
+          is_active: true,
+          // Convertir valores numéricos
+          entry_fee: parseFloat(data.entry_fee || 0),
+          max_participants: parseInt(data.max_participants || 0),
+          min_age: data.min_age ? parseInt(data.min_age) : null,
+          max_age: data.max_age ? parseInt(data.max_age) : null,
+          min_height_cm: data.min_height_cm ? parseInt(data.min_height_cm) : null,
+          max_height_cm: data.max_height_cm ? parseInt(data.max_height_cm) : null
         };
+        console.log('📝 Creando nueva categoría:', newCategory);
         categories.push(newCategory);
         localStorage.setItem('fei_categories', JSON.stringify(categories));
+        console.log('✅ Categoría guardada en localStorage');
         return newCategory;
 
       case 'put':
         const index = categories.findIndex(c => c.id == id);
         if (index !== -1) {
-          categories[index] = { ...categories[index], ...data };
+          const updatedCategory = {
+            ...categories[index],
+            ...data,
+            // Convertir valores numéricos
+            entry_fee: parseFloat(data.entry_fee || categories[index].entry_fee || 0),
+            max_participants: parseInt(data.max_participants || categories[index].max_participants || 0),
+            min_age: data.min_age ? parseInt(data.min_age) : categories[index].min_age,
+            max_age: data.max_age ? parseInt(data.max_age) : categories[index].max_age,
+            min_height_cm: data.min_height_cm ? parseInt(data.min_height_cm) : categories[index].min_height_cm,
+            max_height_cm: data.max_height_cm ? parseInt(data.max_height_cm) : categories[index].max_height_cm
+          };
+          categories[index] = updatedCategory;
           localStorage.setItem('fei_categories', JSON.stringify(categories));
-          return categories[index];
+          console.log('✅ Categoría actualizada en localStorage');
+          return updatedCategory;
         }
         throw new Error('Categoría no encontrada');
 
@@ -217,23 +290,11 @@ class CompetitionService {
   }
 
   async updateCategory(id, categoryData) {
-    try {
-      const response = await axios.put(`${API_BASE_URL}/categories/${id}/`, categoryData);
-      return response.data;
-    } catch (error) {
-      console.error('Error actualizando categoría:', error);
-      throw error;
-    }
+    return this.makeRequest('put', `${API_BASE_URL}/categories/${id}`, categoryData);
   }
 
   async deleteCategory(id) {
-    try {
-      await axios.delete(`${API_BASE_URL}/categories/${id}/`);
-      return { success: true };
-    } catch (error) {
-      console.error('Error eliminando categoría:', error);
-      throw error;
-    }
+    return this.makeRequest('delete', `${API_BASE_URL}/categories/${id}`);
   }
 
   // =============== SEDES ===============
@@ -398,6 +459,21 @@ class CompetitionService {
       return response.data;
     } catch (error) {
       console.error('Error obteniendo competencias actuales:', error);
+      throw error;
+    }
+  }
+
+  async getMyAssignedCompetitions() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/competitions/my_assigned/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo competencias asignadas:', error);
+      // Si el endpoint no está disponible, retornar array vacío
+      if (error.response && error.response.status === 404) {
+        console.warn('Endpoint my_assigned no disponible');
+        return [];
+      }
       throw error;
     }
   }
@@ -589,17 +665,20 @@ class CompetitionService {
       errors.name = 'El nombre es requerido';
     }
 
-    if (!data.venue_id) {
-      errors.venue_id = 'La sede es requerida';
+    // Validar sede - acepta venue_id O venue_name
+    if (!data.venue_id && !data.venue_name) {
+      errors.venue = 'La sede es requerida';
     }
 
-    if (!data.discipline_ids || data.discipline_ids.length === 0) {
-      errors.discipline_ids = 'Debe seleccionar al menos una disciplina';
+    // Validar disciplina - acepta discipline_ids O discipline
+    if (!data.discipline_ids && !data.discipline) {
+      errors.discipline = 'La disciplina es requerida';
     }
 
-    if (!data.category_ids || data.category_ids.length === 0) {
-      errors.category_ids = 'Debe seleccionar al menos una categoría';
-    }
+    // Las categorías son opcionales en localStorage, requeridas solo para backend
+    // if (!data.category_ids || data.category_ids.length === 0) {
+    //   errors.category_ids = 'Debe seleccionar al menos una categoría';
+    // }
 
     if (!data.start_date) {
       errors.start_date = 'La fecha de inicio es requerida';

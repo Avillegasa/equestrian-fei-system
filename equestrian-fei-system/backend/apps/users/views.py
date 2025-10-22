@@ -222,7 +222,6 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-created_at')
     serializer_class = UserProfileSerializer
     permission_classes = [CanManageUsers]
-    filterset_fields = ['role', 'is_verified', 'is_active']
     search_fields = ['username', 'first_name', 'last_name', 'email']
     ordering_fields = ['created_at', 'last_login', 'username']
     
@@ -270,7 +269,7 @@ class JudgeProfileViewSet(viewsets.ModelViewSet):
     queryset = JudgeProfile.objects.all().order_by('-created_at')
     serializer_class = JudgeProfileSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    filterset_fields = ['certification_level', 'is_active_judge']
+    # filterset_fields =['certification_level', 'is_active_judge']
     search_fields = ['user__first_name', 'user__last_name', 'license_number']
     
     def get_queryset(self):
@@ -288,7 +287,7 @@ class OrganizerProfileViewSet(viewsets.ModelViewSet):
     queryset = OrganizerProfile.objects.all().order_by('-created_at')
     serializer_class = OrganizerProfileSerializer
     permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
-    filterset_fields = ['is_verified_organizer', 'can_create_competitions']
+    # filterset_fields =['is_verified_organizer', 'can_create_competitions']
     search_fields = ['user__first_name', 'user__last_name', 'organization_name']
     
     def get_queryset(self):
@@ -325,6 +324,6 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AuditLog.objects.all().order_by('-timestamp')
     serializer_class = AuditLogSerializer
     permission_classes = [CanViewAuditLogs]
-    filterset_fields = ['user', 'action', 'model_name']
+    # filterset_fields =['user', 'action', 'model_name']
     search_fields = ['user__username', 'model_name', 'changes']
     ordering_fields = ['timestamp']

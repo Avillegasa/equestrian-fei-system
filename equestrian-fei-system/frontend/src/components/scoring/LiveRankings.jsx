@@ -193,14 +193,39 @@ const LiveRankings = () => {
       {/* Rankings */}
       {liveRankings.length === 0 ? (
         <div className="bg-white shadow rounded-lg">
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-6">
             <div className="text-gray-400 text-6xl mb-4">🏆</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No hay rankings publicados
+            <h3 className="text-xl font-bold text-gray-900 mb-3">
+              No hay rankings disponibles
             </h3>
-            <p className="text-gray-500">
-              Los rankings aparecerán aquí cuando sean publicados por los organizadores.
+            <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+              Los rankings se generarán automáticamente cuando:
             </p>
+            <div className="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto text-left">
+              <h4 className="font-semibold text-blue-900 mb-3">📋 Requisitos para generar rankings:</h4>
+              <ul className="space-y-2 text-sm text-blue-800">
+                <li className="flex items-start">
+                  <span className="mr-2">1️⃣</span>
+                  <span>Participantes inscritos en la competencia</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">2️⃣</span>
+                  <span>Jueces asignados para calificar</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">3️⃣</span>
+                  <span>Puntuaciones ingresadas por los jueces</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="mr-2">4️⃣</span>
+                  <span>Rankings calculados y publicados por organizadores</span>
+                </li>
+              </ul>
+            </div>
+            <div className="mt-6 text-sm text-gray-500">
+              <p>💡 <strong>Nota:</strong> Esta competencia aún no tiene datos de rankings.</p>
+              <p className="mt-2">Los rankings se actualizarán automáticamente en tiempo real una vez disponibles.</p>
+            </div>
           </div>
         </div>
       ) : (

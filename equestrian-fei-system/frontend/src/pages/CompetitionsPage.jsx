@@ -10,12 +10,20 @@ const CompetitionsPage = () => {
 
   // Usar store en lugar de estado local
   const {
-    competitions,
+    competitions: competitionsRaw,
     loading,
     error,
     loadCompetitions,
     createCompetition
   } = useCompetitionStore();
+
+  // Asegurar que competitions siempre sea un array
+  const competitions = Array.isArray(competitionsRaw) ? competitionsRaw : [];
+
+  // Debug: ver qué tiene el componente
+  useEffect(() => {
+    console.log('🎯 CompetitionsPage - Competitions actuales:', competitions.length, competitions);
+  }, [competitions]);
 
   const handleLogout = async () => {
     await logout();
@@ -23,6 +31,7 @@ const CompetitionsPage = () => {
 
   // Cargar competencias reales del store
   useEffect(() => {
+    console.log('🚀 CompetitionsPage - Montado, cargando competencias...');
     loadCompetitions();
   }, [loadCompetitions]);
 
@@ -50,15 +59,28 @@ const CompetitionsPage = () => {
 
   const handleCreateCompetition = async (competitionData) => {
     try {
+      console.log('📋 Datos de competencia a crear:', competitionData);
       const result = await createCompetition(competitionData);
+      console.log('📊 Resultado de creación:', result);
+
       if (result.success) {
         alert('✅ Competencia creada exitosamente!');
         setShowCreateModal(false);
+        // Recargar competencias para mostrar la nueva
+        await loadCompetitions();
       } else {
-        alert('❌ Error al crear competencia: ' + (result.error?.detail || 'Error desconocido'));
+        // Mostrar errores de validación si existen
+        if (result.errors) {
+          const errorMessages = Object.entries(result.errors)
+            .map(([field, message]) => `${field}: ${message}`)
+            .join('\n');
+          alert('❌ Errores de validación:\n' + errorMessages);
+        } else {
+          alert('❌ Error al crear competencia: ' + (result.error?.detail || 'Error desconocido'));
+        }
       }
     } catch (error) {
-      console.error('Error creando competencia:', error);
+      console.error('❌ Error creando competencia:', error);
       alert('❌ Error al crear competencia: ' + error.message);
     }
   };
@@ -313,9 +335,12 @@ const CompetitionsPage = () => {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200">
-                          👁️ Ver
-                        </button>
+                        <Link
+                          to={`/rankings/${competition.id}`}
+                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                        >
+                          📊 Rankings
+                        </Link>
                         <Link
                           to={`/admin/competitions/${competition.id}/staff`}
                           className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
@@ -334,9 +359,6 @@ const CompetitionsPage = () => {
                         >
                           📋 Programación
                         </Link>
-                        <button className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200">
-                          ✏️ Editar
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -385,13 +407,12 @@ const CompetitionsPage = () => {
           </div>
         </div>
 
-          {/* Modal de Crear Competencia */}
-          <CreateCompetitionModal
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSubmit={handleCreateCompetition}
-          />
-        </div>
+        {/* Modal de Crear Competencia */}
+        <CreateCompetitionModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateCompetition}
+        />
       </main>
     </div>
   );

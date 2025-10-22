@@ -74,15 +74,27 @@ const useCompetitionStore = create(
       set({ categoriesLoading: true, error: null });
       try {
         const data = await competitionService.getCategories();
-        set({ 
-          categories: data.results || data,
-          categoriesLoading: false 
+
+        // Asegurar que categories siempre sea un array
+        let categoriesData = [];
+        if (Array.isArray(data)) {
+          categoriesData = data;
+        } else if (data && Array.isArray(data.results)) {
+          categoriesData = data.results;
+        } else if (data && data.results) {
+          categoriesData = [data.results];
+        }
+
+        set({
+          categories: categoriesData,
+          categoriesLoading: false
         });
       } catch (error) {
         console.error('Error cargando categorías:', error);
-        set({ 
+        set({
           error: error.response?.data?.detail || 'Error cargando categorías',
-          categoriesLoading: false 
+          categories: [], // Asegurar que sea array en caso de error
+          categoriesLoading: false
         });
       }
     },
@@ -235,22 +247,39 @@ const useCompetitionStore = create(
       try {
         const filters = get().filters;
         const mergedParams = { ...filters, ...params };
-        
+
         // Filtrar parámetros vacíos
         const cleanParams = Object.fromEntries(
           Object.entries(mergedParams).filter(([_, value]) => value !== '' && value !== null && value !== undefined)
         );
 
+        console.log('🔍 Cargando competencias desde servicio...');
         const data = await competitionService.getCompetitions(cleanParams);
-        set({ 
-          competitions: data.results || data,
-          loading: false 
+        console.log('📦 Datos recibidos del servicio:', data);
+
+        // Asegurar que competitions siempre sea un array
+        let competitionsData = [];
+        if (Array.isArray(data)) {
+          competitionsData = data;
+        } else if (data && Array.isArray(data.results)) {
+          competitionsData = data.results;
+        } else if (data && data.results) {
+          competitionsData = [data.results];
+        }
+
+        console.log('✅ Competencias procesadas para store:', competitionsData.length, 'items');
+        console.log('📋 Competencias:', competitionsData);
+
+        set({
+          competitions: competitionsData,
+          loading: false
         });
       } catch (error) {
         console.error('Error cargando competencias:', error);
-        set({ 
+        set({
           error: error.response?.data?.detail || 'Error cargando competencias',
-          loading: false 
+          competitions: [], // Asegurar que sea array en caso de error
+          loading: false
         });
       }
     },
@@ -448,17 +477,35 @@ const useCompetitionStore = create(
       }
     },
 
+    loadMyAssignedCompetitions: async () => {
+      set({ loading: true, error: null });
+      try {
+        const data = await competitionService.getMyAssignedCompetitions();
+        set({
+          competitions: Array.isArray(data) ? data : [],
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error cargando competencias asignadas:', error);
+        set({
+          error: error.response?.data?.detail || 'Error cargando competencias asignadas',
+          competitions: [],
+          loading: false
+        });
+      }
+    },
+
     loadUpcomingCompetitions: async () => {
       set({ loading: true, error: null });
       try {
         const data = await competitionService.getUpcomingCompetitions();
-        set({ 
+        set({
           competitions: data,
-          loading: false 
+          loading: false
         });
       } catch (error) {
         console.error('Error cargando competencias próximas:', error);
-        set({ 
+        set({
           error: error.response?.data?.detail || 'Error cargando competencias próximas',
           loading: false 
         });

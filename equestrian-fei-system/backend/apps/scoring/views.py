@@ -58,12 +58,11 @@ class ScoringCriteriaViewSet(viewsets.ModelViewSet):
 class ScoreCardViewSet(viewsets.ModelViewSet):
     """ViewSet para tarjetas de puntuación"""
     queryset = ScoreCard.objects.select_related(
-        'competition', 'participant__user', 'participant__horse', 'judge'
+        'participant__competition', 'participant__rider', 'participant__horse', 'participant__category', 'judge'
     ).prefetch_related(
         'individual_scores__criteria',
         'jumping_faults',
-        'dressage_movements',
-        'eventing_phases'
+        'dressage_movements'
     ).all()
     permission_classes = [permissions.IsAuthenticated]
     
@@ -99,10 +98,10 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         
         # Permisos: jueces ven solo sus evaluaciones
-        if user.user_type == 'judge':
+        if user.role == 'judge':
             queryset = queryset.filter(judge=user)
-        elif user.user_type == 'participant':
-            queryset = queryset.filter(participant__user=user)
+        elif user.role == 'participant':
+            queryset = queryset.filter(participant__rider=user)
         
         return queryset.order_by('-created_at')
     
@@ -150,7 +149,7 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def validate_scores(self, request, pk=None):
         """Validar puntuaciones (solo organizadores)"""
-        if request.user.user_type != 'organizer':
+        if request.user.role != 'organizer':
             return Response(
                 {'error': 'Solo los organizadores pueden validar puntuaciones'},
                 status=status.HTTP_403_FORBIDDEN
@@ -192,7 +191,7 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_evaluations(self, request):
         """Obtener evaluaciones del juez actual"""
-        if request.user.user_type != 'judge':
+        if request.user.role != 'judge':
             return Response(
                 {'error': 'Solo los jueces pueden ver sus evaluaciones'},
                 status=status.HTTP_403_FORBIDDEN
@@ -220,7 +219,7 @@ class IndividualScoreViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(scorecard_id=scorecard_id)
         
         # Los jueces solo ven sus propias puntuaciones
-        if self.request.user.user_type == 'judge':
+        if self.request.user.role == 'judge':
             queryset = queryset.filter(judge=self.request.user)
         
         return queryset.order_by('criteria__order')
@@ -362,7 +361,7 @@ class CompetitionRankingViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(category_id=category_id)
         
         # Solo rankings publicados para participantes
-        if self.request.user.user_type == 'participant':
+        if self.request.user.role == 'participant':
             queryset = queryset.filter(is_published=True)
         
         return queryset.order_by('-last_updated')
@@ -370,7 +369,7 @@ class CompetitionRankingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
         """Publicar ranking (solo organizadores)"""
-        if request.user.user_type != 'organizer':
+        if request.user.role != 'organizer':
             return Response(
                 {'error': 'Solo los organizadores pueden publicar rankings'},
                 status=status.HTTP_403_FORBIDDEN
@@ -486,7 +485,7 @@ class ScoringStatisticsViewSet(viewsets.ViewSet):
         
         try:
             from apps.users.models import User
-            judge = User.objects.get(id=judge_id, user_type='judge')
+            judge = User.objects.get(id=judge_id, role='judge')
         except User.DoesNotExist:
             return Response(
                 {'error': 'Juez no encontrado'},

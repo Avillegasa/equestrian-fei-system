@@ -145,7 +145,8 @@ class LiveRanking(models.Model):
 
         # Ordenar por puntuación (descendente para la mayoría de disciplinas)
         # Para disciplinas como eventing donde menos es mejor, invertir orden
-        discipline_name = self.competition.discipline.name.lower() if self.competition.discipline else ''
+        disciplines = self.competition.disciplines.all()
+        discipline_name = disciplines.first().name.lower() if disciplines.exists() else ''
         reverse_order = 'eventing' not in discipline_name and 'cross' not in discipline_name
 
         return sorted(

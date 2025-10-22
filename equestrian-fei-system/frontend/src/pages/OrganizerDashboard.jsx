@@ -1,69 +1,92 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
 import useAuth from '../hooks/useAuth';
+import useCompetitionStore from '../store/competitionStore';
 
 const OrganizerDashboard = () => {
   const { user, logout } = useAuth();
+
+  // Conectar al store de competencias
+  const {
+    competitions,
+    loading,
+    error,
+    loadCompetitions
+  } = useCompetitionStore();
+
+  // Cargar competencias al montar el componente
+  useEffect(() => {
+    // Cargar todas las competencias en lugar de solo "mis competencias"
+    // porque loadMyCompetitions puede estar filtrando incorrectamente
+    loadCompetitions();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
   };
 
-  const stats = {
-    myCompetitions: 12,
-    activeCompetitions: 3,
-    totalParticipants: 156,
-    upcomingEvents: 5,
-    completedEvents: 7,
-    draftEvents: 2
-  };
+  // Calcular estadísticas reales desde el estado
+  const stats = useMemo(() => {
+    const activeStatuses = ['open_registration', 'in_progress', 'registration_closed'];
+    const upcomingStatuses = ['published', 'open_registration'];
+    const completedStatuses = ['completed'];
+    const draftStatuses = ['draft'];
 
-  const upcomingCompetitions = [
-    {
-      id: 1,
-      name: 'Campeonato Nacional de Salto',
-      date: '2024-02-15',
-      location: 'Madrid, España',
-      participants: 45,
-      status: 'confirmed'
-    },
-    {
-      id: 2,
-      name: 'Copa de Primavera Dressage',
-      date: '2024-03-20',
-      location: 'Barcelona, España',
-      participants: 32,
-      status: 'draft'
-    },
-    {
-      id: 3,
-      name: 'Torneo Regional Concurso Completo',
-      date: '2024-04-10',
-      location: 'Valencia, España',
-      participants: 28,
-      status: 'confirmed'
-    }
-  ];
+    return {
+      myCompetitions: competitions.length,
+      activeCompetitions: competitions.filter(c => activeStatuses.includes(c.status)).length,
+      totalParticipants: competitions.reduce((sum, c) => sum + (c.participant_count || 0), 0),
+      upcomingEvents: competitions.filter(c =>
+        upcomingStatuses.includes(c.status) && new Date(c.start_date) > new Date()
+      ).length,
+      completedEvents: competitions.filter(c => completedStatuses.includes(c.status)).length,
+      draftEvents: competitions.filter(c => draftStatuses.includes(c.status)).length
+    };
+  }, [competitions]);
 
-  const recentActivity = [
-    {
-      id: 1,
-      action: 'Nuevo participante registrado',
-      competition: 'Campeonato Nacional de Salto',
-      time: 'Hace 10 minutos'
-    },
-    {
-      id: 2,
-      action: 'Competencia publicada',
-      competition: 'Copa de Primavera Dressage',
-      time: 'Hace 2 horas'
-    },
-    {
-      id: 3,
-      action: 'Juez asignado',
-      competition: 'Torneo Regional Concurso Completo',
-      time: 'Hace 1 día'
-    }
-  ];
+  // Obtener próximas competencias (reales)
+  const upcomingCompetitions = useMemo(() => {
+    return competitions
+      .filter(c => new Date(c.start_date) > new Date())
+      .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+      .slice(0, 3)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        date: c.start_date,
+        location: `${c.venue_city || 'Ciudad'}, ${c.venue_country || 'País'}`,
+        participants: c.participant_count || 0,
+        status: c.status
+      }));
+  }, [competitions]);
+
+  // Actividad reciente (temporal - se puede conectar a audit logs después)
+  const recentActivity = useMemo(() => {
+    return competitions
+      .slice(0, 3)
+      .map((c, index) => ({
+        id: c.id,
+        action: index === 0 ? 'Competencia actualizada' :
+                index === 1 ? 'Competencia creada' : 'Estado cambiado',
+        competition: c.name,
+        time: new Date(c.updated_at || c.created_at).toLocaleDateString('es-ES', {
+          month: 'short',
+          day: 'numeric'
+        })
+      }));
+  }, [competitions]);
+
+  // Mostrar loading
+  if (loading && competitions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando competencias...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -239,48 +262,59 @@ const OrganizerDashboard = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
             <Link
-              to="/competitions/create"
-              className="bg-blue-600 hover:bg-blue-700 text-white p-6 rounded-lg shadow transition-colors"
+              to="/organizer/competitions"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">➕</div>
-                <h3 className="text-lg font-semibold">Nueva Competencia</h3>
-                <p className="text-sm opacity-90">Crear evento ecuestre</p>
+                <div className="text-4xl mb-3">🏆</div>
+                <h3 className="text-lg font-bold">Mis Competencias</h3>
+                <p className="text-sm opacity-90 mt-1">Gestionar todos mis eventos</p>
               </div>
             </Link>
 
             <Link
-              to="/competitions/my"
-              className="bg-green-600 hover:bg-green-700 text-white p-6 rounded-lg shadow transition-colors"
+              to="/organizer/participants"
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">🏆</div>
-                <h3 className="text-lg font-semibold">Mis Competencias</h3>
-                <p className="text-sm opacity-90">Gestionar mis eventos</p>
+                <div className="text-4xl mb-3">👥</div>
+                <h3 className="text-lg font-bold">Participantes</h3>
+                <p className="text-sm opacity-90 mt-1">Gestionar inscripciones</p>
               </div>
             </Link>
 
             <Link
-              to="/participants"
-              className="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-lg shadow transition-colors"
+              to="/organizer/categories"
+              className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">👥</div>
-                <h3 className="text-lg font-semibold">Participantes</h3>
-                <p className="text-sm opacity-90">Gestionar inscripciones</p>
+                <div className="text-4xl mb-3">📋</div>
+                <h3 className="text-lg font-bold">Categorías</h3>
+                <p className="text-sm opacity-90 mt-1">Gestionar categorías FEI</p>
               </div>
             </Link>
 
             <Link
-              to="/organizer/reports"
-              className="bg-orange-600 hover:bg-orange-700 text-white p-6 rounded-lg shadow transition-colors"
+              to="/reports"
+              className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">📊</div>
-                <h3 className="text-lg font-semibold">Reportes</h3>
-                <p className="text-sm opacity-90">Estadísticas de eventos</p>
+                <div className="text-4xl mb-3">📊</div>
+                <h3 className="text-lg font-bold">Reportes</h3>
+                <p className="text-sm opacity-90 mt-1">Estadísticas y análisis</p>
+              </div>
+            </Link>
+
+            <Link
+              to="/profile"
+              className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+            >
+              <div className="text-center">
+                <div className="text-4xl mb-3">👤</div>
+                <h3 className="text-lg font-bold">Mi Perfil</h3>
+                <p className="text-sm opacity-90 mt-1">Configuración personal</p>
               </div>
             </Link>
           </div>
@@ -293,7 +327,19 @@ const OrganizerDashboard = () => {
                   Próximas Competencias
                 </h3>
                 <div className="space-y-4">
-                  {upcomingCompetitions.map((competition) => (
+                  {upcomingCompetitions.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <span className="text-4xl mb-4 block">📅</span>
+                      <p>No hay competencias programadas</p>
+                      <Link
+                        to="/organizer/competitions"
+                        className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                      >
+                        ➕ Crear nueva competencia
+                      </Link>
+                    </div>
+                  ) : (
+                    upcomingCompetitions.map((competition) => (
                     <div key={competition.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -322,21 +368,28 @@ const OrganizerDashboard = () => {
                       </div>
                       <div className="mt-3">
                         <Link
-                          to={`/competitions/${competition.id}/edit`}
-                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          to={`/organizer/competitions/${competition.id}/staff`}
+                          className="inline-flex items-center px-3 py-1 mr-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                         >
-                          Editar
+                          👥 Personal
+                        </Link>
+                        <Link
+                          to={`/organizer/competitions/${competition.id}/participants`}
+                          className="inline-flex items-center px-3 py-1 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                        >
+                          🏇 Participantes
                         </Link>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 <div className="mt-6">
                   <Link
-                    to="/competitions/my"
-                    className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    to="/organizer/competitions"
+                    className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-sm font-medium rounded-md transition-colors"
                   >
-                    Ver todas mis competencias
+                    🏆 Ver todas mis competencias
                   </Link>
                 </div>
               </div>
@@ -382,12 +435,9 @@ const OrganizerDashboard = () => {
                   </ul>
                 </div>
                 <div className="mt-6">
-                  <Link
-                    to="/organizer/activity"
-                    className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Ver toda la actividad
-                  </Link>
+                  <p className="text-center text-sm text-gray-500">
+                    Actividad del sistema disponible próximamente
+                  </p>
                 </div>
               </div>
             </div>

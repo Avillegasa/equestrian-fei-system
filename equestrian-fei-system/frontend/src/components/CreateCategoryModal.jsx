@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-const CreateCategoryModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateCategoryModal = ({ isOpen, onClose, onSubmit, initialData = null, isEdit = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -15,6 +15,25 @@ const CreateCategoryModal = ({ isOpen, onClose, onSubmit }) => {
     description: ''
   });
 
+  // Cargar datos iniciales al editar
+  useEffect(() => {
+    if (isEdit && initialData) {
+      setFormData({
+        name: initialData.name || '',
+        code: initialData.code || '',
+        category_type: initialData.category_type || 'height',
+        level: initialData.level || 'intermediate',
+        min_age: initialData.min_age || '',
+        max_age: initialData.max_age || '',
+        min_height_cm: initialData.min_height_cm || '',
+        max_height_cm: initialData.max_height_cm || '',
+        max_participants: initialData.max_participants || '',
+        entry_fee: initialData.entry_fee || '0',
+        description: initialData.description || ''
+      });
+    }
+  }, [isEdit, initialData]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -23,24 +42,26 @@ const CreateCategoryModal = ({ isOpen, onClose, onSubmit }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
-    // Reset form
-    setFormData({
-      name: '',
-      code: '',
-      category_type: 'height',
-      level: 'intermediate',
-      min_age: '',
-      max_age: '',
-      min_height_cm: '',
-      max_height_cm: '',
-      max_participants: '',
-      entry_fee: '0',
-      description: ''
-    });
-    onClose();
+    await onSubmit(formData);
+    // Reset form solo si no estamos editando
+    if (!isEdit) {
+      setFormData({
+        name: '',
+        code: '',
+        category_type: 'height',
+        level: 'intermediate',
+        min_age: '',
+        max_age: '',
+        min_height_cm: '',
+        max_height_cm: '',
+        max_participants: '',
+        entry_fee: '0',
+        description: ''
+      });
+    }
+    // No cerramos aquí, el parent lo cierra después del éxito
   };
 
   if (!isOpen) return null;
@@ -51,7 +72,7 @@ const CreateCategoryModal = ({ isOpen, onClose, onSubmit }) => {
         <div className="mt-3">
           <div className="flex items-center justify-between pb-4 border-b">
             <h3 className="text-lg font-medium text-gray-900">
-              📋 Crear Nueva Categoría
+              {isEdit ? '✏️ Editar Categoría' : '📋 Crear Nueva Categoría'}
             </h3>
             <button
               onClick={onClose}
@@ -261,7 +282,7 @@ const CreateCategoryModal = ({ isOpen, onClose, onSubmit }) => {
                 type="submit"
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Crear Categoría
+                {isEdit ? 'Actualizar Categoría' : 'Crear Categoría'}
               </button>
             </div>
           </form>

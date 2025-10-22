@@ -62,9 +62,10 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Esperar a que se complete la creación antes de cerrar
+    await onSubmit(formData);
     // Reset form después de envío exitoso
     setFormData({
       name: '',
@@ -82,7 +83,7 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit }) => {
       max_participants: '',
       entry_fee: '0'
     });
-    onClose();
+    // No cerramos aquí, lo hace el parent después del éxito
   };
 
   if (!isOpen) return null;

@@ -256,6 +256,38 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Inscripciones cerradas exitosamente'})
 
+    @action(detail=False, methods=['get'])
+    def my_assigned(self, request):
+        """Obtener competencias donde el usuario es juez asignado"""
+        user = request.user
+
+        if not user.is_authenticated:
+            return Response([], status=status.HTTP_200_OK)
+
+        # Admin puede ver todas
+        if user.role == 'admin':
+            competitions = Competition.objects.all()
+        # Jueces ven competencias donde están asignados
+        elif user.role == 'judge':
+            staff_assignments = CompetitionStaff.objects.filter(
+                staff_member=user,
+                role__in=['judge', 'chief_judge'],
+                is_confirmed=True
+            )
+            competition_ids = staff_assignments.values_list('competition_id', flat=True)
+            competitions = Competition.objects.filter(id__in=competition_ids)
+        else:
+            # Otros roles no tienen competencias asignadas
+            competitions = Competition.objects.none()
+
+        # Usar el serializer simple
+        competitions = competitions.select_related('organizer', 'venue').prefetch_related(
+            'disciplines', 'categories', 'participants', 'staff'
+        ).order_by('-start_date')
+
+        serializer = SimpleCompetitionSerializer(competitions, many=True, context={'request': request})
+        return Response(serializer.data)
+
     @action(detail=True, methods=['get'])
     def participants(self, request, pk=None):
         """Obtener participantes de una competencia"""

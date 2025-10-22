@@ -1,81 +1,78 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
 import useAuth from '../hooks/useAuth';
+import useCompetitionStore from '../store/competitionStore';
 
 const JudgeDashboard = () => {
   const { user, logout } = useAuth();
+
+  // Conectar al store de competencias
+  const {
+    competitions,
+    loading,
+    error,
+    loadCompetitions
+  } = useCompetitionStore();
+
+  // Cargar competencias al montar
+  useEffect(() => {
+    loadCompetitions();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
   };
 
-  const stats = {
-    assignedCompetitions: 8,
-    completedEvaluations: 45,
-    pendingEvaluations: 12,
-    totalParticipantsJudged: 234,
-    upcomingJudging: 3,
-    averageRating: 4.7
-  };
+  // Filtrar competencias donde podría ser juez asignado
+  // TODO: Cuando tengamos el endpoint my_assigned, usarlo
+  const assignedCompetitions = useMemo(() => {
+    return competitions
+      .filter(c => c.status !== 'draft')
+      .slice(0, 3)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        date: c.start_date,
+        location: `${c.venue_city || 'Ciudad'}, ${c.venue_country || 'País'}`,
+        discipline: c.discipline || 'Dressage',
+        participants: c.participant_count || 0,
+        status: c.status === 'completed' ? 'completed' :
+                c.status === 'in_progress' ? 'pending_evaluation' : 'upcoming',
+        myRole: 'Juez Asignado'
+      }));
+  }, [competitions]);
 
-  const assignedCompetitions = [
-    {
-      id: 1,
-      name: 'Campeonato Nacional de Salto',
-      date: '2024-02-15',
-      location: 'Madrid, España',
-      discipline: 'Salto',
-      participants: 45,
-      status: 'upcoming',
-      myRole: 'Juez Principal'
-    },
-    {
-      id: 2,
-      name: 'Copa de Primavera Dressage',
-      date: '2024-03-20',
-      location: 'Barcelona, España',
-      discipline: 'Dressage',
-      participants: 32,
-      status: 'pending_evaluation',
-      myRole: 'Juez Técnico'
-    },
-    {
-      id: 3,
-      name: 'Torneo Regional CCE',
-      date: '2024-01-20',
-      location: 'Valencia, España',
-      discipline: 'Concurso Completo',
-      participants: 28,
-      status: 'completed',
-      myRole: 'Juez de Salto'
-    }
-  ];
+  // Calcular estadísticas reales
+  const stats = useMemo(() => {
+    const activeCompetitions = competitions.filter(c =>
+      ['open_registration', 'in_progress', 'registration_closed'].includes(c.status)
+    );
 
-  const pendingEvaluations = [
-    {
-      id: 1,
-      participant: 'María González',
-      horse: 'Thunder',
-      competition: 'Copa de Primavera',
-      discipline: 'Dressage',
-      deadline: '2024-02-10'
-    },
-    {
-      id: 2,
-      participant: 'Carlos Rodríguez',
-      horse: 'Lightning',
-      competition: 'Copa de Primavera',
-      discipline: 'Dressage',
-      deadline: '2024-02-10'
-    },
-    {
-      id: 3,
-      participant: 'Ana Martín',
-      horse: 'Storm',
-      competition: 'Copa de Primavera',
-      discipline: 'Dressage',
-      deadline: '2024-02-10'
-    }
-  ];
+    return {
+      assignedCompetitions: assignedCompetitions.length,
+      completedEvaluations: competitions.filter(c => c.status === 'completed').length,
+      pendingEvaluations: activeCompetitions.filter(c => c.status === 'in_progress').length,
+      totalParticipantsJudged: competitions.reduce((sum, c) => sum + (c.participant_count || 0), 0),
+      upcomingJudging: competitions.filter(c =>
+        ['open_registration', 'published'].includes(c.status) &&
+        new Date(c.start_date) > new Date()
+      ).length,
+      averageRating: 4.7 // TODO: Calcular desde evaluaciones reales
+    };
+  }, [competitions, assignedCompetitions]);
+
+  // Evaluaciones pendientes (temporal - conectar a scoring después)
+  const pendingEvaluations = useMemo(() => {
+    const activeComps = assignedCompetitions.filter(c => c.status === 'pending_evaluation');
+    return activeComps.slice(0, 3).map((c, index) => ({
+      id: index + 1,
+      participant: `Participante ${index + 1}`,
+      horse: `Caballo ${index + 1}`,
+      competition: c.name,
+      discipline: c.discipline,
+      deadline: new Date(c.date).toLocaleDateString('es-ES')
+    }));
+  }, [assignedCompetitions]);
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -94,6 +91,18 @@ const JudgeDashboard = () => {
       default: return status;
     }
   };
+
+  // Mostrar loading
+  if (loading && competitions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando competencias asignadas...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -271,46 +280,46 @@ const JudgeDashboard = () => {
           {/* Quick Actions */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <Link
-              to="/judge/evaluations/pending"
-              className="bg-red-600 hover:bg-red-700 text-white p-6 rounded-lg shadow transition-colors"
-            >
-              <div className="text-center">
-                <div className="text-3xl mb-2">⏰</div>
-                <h3 className="text-lg font-semibold">Evaluaciones Pendientes</h3>
-                <p className="text-sm opacity-90">Completar calificaciones</p>
-              </div>
-            </Link>
-
-            <Link
               to="/judge/competitions"
-              className="bg-blue-600 hover:bg-blue-700 text-white p-6 rounded-lg shadow transition-colors"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">⚖️</div>
-                <h3 className="text-lg font-semibold">Mis Competencias</h3>
-                <p className="text-sm opacity-90">Ver asignaciones</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/judge/evaluations/history"
-              className="bg-green-600 hover:bg-green-700 text-white p-6 rounded-lg shadow transition-colors"
-            >
-              <div className="text-center">
-                <div className="text-3xl mb-2">📊</div>
-                <h3 className="text-lg font-semibold">Historial</h3>
-                <p className="text-sm opacity-90">Ver evaluaciones pasadas</p>
+                <div className="text-4xl mb-3">🏆</div>
+                <h3 className="text-lg font-bold">Mis Competencias</h3>
+                <p className="text-sm opacity-90 mt-1">Ver asignaciones FEI</p>
               </div>
             </Link>
 
             <Link
               to="/judge/scoring/1"
-              className="bg-orange-600 hover:bg-orange-700 text-white p-6 rounded-lg shadow transition-colors"
+              className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
               <div className="text-center">
-                <div className="text-3xl mb-2">⚖️</div>
-                <h3 className="text-lg font-semibold">Calificar en Vivo</h3>
-                <p className="text-sm opacity-90">Sistema de puntuación</p>
+                <div className="text-4xl mb-3">⚖️</div>
+                <h3 className="text-lg font-bold">Calificar</h3>
+                <p className="text-sm opacity-90 mt-1">Sistema de puntuación</p>
+              </div>
+            </Link>
+
+            <Link
+              to="/rankings/1"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+            >
+              <div className="text-center">
+                <div className="text-4xl mb-3">📊</div>
+                <h3 className="text-lg font-bold">Rankings</h3>
+                <p className="text-sm opacity-90 mt-1">Ver clasificaciones</p>
+              </div>
+            </Link>
+
+            <Link
+              to="/profile"
+              className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+            >
+              <div className="text-center">
+                <div className="text-4xl mb-3">👤</div>
+                <h3 className="text-lg font-bold">Mi Perfil</h3>
+                <p className="text-sm opacity-90 mt-1">Configuración de juez</p>
               </div>
             </Link>
           </div>
@@ -345,17 +354,17 @@ const JudgeDashboard = () => {
                       <div className="mt-3 space-x-2">
                         {competition.status === 'pending_evaluation' && (
                           <Link
-                            to={`/judge/competitions/${competition.id}/evaluate`}
+                            to={`/judge/scoring/${competition.id}`}
                             className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                           >
-                            Evaluar
+                            ⚖️ Evaluar
                           </Link>
                         )}
                         <Link
-                          to={`/judge/competitions/${competition.id}`}
+                          to={`/rankings/${competition.id}`}
                           className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                         >
-                          Ver detalles
+                          📊 Rankings
                         </Link>
                       </div>
                     </div>
@@ -364,9 +373,9 @@ const JudgeDashboard = () => {
                 <div className="mt-6">
                   <Link
                     to="/judge/competitions"
-                    className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-sm font-medium rounded-md transition-colors"
                   >
-                    Ver todas mis competencias
+                    ⚖️ Ver todas mis competencias
                   </Link>
                 </div>
               </div>
@@ -395,22 +404,19 @@ const JudgeDashboard = () => {
                       </div>
                       <div className="mt-3">
                         <Link
-                          to={`/judge/evaluations/${evaluation.id}`}
+                          to={`/judge/scoring/${assignedCompetitions[0]?.id || 1}`}
                           className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                         >
-                          Evaluar ahora
+                          ⚖️ Evaluar ahora
                         </Link>
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-6">
-                  <Link
-                    to="/judge/evaluations/pending"
-                    className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Ver todas las evaluaciones pendientes
-                  </Link>
+                  <p className="text-center text-sm text-gray-500">
+                    Sistema de evaluaciones disponible próximamente
+                  </p>
                 </div>
               </div>
             </div>

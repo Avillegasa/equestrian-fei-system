@@ -152,7 +152,56 @@ function App() {
               </JudgeRoute>
             }
           />
+          <Route
+            path="/judge/competitions"
+            element={
+              <JudgeRoute>
+                <CompetitionsPage />
+              </JudgeRoute>
+            }
+          />
 
+          {/* Rutas específicas del organizador */}
+          <Route
+            path="/organizer/competitions"
+            element={
+              <OrganizerRoute>
+                <CompetitionsPage />
+              </OrganizerRoute>
+            }
+          />
+          <Route
+            path="/organizer/categories"
+            element={
+              <OrganizerRoute>
+                <CategoriesPage />
+              </OrganizerRoute>
+            }
+          />
+          <Route
+            path="/organizer/participants"
+            element={
+              <OrganizerRoute>
+                <ParticipantsPage />
+              </OrganizerRoute>
+            }
+          />
+          <Route
+            path="/organizer/competitions/:competitionId/participants"
+            element={
+              <OrganizerRoute>
+                <ParticipantsPage />
+              </OrganizerRoute>
+            }
+          />
+          <Route
+            path="/organizer/competitions/:competitionId/staff"
+            element={
+              <OrganizerRoute>
+                <CompetitionStaffPage />
+              </OrganizerRoute>
+            }
+          />
 
           {/* Rutas específicas del admin con prefijo /admin/ */}
           <Route

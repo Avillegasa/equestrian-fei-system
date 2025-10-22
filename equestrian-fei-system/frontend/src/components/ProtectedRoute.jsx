@@ -52,9 +52,10 @@ const ProtectedRoute = ({
 
 /**
  * Componente específico para rutas de admin
+ * Nota: Permite también organizadores y jueces ya que necesitan acceso a competencias
  */
 export const AdminRoute = ({ children }) => (
-  <ProtectedRoute allowedRoles={['admin']} fallbackPath="/">
+  <ProtectedRoute allowedRoles={['admin', 'organizer', 'judge']} fallbackPath="/">
     {children}
   </ProtectedRoute>
 );

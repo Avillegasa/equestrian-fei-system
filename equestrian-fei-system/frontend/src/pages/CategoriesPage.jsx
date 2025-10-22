@@ -7,15 +7,22 @@ import CreateCategoryModal from '../components/CreateCategoryModal';
 const CategoriesPage = () => {
   const { user, logout } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   // Usar store en lugar de estado local
   const {
-    categories,
+    categories: categoriesRaw,
     categoriesLoading: loading,
     error,
     loadCategories,
-    createCategory
+    createCategory,
+    updateCategory,
+    deleteCategory
   } = useCompetitionStore();
+
+  // Asegurar que categories siempre sea un array válido
+  const categories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
 
   const handleLogout = async () => {
     await logout();
@@ -23,7 +30,11 @@ const CategoriesPage = () => {
 
   // Cargar categorías reales del store
   useEffect(() => {
-    loadCategories();
+    try {
+      loadCategories();
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+    }
   }, [loadCategories]);
 
   const handleCreateCategory = async (categoryData) => {
@@ -38,6 +49,44 @@ const CategoriesPage = () => {
     } catch (error) {
       console.error('Error creando categoría:', error);
       alert('❌ Error al crear categoría: ' + error.message);
+    }
+  };
+
+  const handleEditCategory = (category) => {
+    setSelectedCategory(category);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateCategory = async (categoryData) => {
+    try {
+      const result = await updateCategory(selectedCategory.id, categoryData);
+      if (result.success) {
+        alert('✅ Categoría actualizada exitosamente!');
+        setShowEditModal(false);
+        setSelectedCategory(null);
+      } else {
+        alert('❌ Error al actualizar categoría: ' + (result.error?.detail || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error actualizando categoría:', error);
+      alert('❌ Error al actualizar categoría: ' + error.message);
+    }
+  };
+
+  const handleToggleActive = async (category) => {
+    try {
+      const result = await updateCategory(category.id, {
+        ...category,
+        is_active: !category.is_active
+      });
+      if (result.success) {
+        alert(`✅ Categoría ${!category.is_active ? 'activada' : 'desactivada'} exitosamente!`);
+      } else {
+        alert('❌ Error al cambiar estado: ' + (result.error?.detail || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error cambiando estado:', error);
+      alert('❌ Error al cambiar estado: ' + error.message);
     }
   };
 
@@ -300,7 +349,7 @@ const CategoriesPage = () => {
                           )}
                           <span className="flex items-center">
                             <span className="mr-1">💰</span>
-                            €{category.entry_fee.toFixed(2)}
+                            €{typeof category.entry_fee === 'number' ? category.entry_fee.toFixed(2) : parseFloat(category.entry_fee || 0).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -315,14 +364,20 @@ const CategoriesPage = () => {
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        <button className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200">
+                        <button
+                          onClick={() => handleEditCategory(category)}
+                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                        >
                           ✏️ Editar
                         </button>
-                        <button className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                          category.is_active
-                            ? 'bg-red-100 hover:bg-red-200 text-red-700'
-                            : 'bg-green-100 hover:bg-green-200 text-green-700'
-                        }`}>
+                        <button
+                          onClick={() => handleToggleActive(category)}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                            category.is_active
+                              ? 'bg-red-100 hover:bg-red-200 text-red-700'
+                              : 'bg-green-100 hover:bg-green-200 text-green-700'
+                          }`}
+                        >
                           {category.is_active ? '🔴 Desactivar' : '🟢 Activar'}
                         </button>
                       </div>
@@ -366,13 +421,26 @@ const CategoriesPage = () => {
           </div>
         </div>
 
-          {/* Modal de Crear Categoría */}
+        {/* Modal de Crear Categoría */}
+        <CreateCategoryModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateCategory}
+        />
+
+        {/* Modal de Editar Categoría */}
+        {showEditModal && selectedCategory && (
           <CreateCategoryModal
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSubmit={handleCreateCategory}
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedCategory(null);
+            }}
+            onSubmit={handleUpdateCategory}
+            initialData={selectedCategory}
+            isEdit={true}
           />
-        </div>
+        )}
       </main>
     </div>
   );

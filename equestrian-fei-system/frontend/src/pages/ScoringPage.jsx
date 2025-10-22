@@ -19,10 +19,15 @@ const ScoringPage = () => {
 
   // Datos de ejemplo para demostración
   useEffect(() => {
+    console.log('🎯 ScoringPage montada, competitionId:', competitionId);
+
     // Simular carga de datos
     setTimeout(() => {
+      const compId = competitionId || '1';
+      console.log('✅ Cargando competencia:', compId);
+
       setCompetition({
-        id: competitionId || 1,
+        id: compId,
         name: 'Copa Internacional de Salto 2024',
         discipline: 'Show Jumping',
         location: 'Madrid, España',
@@ -129,10 +134,13 @@ const ScoringPage = () => {
     return `${mins}:${secs.padStart(5, '0')}`;
   };
 
-  if (!competition) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando sistema de calificación...</p>
+        </div>
       </div>
     );
   }
