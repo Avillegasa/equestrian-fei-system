@@ -30,19 +30,19 @@ const RankingDashboard = () => {
 
   const {
     currentCompetition,
-    loadCompetition
+    loadCompetitionById
   } = useCompetitionStore();
 
   useEffect(() => {
     if (competitionId) {
-      loadCompetition(competitionId);
+      loadCompetitionById(competitionId);
       loadData();
     }
 
     return () => {
       disconnectAllWebSockets();
     };
-  }, [competitionId]);
+  }, [competitionId, loadCompetitionById]);
 
   const loadData = async () => {
     if (!competitionId) return;

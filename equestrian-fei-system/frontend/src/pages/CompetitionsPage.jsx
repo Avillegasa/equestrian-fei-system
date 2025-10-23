@@ -7,6 +7,10 @@ import CreateCompetitionModal from '../components/CreateCompetitionModal';
 const CompetitionsPage = () => {
   const { user, logout } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCompetition, setEditingCompetition] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [competitionToDelete, setCompetitionToDelete] = useState(null);
 
   // Usar store en lugar de estado local
   const {
@@ -14,7 +18,9 @@ const CompetitionsPage = () => {
     loading,
     error,
     loadCompetitions,
-    createCompetition
+    createCompetition,
+    updateCompetition,
+    deleteCompetition
   } = useCompetitionStore();
 
   // Asegurar que competitions siempre sea un array
@@ -83,6 +89,73 @@ const CompetitionsPage = () => {
       console.error('❌ Error creando competencia:', error);
       alert('❌ Error al crear competencia: ' + error.message);
     }
+  };
+
+  const handleEditCompetition = (competition) => {
+    setEditingCompetition(competition);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateCompetition = async (competitionData) => {
+    try {
+      console.log('📝 Actualizando competencia ID:', editingCompetition.id);
+      console.log('📝 Datos a actualizar:', competitionData);
+      console.log('📝 Competencia original:', editingCompetition);
+      const result = await updateCompetition(editingCompetition.id, competitionData);
+
+      if (result.success) {
+        alert('✅ Competencia actualizada exitosamente!');
+        setShowEditModal(false);
+        setEditingCompetition(null);
+        await loadCompetitions();
+      } else {
+        if (result.errors) {
+          const errorMessages = Object.entries(result.errors)
+            .map(([field, message]) => `${field}: ${message}`)
+            .join('\n');
+          alert('❌ Errores de validación:\n' + errorMessages);
+        } else {
+          alert('❌ Error al actualizar competencia: ' + (result.error?.detail || 'Error desconocido'));
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error actualizando competencia:', error);
+      alert('❌ Error al actualizar competencia: ' + error.message);
+    }
+  };
+
+  const handleDeleteCompetition = (competition) => {
+    console.log('🗑️ Abriendo modal de confirmación para:', competition);
+    setCompetitionToDelete(competition);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!competitionToDelete) return;
+
+    try {
+      console.log('🗑️ Eliminando competencia ID:', competitionToDelete.id);
+      const result = await deleteCompetition(competitionToDelete.id);
+      console.log('🗑️ Resultado de eliminación:', result);
+
+      if (result.success) {
+        alert('✅ Competencia eliminada exitosamente');
+        setShowDeleteModal(false);
+        setCompetitionToDelete(null);
+        await loadCompetitions();
+      } else {
+        alert('❌ Error al eliminar competencia: ' + (result.error?.detail || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('❌ Error eliminando competencia:', error);
+      alert('❌ Error al eliminar competencia: ' + error.message);
+    }
+  };
+
+  const cancelDelete = () => {
+    console.log('🗑️ Eliminación cancelada');
+    setShowDeleteModal(false);
+    setCompetitionToDelete(null);
   };
 
   const getDisciplineIcon = (discipline) => {
@@ -334,31 +407,47 @@ const CompetitionsPage = () => {
                           Participantes
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Link
-                          to={`/rankings/${competition.id}`}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                        >
-                          📊 Rankings
-                        </Link>
-                        <Link
-                          to={`/admin/competitions/${competition.id}/staff`}
-                          className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                        >
-                          👥 Personal
-                        </Link>
-                        <Link
-                          to={`/admin/competitions/${competition.id}/participants`}
-                          className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                        >
-                          🏇 Participantes
-                        </Link>
-                        <Link
-                          to={`/admin/competitions/${competition.id}/schedule`}
-                          className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                        >
-                          📋 Programación
-                        </Link>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            to={`/rankings/${competition.id}`}
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            📊 Rankings
+                          </Link>
+                          <Link
+                            to={`/admin/competitions/${competition.id}/staff`}
+                            className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            👥 Personal
+                          </Link>
+                          <Link
+                            to={`/admin/competitions/${competition.id}/participants`}
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            🏇 Participantes
+                          </Link>
+                          <Link
+                            to={`/admin/competitions/${competition.id}/schedule`}
+                            className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            📋 Programación
+                          </Link>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleEditCompetition(competition)}
+                            className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCompetition(competition)}
+                            className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -413,6 +502,71 @@ const CompetitionsPage = () => {
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateCompetition}
         />
+
+        {/* Modal de Editar Competencia */}
+        <CreateCompetitionModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingCompetition(null);
+          }}
+          onSubmit={handleUpdateCompetition}
+          initialData={editingCompetition}
+          isEditMode={true}
+        />
+
+        {/* Modal de Confirmación de Eliminación */}
+        {showDeleteModal && competitionToDelete && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative mx-auto p-8 border w-full max-w-md shadow-2xl rounded-xl bg-white">
+              <div className="text-center">
+                {/* Icono de advertencia */}
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <span className="text-4xl">⚠️</span>
+                </div>
+
+                {/* Título */}
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  ¿Eliminar Competencia?
+                </h3>
+
+                {/* Nombre de la competencia */}
+                <p className="text-lg font-semibold text-red-600 mb-4">
+                  "{competitionToDelete.name}"
+                </p>
+
+                {/* Advertencia */}
+                <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 text-left">
+                  <p className="text-sm font-medium text-red-800 mb-2">
+                    Esta acción no se puede deshacer y eliminará:
+                  </p>
+                  <ul className="text-sm text-red-700 space-y-1">
+                    <li>• Toda la información de la competencia</li>
+                    <li>• Personal asignado</li>
+                    <li>• Participantes inscritos</li>
+                    <li>• Puntuaciones y rankings</li>
+                  </ul>
+                </div>
+
+                {/* Botones */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelDelete}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200"
+                  >
+                    Sí, Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

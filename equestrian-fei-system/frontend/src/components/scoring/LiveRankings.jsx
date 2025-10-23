@@ -19,7 +19,7 @@ const LiveRankings = () => {
   
   const {
     currentCompetition,
-    loadCompetition
+    loadCompetitionById
   } = useCompetitionStore();
 
   const [selectedRanking, setSelectedRanking] = useState(null);
@@ -29,10 +29,10 @@ const LiveRankings = () => {
 
   useEffect(() => {
     if (competitionId) {
-      loadCompetition(competitionId);
+      loadCompetitionById(competitionId);
       loadRankingsData();
     }
-  }, [competitionId]);
+  }, [competitionId, loadCompetitionById]);
 
   useEffect(() => {
     if (autoRefresh && competitionId) {
@@ -112,7 +112,10 @@ const LiveRankings = () => {
     });
   };
 
-  if (rankingsLoading && !liveRankings.length) {
+  // Asegurar que liveRankings sea siempre un array
+  const rankingsArray = Array.isArray(liveRankings) ? liveRankings : [];
+
+  if (rankingsLoading && rankingsArray.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -184,14 +187,14 @@ const LiveRankings = () => {
             </div>
             
             <div className="text-sm text-gray-500">
-              {liveRankings.length} ranking(s) disponible(s)
+              {rankingsArray.length} ranking(s) disponible(s)
             </div>
           </div>
         </div>
       </div>
 
       {/* Rankings */}
-      {liveRankings.length === 0 ? (
+      {rankingsArray.length === 0 ? (
         <div className="bg-white shadow rounded-lg">
           <div className="text-center py-12 px-6">
             <div className="text-gray-400 text-6xl mb-4">🏆</div>
@@ -230,7 +233,7 @@ const LiveRankings = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {liveRankings.map((ranking) => (
+          {rankingsArray.map((ranking) => (
             <div key={ranking.id} className="bg-white shadow rounded-lg overflow-hidden">
               {/* Header del ranking */}
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">

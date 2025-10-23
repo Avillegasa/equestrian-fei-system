@@ -361,7 +361,24 @@ class ScoringService {
       return response.data;
     } catch (error) {
       console.error('Error obteniendo rankings en vivo:', error);
-      throw error;
+
+      // Fallback a localStorage - retornar rankings vacíos o datos de ejemplo
+      console.log('💾 Usando fallback para rankings - competitionId:', competitionId);
+
+      // Verificar si hay rankings guardados en localStorage
+      const storedRankings = localStorage.getItem(`fei_rankings_${competitionId}`);
+      if (storedRankings) {
+        console.log('✅ Rankings encontrados en localStorage');
+        return JSON.parse(storedRankings);
+      }
+
+      // Si no hay rankings, retornar estructura vacía
+      console.log('📭 No hay rankings disponibles aún');
+      return {
+        results: [],
+        count: 0,
+        message: 'No hay rankings disponibles para esta competencia aún.'
+      };
     }
   }
 

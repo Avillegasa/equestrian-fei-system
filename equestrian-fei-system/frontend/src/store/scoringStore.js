@@ -464,12 +464,33 @@ const useScoringStore = create(devtools((set, get) => ({
   },
 
   loadLiveRankings: async (competitionId) => {
+    set({ rankingsLoading: true, rankingsError: null });
     try {
-      const rankings = await scoringService.getLiveRankings(competitionId);
-      set({ liveRankings: rankings });
-      return rankings;
+      const response = await scoringService.getLiveRankings(competitionId);
+
+      // Asegurar que liveRankings siempre sea un array
+      let rankingsArray = [];
+      if (Array.isArray(response)) {
+        rankingsArray = response;
+      } else if (response && Array.isArray(response.results)) {
+        rankingsArray = response.results;
+      } else if (response && response.results) {
+        rankingsArray = [response.results];
+      }
+
+      console.log('📊 Rankings cargados:', rankingsArray.length);
+      set({
+        liveRankings: rankingsArray,
+        rankingsLoading: false
+      });
+      return rankingsArray;
     } catch (error) {
-      set({ rankingsError: error.message });
+      console.error('Error cargando rankings:', error);
+      set({
+        rankingsError: error.message,
+        liveRankings: [], // Asegurar array vacío en caso de error
+        rankingsLoading: false
+      });
       return [];
     }
   },

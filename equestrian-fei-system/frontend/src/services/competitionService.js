@@ -170,15 +170,45 @@ class CompetitionService {
       case 'put':
         const index = competitions.findIndex(c => c.id == id);
         if (index !== -1) {
-          competitions[index] = { ...competitions[index], ...data };
+          // Mantener datos originales importantes y actualizar con nuevos datos
+          const updatedCompetition = {
+            ...competitions[index],
+            ...data,
+            id: competitions[index].id, // Asegurar que el ID no cambie
+            created_at: competitions[index].created_at, // Mantener fecha de creación
+            // Normalizar campos para compatibilidad
+            shortName: data.short_name || data.shortName || competitions[index].shortName,
+            competitionType: data.competition_type || data.competitionType || competitions[index].competitionType,
+            startDate: data.start_date || data.startDate || competitions[index].startDate,
+            endDate: data.end_date || data.endDate || competitions[index].endDate,
+            registrationStart: data.registration_start || data.registrationStart || competitions[index].registrationStart,
+            registrationEnd: data.registration_end || data.registrationEnd || competitions[index].registrationEnd,
+            venueName: data.venue_name || data.venueName || competitions[index].venueName,
+            venueCity: data.venue_city || data.venueCity || competitions[index].venueCity,
+            venueCountry: data.venue_country || data.venueCountry || competitions[index].venueCountry,
+            maxParticipants: data.max_participants || data.maxParticipants || competitions[index].maxParticipants,
+            entryFee: data.entry_fee || data.entryFee || competitions[index].entryFee,
+            // Actualizar location basado en la nueva ciudad/país
+            location: `${data.venue_city || data.venueCity || competitions[index].venueCity}, ${data.venue_country || data.venueCountry || competitions[index].venueCountry}`
+          };
+
+          competitions[index] = updatedCompetition;
           localStorage.setItem('fei_competitions', JSON.stringify(competitions));
-          return this.normalizeCompetitionData(competitions[index]);
+          console.log('✅ Competencia actualizada en localStorage:', updatedCompetition);
+          return this.normalizeCompetitionData(updatedCompetition);
         }
         throw new Error('Competencia no encontrada');
 
       case 'delete':
-        const filteredCompetitions = competitions.filter(c => c.id != id);
+        console.log('🗑️ DELETE case - ID a eliminar:', id);
+        console.log('🗑️ Competencias antes de filtrar:', competitions.length);
+        const filteredCompetitions = competitions.filter(c => {
+          console.log(`🔍 Comparando: c.id (${c.id}, tipo: ${typeof c.id}) != id (${id}, tipo: ${typeof id})`);
+          return c.id != id;
+        });
+        console.log('🗑️ Competencias después de filtrar:', filteredCompetitions.length);
         localStorage.setItem('fei_competitions', JSON.stringify(filteredCompetitions));
+        console.log('✅ Competencia eliminada de localStorage');
         return { success: true };
 
       default:
@@ -362,23 +392,18 @@ class CompetitionService {
   }
 
   async updateCompetition(id, competitionData) {
-    try {
-      const response = await axios.put(`${API_BASE_URL}/competitions/${id}/`, competitionData);
-      return response.data;
-    } catch (error) {
-      console.error('Error actualizando competencia:', error);
-      throw error;
-    }
+    console.log('🔧 updateCompetition llamado con ID:', id);
+    console.log('🔧 URL:', `${API_BASE_URL}/competitions/${id}/`);
+    console.log('🔧 Datos:', competitionData);
+    return this.makeRequest('put', `${API_BASE_URL}/competitions/${id}/`, competitionData);
   }
 
   async deleteCompetition(id) {
-    try {
-      const response = await axios.delete(`${API_BASE_URL}/competitions/${id}/`);
-      return response.data;
-    } catch (error) {
-      console.error('Error eliminando competencia:', error);
-      throw error;
-    }
+    console.log('🔧 deleteCompetition llamado con ID:', id);
+    console.log('🔧 URL:', `${API_BASE_URL}/competitions/${id}/`);
+    const result = await this.makeRequest('delete', `${API_BASE_URL}/competitions/${id}/`);
+    console.log('🔧 Resultado de makeRequest DELETE:', result);
+    return result;
   }
 
   // =============== ACCIONES ESPECÍFICAS DE COMPETENCIAS ===============
