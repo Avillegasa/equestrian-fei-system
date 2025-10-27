@@ -36,7 +36,14 @@ class AuthService {
 
     // Response interceptor para manejar token refresh
     axios.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // DEBUG: Log para ver si el interceptor está modificando la respuesta
+        if (response.config.url?.includes('/auth/login')) {
+          console.log('🔧 Interceptor - Response before return:', response);
+          console.log('🔧 Interceptor - Response data:', response.data);
+        }
+        return response;
+      },
       async (error) => {
         const originalRequest = error.config;
 

@@ -3,8 +3,8 @@
  * Maneja cache de recursos y sincronización en background
  */
 
-const CACHE_NAME = 'fei-system-v1';
-const API_CACHE_NAME = 'fei-api-v1';
+const CACHE_NAME = 'fei-system-v2';
+const API_CACHE_NAME = 'fei-api-v2';
 
 // Recursos críticos que siempre deben estar en cache
 const CRITICAL_RESOURCES = [
@@ -67,18 +67,19 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignorar requests que no sean GET
+  // Ignorar requests que no sean GET - dejar que el navegador las maneje normalmente
   if (request.method !== 'GET') {
+    // NO interceptar POST, PUT, DELETE, etc. - dejar pasar al navegador
     return;
   }
 
-  // Manejar requests de API
+  // Manejar requests de API (solo GET)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(handleAPIRequest(request));
     return;
   }
 
-  // Manejar recursos estáticos
+  // Manejar recursos estáticos (solo GET)
   event.respondWith(handleStaticRequest(request));
 });
 
