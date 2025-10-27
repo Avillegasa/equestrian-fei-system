@@ -580,8 +580,18 @@ class CompetitionService {
       const response = await axios.get(`${API_BASE_URL}/participants/`, { params });
       return response.data;
     } catch (error) {
-      console.error('Error obteniendo participantes:', error);
-      throw error;
+      console.warn('Backend no disponible, usando localStorage para participantes');
+
+      // Si hay un parámetro de competencia, cargar participantes de esa competencia
+      if (params.competition) {
+        const participantsKey = `fei_participants_${params.competition}`;
+        const participants = JSON.parse(localStorage.getItem(participantsKey) || '[]');
+        console.log(`📂 Participantes en localStorage para competencia ${params.competition}:`, participants.length);
+        return { results: participants };
+      }
+
+      // Si no hay filtro de competencia, retornar array vacío
+      return { results: [] };
     }
   }
 
@@ -600,8 +610,26 @@ class CompetitionService {
       const response = await axios.post(`${API_BASE_URL}/participants/`, participantData);
       return response.data;
     } catch (error) {
-      console.error('Error registrando participante:', error);
-      throw error;
+      console.warn('Backend no disponible, usando localStorage para participantes');
+
+      const competitionId = participantData.competition;
+      const participantsKey = `fei_participants_${competitionId}`;
+      const participants = JSON.parse(localStorage.getItem(participantsKey) || '[]');
+
+      const maxId = participants.length > 0 ? Math.max(...participants.map(p => p.id || 0)) : 0;
+
+      const newParticipant = {
+        ...participantData,
+        id: maxId + 1,
+        registration_date: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString()
+      };
+
+      participants.push(newParticipant);
+      localStorage.setItem(participantsKey, JSON.stringify(participants));
+
+      console.log('✅ Participante guardado en localStorage:', newParticipant);
+      return newParticipant;
     }
   }
 
@@ -620,8 +648,25 @@ class CompetitionService {
       const response = await axios.delete(`${API_BASE_URL}/participants/${id}/`);
       return response.data;
     } catch (error) {
-      console.error('Error eliminando participante:', error);
-      throw error;
+      console.warn('Backend no disponible, usando localStorage para eliminar participante');
+
+      // Buscar el participante en todas las competencias almacenadas
+      const allKeys = Object.keys(localStorage);
+      const participantKeys = allKeys.filter(key => key.startsWith('fei_participants_'));
+
+      for (const key of participantKeys) {
+        const participants = JSON.parse(localStorage.getItem(key) || '[]');
+        const participantIndex = participants.findIndex(p => p.id == id);
+
+        if (participantIndex !== -1) {
+          participants.splice(participantIndex, 1);
+          localStorage.setItem(key, JSON.stringify(participants));
+          console.log(`✅ Participante ${id} eliminado de ${key}`);
+          return { success: true };
+        }
+      }
+
+      throw new Error('Participante no encontrado');
     }
   }
 

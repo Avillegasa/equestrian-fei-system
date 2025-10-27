@@ -6,6 +6,12 @@ const ApprovalsPage = () => {
   const { user, logout } = useAuth();
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedApproval, setSelectedApproval] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const handleLogout = async () => {
     await logout();
@@ -26,7 +32,9 @@ const ApprovalsPage = () => {
           experience: '8 años',
           submittedAt: '2025-09-24T10:30:00Z',
           status: 'pending',
-          documents: ['Certificación FEI', 'CV', 'Referencias']
+          documents: ['Certificación FEI', 'CV', 'Referencias'],
+          phone: '+34 612 345 678',
+          country: 'España'
         },
         {
           id: 2,
@@ -38,7 +46,9 @@ const ApprovalsPage = () => {
           license: 'RFHE-2024-045',
           submittedAt: '2025-09-23T14:15:00Z',
           status: 'pending',
-          documents: ['Licencia RFHE', 'Seguros', 'Instalaciones']
+          documents: ['Licencia RFHE', 'Seguros', 'Instalaciones'],
+          phone: '+34 963 123 456',
+          country: 'España'
         },
         {
           id: 3,
@@ -50,7 +60,11 @@ const ApprovalsPage = () => {
           category: 'Regional',
           submittedAt: '2025-09-22T09:45:00Z',
           status: 'approved',
-          documents: ['Reglamento', 'Programa', 'Jueces']
+          documents: ['Reglamento', 'Programa', 'Jueces'],
+          phone: '+34 954 789 012',
+          country: 'España',
+          approvedBy: 'Admin',
+          approvedAt: '2025-09-22T12:00:00Z'
         },
         {
           id: 4,
@@ -63,7 +77,11 @@ const ApprovalsPage = () => {
           submittedAt: '2025-09-21T16:20:00Z',
           status: 'rejected',
           documents: ['Certificación FEI', 'CV', 'Referencias'],
-          rejectionReason: 'Documentación incompleta'
+          rejectionReason: 'Documentación incompleta - Falta certificado actualizado',
+          phone: '+34 677 890 123',
+          country: 'España',
+          rejectedBy: 'Admin',
+          rejectedAt: '2025-09-21T18:00:00Z'
         }
       ]);
       setLoading(false);
@@ -72,12 +90,12 @@ const ApprovalsPage = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      under_review: 'bg-blue-100 text-blue-800'
+      pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      approved: 'bg-green-100 text-green-800 border-green-300',
+      rejected: 'bg-red-100 text-red-800 border-red-300',
+      under_review: 'bg-blue-100 text-blue-800 border-blue-300'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-100 text-gray-800 border-gray-300';
   };
 
   const getStatusDisplay = (status) => {
@@ -120,41 +138,104 @@ const ApprovalsPage = () => {
     });
   };
 
-  const handleApprove = (id) => {
-    setApprovals(approvals.map(approval =>
-      approval.id === id ? { ...approval, status: 'approved' } : approval
-    ));
+  const handleViewDetails = (approval) => {
+    setSelectedApproval(approval);
+    setShowDetailsModal(true);
   };
 
-  const handleReject = (id) => {
-    setApprovals(approvals.map(approval =>
-      approval.id === id ? { ...approval, status: 'rejected' } : approval
-    ));
+  const handleApproveClick = (approval) => {
+    setSelectedApproval(approval);
+    setShowApproveModal(true);
   };
+
+  const confirmApprove = () => {
+    console.log('✅ Aprobando solicitud:', selectedApproval.id);
+    setApprovals(approvals.map(approval =>
+      approval.id === selectedApproval.id
+        ? {
+            ...approval,
+            status: 'approved',
+            approvedBy: user?.username || 'Admin',
+            approvedAt: new Date().toISOString()
+          }
+        : approval
+    ));
+    setShowApproveModal(false);
+    setSelectedApproval(null);
+    alert('✅ Solicitud aprobada exitosamente!');
+  };
+
+  const handleRejectClick = (approval) => {
+    setSelectedApproval(approval);
+    setRejectReason('');
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = () => {
+    if (!rejectReason.trim()) {
+      alert('⚠️ Por favor, proporciona un motivo de rechazo');
+      return;
+    }
+
+    console.log('❌ Rechazando solicitud:', selectedApproval.id, 'Motivo:', rejectReason);
+    setApprovals(approvals.map(approval =>
+      approval.id === selectedApproval.id
+        ? {
+            ...approval,
+            status: 'rejected',
+            rejectionReason: rejectReason,
+            rejectedBy: user?.username || 'Admin',
+            rejectedAt: new Date().toISOString()
+          }
+        : approval
+    ));
+    setShowRejectModal(false);
+    setSelectedApproval(null);
+    setRejectReason('');
+    alert('✅ Solicitud rechazada');
+  };
+
+  const filteredApprovals = filterStatus === 'all'
+    ? approvals
+    : approvals.filter(a => a.status === filterStatus);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header Profesional */}
+      <header className="bg-white shadow-lg border-b-4 border-green-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link to="/admin" className="text-blue-600 hover:text-blue-500 mr-4">
-                ← Volver al Panel Admin
-              </Link>
-              <h1 className="text-3xl font-bold text-gray-900">
-                ✅ Gestión de Aprobaciones
-              </h1>
-            </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Hola, {user?.username || 'Usuario'}
-              </span>
+              <Link
+                to="/admin"
+                className="flex items-center space-x-2 text-green-600 hover:text-green-700 transition-colors duration-200 bg-green-50 px-3 py-2 rounded-lg"
+              >
+                <span>←</span>
+                <span className="font-medium">Panel Admin</span>
+              </Link>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xl">✅</span>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Gestión de Aprobaciones</h1>
+                  <p className="text-sm text-gray-600">Sistema de Verificación FEI</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-6">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.first_name} {user?.last_name}
+                </p>
+                <p className="text-xs text-gray-600">Administrador</p>
+              </div>
               <button
                 onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
               >
-                Cerrar Sesión
+                <span>🚪</span>
+                <span>Cerrar Sesión</span>
               </button>
             </div>
           </div>
@@ -162,206 +243,535 @@ const ApprovalsPage = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">📋</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Total Solicitudes
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {approvals.length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
+        {/* Stats Cards Profesionales */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 transform hover:scale-105 transition-transform duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Solicitudes</p>
+                <p className="text-3xl font-bold text-gray-900">{approvals.length}</p>
               </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">⏳</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Pendientes
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {approvals.filter(a => a.status === 'pending').length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">✅</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Aprobadas
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {approvals.filter(a => a.status === 'approved').length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">❌</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Rechazadas
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {approvals.filter(a => a.status === 'rejected').length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
+              <div className="bg-purple-100 p-3 rounded-full">
+                <span className="text-2xl">📋</span>
               </div>
             </div>
           </div>
 
-          {/* Approvals Table */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Lista de Solicitudes de Aprobación
-              </h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                Gestiona todas las solicitudes de registro, verificación y aprobación del sistema FEI
-              </p>
-            </div>
-
-            {loading ? (
-              <div className="px-4 py-5 sm:p-6">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-sm text-gray-500">Cargando solicitudes...</p>
-                </div>
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500 transform hover:scale-105 transition-transform duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pendientes</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {approvals.filter(a => a.status === 'pending').length}
+                </p>
               </div>
-            ) : (
-              <ul className="divide-y divide-gray-200">
-                {approvals.map((approval) => (
-                  <li key={approval.id}>
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0">
-                            <span className="text-2xl">
-                              {getTypeIcon(approval.type)}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="flex items-center">
-                              <div className="text-sm font-medium text-gray-900">
-                                {approval.applicant}
-                              </div>
-                              <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(approval.status)}`}>
-                                {getStatusDisplay(approval.status)}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {getTypeDisplay(approval.type)} • {approval.email}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              Enviado: {formatDate(approval.submittedAt)}
-                            </div>
-                            {approval.certificationLevel && (
-                              <div className="text-sm text-gray-500">
-                                Nivel: {approval.certificationLevel} • Experiencia: {approval.experience}
-                              </div>
-                            )}
-                            {approval.competitionName && (
-                              <div className="text-sm text-gray-500">
-                                Competencia: {approval.competitionName} ({approval.category})
-                              </div>
-                            )}
-                            {approval.rejectionReason && (
-                              <div className="text-sm text-red-600 mt-1">
-                                Motivo de rechazo: {approval.rejectionReason}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="text-right mr-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {approval.documents.length} documentos
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {approval.documents.join(', ')}
-                            </div>
-                          </div>
-                          {approval.status === 'pending' && (
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleApprove(approval.id)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium"
-                              >
-                                Aprobar
-                              </button>
-                              <button
-                                onClick={() => handleReject(approval.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium"
-                              >
-                                Rechazar
-                              </button>
-                            </div>
-                          )}
-                          <button className="text-blue-600 hover:text-blue-500 text-sm font-medium">
-                            Ver Detalles
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+              <div className="bg-yellow-100 p-3 rounded-full">
+                <span className="text-2xl">⏳</span>
+              </div>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="mt-6 flex justify-between">
-            <div className="flex space-x-2">
-              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                Aprobar Seleccionadas
-              </button>
-              <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                Rechazar Seleccionadas
-              </button>
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 transform hover:scale-105 transition-transform duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Aprobadas</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {approvals.filter(a => a.status === 'approved').length}
+                </p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-full">
+                <span className="text-2xl">✅</span>
+              </div>
             </div>
-            <button className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-              Exportar Reporte
-            </button>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500 transform hover:scale-105 transition-transform duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Rechazadas</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {approvals.filter(a => a.status === 'rejected').length}
+                </p>
+              </div>
+              <div className="bg-red-100 p-3 rounded-full">
+                <span className="text-2xl">❌</span>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Filtros */}
+        <div className="bg-white shadow-xl rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Filtrar Solicitudes</h3>
+              <p className="text-sm text-gray-600">Selecciona el estado para filtrar</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setFilterStatus('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterStatus === 'all'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Todas ({approvals.length})
+              </button>
+              <button
+                onClick={() => setFilterStatus('pending')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterStatus === 'pending'
+                    ? 'bg-yellow-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Pendientes ({approvals.filter(a => a.status === 'pending').length})
+              </button>
+              <button
+                onClick={() => setFilterStatus('approved')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterStatus === 'approved'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Aprobadas ({approvals.filter(a => a.status === 'approved').length})
+              </button>
+              <button
+                onClick={() => setFilterStatus('rejected')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterStatus === 'rejected'
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Rechazadas ({approvals.filter(a => a.status === 'rejected').length})
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Approvals Table */}
+        <div className="bg-white shadow-xl rounded-xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+            <h3 className="text-xl font-bold text-gray-900">
+              Lista de Solicitudes
+            </h3>
+            <p className="mt-1 text-sm text-gray-600">
+              {filteredApprovals.length} solicitud(es) • Gestiona todas las solicitudes de registro y verificación
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="px-6 py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+                <p className="mt-4 text-lg font-medium text-gray-700">Cargando solicitudes...</p>
+              </div>
+            </div>
+          ) : filteredApprovals.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <span className="text-6xl mb-4 block">📭</span>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay solicitudes</h3>
+              <p className="text-gray-500">
+                {filterStatus === 'all'
+                  ? 'No hay solicitudes en el sistema'
+                  : `No hay solicitudes con estado "${getStatusDisplay(filterStatus)}"`}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {filteredApprovals.map((approval) => (
+                <div key={approval.id} className="px-6 py-5 hover:bg-gray-50 transition-colors duration-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-4 flex-1">
+                      {/* Icono */}
+                      <div className="flex-shrink-0">
+                        <div className="w-14 h-14 bg-gradient-to-br from-green-100 to-blue-100 rounded-xl flex items-center justify-center">
+                          <span className="text-3xl">{getTypeIcon(approval.type)}</span>
+                        </div>
+                      </div>
+
+                      {/* Info Principal */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="text-lg font-semibold text-gray-900">
+                            {approval.applicant}
+                          </h4>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(approval.status)}`}>
+                            {getStatusDisplay(approval.status)}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1 mb-3">
+                          <p className="text-sm text-gray-600 flex items-center">
+                            <span className="font-medium mr-2">Tipo:</span>
+                            {getTypeDisplay(approval.type)}
+                          </p>
+                          <p className="text-sm text-gray-600 flex items-center">
+                            <span className="font-medium mr-2">Email:</span>
+                            {approval.email}
+                          </p>
+                          <p className="text-sm text-gray-600 flex items-center">
+                            <span className="font-medium mr-2">Enviado:</span>
+                            {formatDate(approval.submittedAt)}
+                          </p>
+                          {approval.certificationLevel && (
+                            <p className="text-sm text-gray-600 flex items-center">
+                              <span className="font-medium mr-2">Nivel:</span>
+                              {approval.certificationLevel} • {approval.experience} de experiencia
+                            </p>
+                          )}
+                          {approval.competitionName && (
+                            <p className="text-sm text-gray-600 flex items-center">
+                              <span className="font-medium mr-2">Competencia:</span>
+                              {approval.competitionName} ({approval.category})
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Documentos */}
+                        <div className="flex flex-wrap gap-2">
+                          {approval.documents.map((doc, idx) => (
+                            <span key={idx} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              📄 {doc}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Motivo de rechazo */}
+                        {approval.status === 'rejected' && approval.rejectionReason && (
+                          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                            <p className="text-sm font-medium text-red-800 mb-1">Motivo de rechazo:</p>
+                            <p className="text-sm text-red-700">{approval.rejectionReason}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Botones de Acción */}
+                    <div className="flex flex-col gap-2 ml-6">
+                      <button
+                        onClick={() => handleViewDetails(approval)}
+                        className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap"
+                      >
+                        👁️ Ver Detalles
+                      </button>
+
+                      {approval.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleApproveClick(approval)}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+                          >
+                            ✅ Aprobar
+                          </button>
+                          <button
+                            onClick={() => handleRejectClick(approval)}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+                          >
+                            ❌ Rechazar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modal de Detalles */}
+        {showDetailsModal && selectedApproval && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative mx-auto p-8 border w-full max-w-2xl shadow-2xl rounded-lg bg-white">
+              <div>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-blue-100 rounded-xl flex items-center justify-center">
+                      <span className="text-2xl">{getTypeIcon(selectedApproval.type)}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        Detalles de Solicitud
+                      </h3>
+                      <p className="text-sm text-gray-600">ID: #{selectedApproval.id}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Contenido */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Solicitante</label>
+                      <p className="text-sm font-semibold text-gray-900">{selectedApproval.applicant}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Estado</label>
+                      <p>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedApproval.status)}`}>
+                          {getStatusDisplay(selectedApproval.status)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Email</label>
+                      <p className="text-sm text-gray-900">{selectedApproval.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Teléfono</label>
+                      <p className="text-sm text-gray-900">{selectedApproval.phone || 'No proporcionado'}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-500">Tipo de Solicitud</label>
+                    <p className="text-sm text-gray-900">{getTypeDisplay(selectedApproval.type)}</p>
+                  </div>
+
+                  {selectedApproval.certificationLevel && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Nivel de Certificación</label>
+                        <p className="text-sm font-semibold text-gray-900">{selectedApproval.certificationLevel}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Experiencia</label>
+                        <p className="text-sm text-gray-900">{selectedApproval.experience}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedApproval.competitionName && (
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Competencia</label>
+                      <p className="text-sm text-gray-900">{selectedApproval.competitionName} ({selectedApproval.category})</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 block mb-2">Documentos Adjuntos</label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedApproval.documents.map((doc, idx) => (
+                        <span key={idx} className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          📄 {doc}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">Fecha de Envío</label>
+                      <p className="text-sm text-gray-900">{formatDate(selectedApproval.submittedAt)}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500">País</label>
+                      <p className="text-sm text-gray-900">{selectedApproval.country || 'No especificado'}</p>
+                    </div>
+                  </div>
+
+                  {selectedApproval.status === 'approved' && selectedApproval.approvedBy && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-sm font-medium text-green-800 mb-1">Aprobado por:</p>
+                      <p className="text-sm text-green-700">{selectedApproval.approvedBy} el {formatDate(selectedApproval.approvedAt)}</p>
+                    </div>
+                  )}
+
+                  {selectedApproval.status === 'rejected' && selectedApproval.rejectionReason && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-sm font-medium text-red-800 mb-1">Rechazado por:</p>
+                      <p className="text-sm text-red-700 mb-2">{selectedApproval.rejectedBy} el {formatDate(selectedApproval.rejectedAt)}</p>
+                      <p className="text-sm font-medium text-red-800 mb-1">Motivo:</p>
+                      <p className="text-sm text-red-700">{selectedApproval.rejectionReason}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-6 pt-4 border-t flex justify-end gap-3">
+                  {selectedApproval.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowDetailsModal(false);
+                          handleApproveClick(selectedApproval);
+                        }}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-all duration-200"
+                      >
+                        ✅ Aprobar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDetailsModal(false);
+                          handleRejectClick(selectedApproval);
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all duration-200"
+                      >
+                        ❌ Rechazar
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-all duration-200"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Aprobar */}
+        {showApproveModal && selectedApproval && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative mx-auto p-8 border w-full max-w-md shadow-2xl rounded-lg bg-white">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                  <span className="text-4xl">✅</span>
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  ¿Aprobar solicitud?
+                </h3>
+
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Estás a punto de aprobar la solicitud de:
+                  </p>
+                  <p className="text-base font-semibold text-gray-900 mb-2">
+                    {selectedApproval.applicant}
+                  </p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {getTypeDisplay(selectedApproval.type)}
+                  </p>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-sm text-green-800">
+                      El solicitante recibirá una notificación de aprobación y tendrá acceso al sistema según su rol.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowApproveModal(false)}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmApprove}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 border-2 border-green-600 rounded-lg hover:bg-green-700 hover:border-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    Sí, aprobar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Rechazar */}
+        {showRejectModal && selectedApproval && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative mx-auto p-8 border w-full max-w-md shadow-2xl rounded-lg bg-white">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <span className="text-4xl">❌</span>
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  ¿Rechazar solicitud?
+                </h3>
+
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Estás a punto de rechazar la solicitud de:
+                  </p>
+                  <p className="text-base font-semibold text-gray-900 mb-4">
+                    {selectedApproval.applicant}
+                  </p>
+
+                  {/* Mensaje de instrucción */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm font-medium text-blue-900 text-center">
+                      ⚠️ Debes proporcionar un motivo antes de rechazar
+                    </p>
+                  </div>
+
+                  <div className="text-left mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Motivo de rechazo * (mínimo 2 caracteres)
+                    </label>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      placeholder="Explica el motivo del rechazo. El solicitante recibirá esta información."
+                    />
+                    {rejectReason.trim().length > 0 && rejectReason.trim().length < 2 && (
+                      <p className="text-xs text-red-600 mt-1">
+                        Mínimo 2 caracteres requeridos (tienes {rejectReason.trim().length})
+                      </p>
+                    )}
+                    {rejectReason.trim().length >= 2 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ Motivo válido ({rejectReason.trim().length} caracteres)
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Nota:</strong> El solicitante recibirá una notificación con el motivo del rechazo.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowRejectModal(false);
+                      setRejectReason('');
+                    }}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmReject}
+                    disabled={rejectReason.trim().length < 2}
+                    className={`flex-1 px-4 py-3 text-sm font-medium text-white border-2 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      rejectReason.trim().length < 2
+                        ? 'bg-gray-400 border-gray-400 cursor-not-allowed opacity-50'
+                        : 'bg-red-600 border-red-600 hover:bg-red-700 hover:border-red-700 focus:ring-red-500 shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    {rejectReason.trim().length < 2 ? '🔒 Sí, rechazar' : 'Sí, rechazar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -2,25 +2,106 @@ import { useState, useEffect } from 'react';
 
 const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
   const [selectedUser, setSelectedUser] = useState(null);
-  const [staffRole, setStaffRole] = useState('judge');
+  const [staffRole, setStaffRole] = useState('judge'); // Por defecto: Juez
+  const [judgePosition, setJudgePosition] = useState('C'); // Posición del juez (C, B, H, E, M)
   const [notes, setNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [availableUsers, setAvailableUsers] = useState([]);
 
-  // Lista de usuarios disponibles (simulada - en producción vendría del backend)
-  const [availableUsers] = useState([
-    { id: 1, first_name: 'Ana', last_name: 'García', email: 'ana.garcia@fei.com', role: 'judge', certification: 'FEI Level 3' },
-    { id: 2, first_name: 'Carlos', last_name: 'Martínez', email: 'carlos.martinez@fei.com', role: 'judge', certification: 'FEI Level 2' },
-    { id: 3, first_name: 'María', last_name: 'López', email: 'maria.lopez@fei.com', role: 'veterinarian', certification: 'Veterinaria FEI' },
-    { id: 4, first_name: 'Juan', last_name: 'Rodríguez', email: 'juan.rodriguez@fei.com', role: 'judge', certification: 'FEI Level 4' },
-    { id: 5, first_name: 'Laura', last_name: 'Sánchez', email: 'laura.sanchez@fei.com', role: 'staff', certification: 'Cronometradora Oficial' },
-  ]);
+  // Cargar usuarios reales del sistema desde localStorage
+  useEffect(() => {
+    const loadUsers = () => {
+      // Intentar cargar usuarios desde localStorage
+      let users = JSON.parse(localStorage.getItem('fei_system_users') || '[]');
+
+      // Si no hay usuarios, inicializar con usuarios del sistema
+      if (users.length === 0) {
+        users = [
+          {
+            id: 1,
+            username: 'admin',
+            first_name: 'Carlos',
+            last_name: 'Administrador',
+            email: 'admin@feisystem.com',
+            role: 'admin',
+            certification: 'Administrador del Sistema'
+          },
+          {
+            id: 2,
+            username: 'organizer1',
+            first_name: 'Juan',
+            last_name: 'Organizador',
+            email: 'organizer@feisystem.com',
+            role: 'organizer',
+            certification: 'Organizador Certificado FEI'
+          },
+          {
+            id: 3,
+            username: 'judge1',
+            first_name: 'María',
+            last_name: 'García',
+            email: 'maria.garcia@feisystem.com',
+            role: 'judge',
+            certification: 'FEI Level 3'
+          },
+          {
+            id: 4,
+            username: 'judge2',
+            first_name: 'Ana',
+            last_name: 'Martínez',
+            email: 'ana.martinez@feisystem.com',
+            role: 'judge',
+            certification: 'FEI Level 4'
+          },
+          {
+            id: 5,
+            username: 'judge3',
+            first_name: 'Roberto',
+            last_name: 'Fernández',
+            email: 'roberto.fernandez@feisystem.com',
+            role: 'judge',
+            certification: 'FEI Level 2'
+          },
+          {
+            id: 6,
+            username: 'vet1',
+            first_name: 'Laura',
+            last_name: 'Veterinaria',
+            email: 'laura.vet@feisystem.com',
+            role: 'veterinarian',
+            certification: 'Veterinaria FEI Certificada'
+          },
+          {
+            id: 7,
+            username: 'staff1',
+            first_name: 'Pedro',
+            last_name: 'Staff',
+            email: 'pedro.staff@feisystem.com',
+            role: 'staff',
+            certification: 'Cronometrador Oficial'
+          }
+        ];
+
+        // Guardar en localStorage para futuras sesiones
+        localStorage.setItem('fei_system_users', JSON.stringify(users));
+      }
+
+      setAvailableUsers(users);
+      console.log('👥 Usuarios cargados:', users.length);
+    };
+
+    if (isOpen) {
+      loadUsers();
+    }
+  }, [isOpen]);
 
   // Resetear selección al abrir/cerrar
   useEffect(() => {
     if (!isOpen) {
       setSelectedUser(null);
       setStaffRole('judge');
+      setJudgePosition('C');
       setNotes('');
       setSearchTerm('');
       setFilterRole('all');
@@ -40,6 +121,7 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
       email: selectedUser.email,
       user_role: selectedUser.role,
       staff_role: staffRole,
+      judge_position: (staffRole === 'judge' || staffRole === 'chief_judge') ? judgePosition : null,
       notes: notes,
       user_id: selectedUser.id
     });
@@ -59,19 +141,15 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
   });
 
   const staffRoles = [
+    { value: 'organizer', label: 'Organizador' },
     { value: 'chief_judge', label: 'Juez Principal' },
     { value: 'judge', label: 'Juez' },
-    { value: 'technical_delegate', label: 'Delegado Técnico' },
-    { value: 'steward', label: 'Comisario' },
-    { value: 'veterinarian', label: 'Veterinario' },
-    { value: 'course_designer', label: 'Diseñador de Pista' },
-    { value: 'announcer', label: 'Locutor' },
-    { value: 'timekeeper', label: 'Cronometrador' },
-    { value: 'scorer', label: 'Anotador' }
+    { value: 'observer', label: 'Observador' }
   ];
 
   const getRoleIcon = (role) => {
     const icons = {
+      admin: '👑',
       judge: '⚖️',
       veterinarian: '🩺',
       staff: '👤',
@@ -82,6 +160,7 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
 
   const getRoleLabel = (role) => {
     const labels = {
+      admin: 'Administrador',
       judge: 'Juez',
       veterinarian: 'Veterinario',
       staff: 'Personal',
@@ -101,8 +180,22 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
                 👥 Asignar Personal a la Competencia
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Selecciona un usuario de la lista y asígnalo a esta competencia
+                Selecciona usuarios del sistema y asígnales un rol en esta competencia
               </p>
+              <div className="mt-2 flex gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                  📋 Organizador
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                  👨‍⚖️ Juez Principal
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                  ⚖️ Juez
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                  👁️ Observador
+                </span>
+              </div>
             </div>
             <button
               onClick={onClose}
@@ -136,10 +229,12 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
                   onChange={(e) => setFilterRole(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">Todos los roles</option>
-                  <option value="judge">Jueces</option>
-                  <option value="veterinarian">Veterinarios</option>
-                  <option value="staff">Personal</option>
+                  <option value="all">Todos los roles ({availableUsers.length})</option>
+                  <option value="judge">Jueces ({availableUsers.filter(u => u.role === 'judge').length})</option>
+                  <option value="admin">Administradores ({availableUsers.filter(u => u.role === 'admin').length})</option>
+                  <option value="organizer">Organizadores ({availableUsers.filter(u => u.role === 'organizer').length})</option>
+                  <option value="veterinarian">Veterinarios ({availableUsers.filter(u => u.role === 'veterinarian').length})</option>
+                  <option value="staff">Personal ({availableUsers.filter(u => u.role === 'staff').length})</option>
                 </select>
               </div>
             </div>
@@ -193,35 +288,98 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
 
             {/* Rol en la competencia */}
             {selectedUser && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Rol en la Competencia *
-                    </label>
-                    <select
-                      value={staffRole}
-                      onChange={(e) => setStaffRole(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {staffRoles.map(role => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notas (Opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Comentarios adicionales..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+              <div className="bg-blue-50 border border-blue-200 p-5 rounded-lg">
+                <h4 className="text-sm font-bold text-blue-900 mb-3 flex items-center">
+                  <span className="mr-2">🎭</span>
+                  Asignación de Rol en la Competencia
+                </h4>
+
+                <div className="bg-white rounded-lg p-4 mb-4">
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* Información del usuario seleccionado */}
+                    <div className="flex items-center justify-between pb-3 border-b">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedUser.first_name} {selectedUser.last_name}
+                        </p>
+                        <p className="text-xs text-gray-600">{selectedUser.email}</p>
+                      </div>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {getRoleLabel(selectedUser.role)}
+                      </span>
+                    </div>
+
+                    {/* Selector de rol */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Rol en esta Competencia *
+                      </label>
+                      <select
+                        value={staffRole}
+                        onChange={(e) => setStaffRole(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        {staffRoles.map(role => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Descripción del rol seleccionado */}
+                      <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-700">
+                          {staffRole === 'organizer' && '📋 Gestiona la competencia, tiene acceso a casi todas las funciones'}
+                          {staffRole === 'chief_judge' && '👨‍⚖️ Juez principal responsable de supervisar la calificación'}
+                          {staffRole === 'judge' && '⚖️ Califica a los participantes durante la competencia'}
+                          {staffRole === 'observer' && '👁️ Puede ver la competencia y rankings en vivo'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Selector de Posición del Juez (solo para jueces) */}
+                    {(staffRole === 'judge' || staffRole === 'chief_judge') && (
+                      <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+                        <label className="block text-sm font-medium text-purple-900 mb-2">
+                          🎯 Posición del Juez *
+                        </label>
+                        <select
+                          value={judgePosition}
+                          onChange={(e) => setJudgePosition(e.target.value)}
+                          className="w-full px-4 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-medium"
+                        >
+                          <option value="C">C - Posición Central (Principal)</option>
+                          <option value="B">B - Posición Lateral Izquierda</option>
+                          <option value="H">H - Posición Lateral Derecha</option>
+                          <option value="E">E - Posición Final</option>
+                          <option value="M">M - Posición Media</option>
+                        </select>
+                        <div className="mt-2 p-2 bg-white rounded text-xs text-gray-700">
+                          <p className="font-medium text-purple-800 mb-1">Información de Posiciones FEI:</p>
+                          <ul className="space-y-1">
+                            <li><span className="font-semibold">C:</span> Posición central - Juez principal (vista frontal)</li>
+                            <li><span className="font-semibold">B:</span> Posición lateral - Vista desde la izquierda</li>
+                            <li><span className="font-semibold">H:</span> Posición lateral - Vista desde la derecha</li>
+                            <li><span className="font-semibold">E:</span> Posición final - Vista posterior</li>
+                            <li><span className="font-semibold">M:</span> Posición media - Vista lateral central</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notas opcionales */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Notas Adicionales (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Ej: Responsable del área de saltos"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -10,95 +10,89 @@ const CompetitionSchedulePage = () => {
   const [competition, setCompetition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
+  const [showPublishAllConfirm, setShowPublishAllConfirm] = useState(false);
+  const [unpublishedCount, setUnpublishedCount] = useState(0);
 
   const handleLogout = async () => {
     await logout();
   };
 
-  // Datos de ejemplo para demostración
+  // Cargar datos desde localStorage por competencia
   useEffect(() => {
-    // Simular carga de datos
-    setTimeout(() => {
-      setCompetition({
-        id: competitionId || 1,
-        name: 'Copa Internacional de Salto 2024',
-        discipline: 'Show Jumping',
-        location: 'Madrid, España',
-        startDate: '2025-10-03',
-        endDate: '2025-10-06',
-        status: 'in_progress'
-      });
+    if (!competitionId) return;
 
-      setSchedule([
+    setLoading(true);
+
+    // Cargar competencia desde localStorage
+    const competitionsData = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
+    const comp = competitionsData.find(c => c.id == competitionId);
+
+    if (comp) {
+      setCompetition({
+        id: comp.id,
+        name: comp.name,
+        discipline: comp.discipline,
+        location: comp.location || `${comp.venue_city}, ${comp.venue_country}`,
+        startDate: comp.start_date || comp.startDate,
+        endDate: comp.end_date || comp.endDate,
+        status: comp.status
+      });
+    }
+
+    // Cargar programación específica de esta competencia
+    const scheduleKey = `fei_schedule_${competitionId}`;
+    const storedSchedule = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
+
+    // Si no hay programación guardada, inicializar con datos de ejemplo
+    if (storedSchedule.length === 0 && comp) {
+      const defaultSchedule = [
         {
           id: 1,
+          competition_id: competitionId,
           title: 'Reconocimiento de Pistas',
-          description: 'Reconocimiento oficial del recorrido para categoría Juvenil 1.20m',
+          description: 'Reconocimiento oficial del recorrido',
           schedule_type: 'special_event',
-          start_time: '2025-10-03T08:00:00',
-          end_time: '2025-10-03T08:30:00',
-          discipline: 'Show Jumping',
-          category: 'Juvenil 1.20m',
+          start_time: `${comp.start_date || '2025-10-03'}T08:00:00`,
+          end_time: `${comp.start_date || '2025-10-03'}T08:30:00`,
+          discipline: comp.discipline,
+          category: null,
           location: 'Arena Principal',
-          is_published: true
+          is_published: false
         },
         {
           id: 2,
-          title: 'Prueba Juvenil 1.20m - Ronda Clasificatoria',
-          description: 'Primera ronda clasificatoria para la categoría Juvenil 1.20m',
-          schedule_type: 'category_start',
-          start_time: '2025-10-03T09:00:00',
-          end_time: '2025-10-03T12:00:00',
-          discipline: 'Show Jumping',
-          category: 'Juvenil 1.20m',
-          location: 'Arena Principal',
-          is_published: true
-        },
-        {
-          id: 3,
-          title: 'Descanso - Almuerzo',
-          description: 'Pausa para almuerzo y descanso de participantes',
-          schedule_type: 'lunch',
-          start_time: '2025-10-03T12:00:00',
-          end_time: '2025-10-03T13:30:00',
-          discipline: null,
-          category: null,
-          location: 'Área de Restauración',
-          is_published: true
-        },
-        {
-          id: 4,
-          title: 'Prueba Senior 1.40m - Ronda Clasificatoria',
-          description: 'Primera ronda clasificatoria para la categoría Senior 1.40m',
-          schedule_type: 'category_start',
-          start_time: '2025-10-03T13:30:00',
-          end_time: '2025-10-03T17:00:00',
-          discipline: 'Show Jumping',
-          category: 'Senior 1.40m',
-          location: 'Arena Principal',
-          is_published: true
-        },
-        {
-          id: 5,
-          title: 'Premiación Día 1',
-          description: 'Ceremonia de premiación de las categorías del primer día',
-          schedule_type: 'awards',
-          start_time: '2025-10-03T17:30:00',
-          end_time: '2025-10-03T18:00:00',
-          discipline: null,
+          competition_id: competitionId,
+          title: 'Ceremonia de Apertura',
+          description: 'Ceremonia oficial de apertura de la competencia',
+          schedule_type: 'competition_start',
+          start_time: `${comp.start_date || '2025-10-03'}T09:00:00`,
+          end_time: `${comp.start_date || '2025-10-03'}T09:30:00`,
+          discipline: comp.discipline,
           category: null,
           location: 'Arena Principal',
           is_published: false
         }
-      ]);
-      setLoading(false);
-    }, 500);
+      ];
+      localStorage.setItem(scheduleKey, JSON.stringify(defaultSchedule));
+      setSchedule(defaultSchedule);
+    } else {
+      setSchedule(storedSchedule);
+    }
+
+    setLoading(false);
   }, [competitionId]);
 
   const handleCreateSchedule = (scheduleData) => {
-    // Generar un ID temporal para el nuevo evento
+    // Generar un ID único
+    const maxId = schedule.length > 0 ? Math.max(...schedule.map(s => s.id || 0)) : 0;
+
     const newSchedule = {
-      id: schedule.length + 1,
+      id: maxId + 1,
+      competition_id: competitionId,
       title: scheduleData.title,
       description: scheduleData.description,
       schedule_type: scheduleData.schedule_type,
@@ -110,36 +104,61 @@ const CompetitionSchedulePage = () => {
       is_published: false
     };
 
-    // Agregar el nuevo evento al estado
-    setSchedule(prev => [...prev, newSchedule].sort((a, b) =>
+    // Agregar el nuevo evento y ordenar por fecha
+    const updatedSchedule = [...schedule, newSchedule].sort((a, b) =>
       new Date(a.start_time) - new Date(b.start_time)
-    ));
+    );
+
+    // Guardar en localStorage
+    const scheduleKey = `fei_schedule_${competitionId}`;
+    localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
+
+    // Actualizar estado
+    setSchedule(updatedSchedule);
 
     // Mostrar mensaje de éxito
     alert('✅ Evento programado exitosamente!');
   };
 
-  const handlePublishSchedule = (scheduleId) => {
-    setSchedule(prev =>
-      prev.map(s =>
-        s.id === scheduleId ? { ...s, is_published: true } : s
-      )
-    );
-    alert('✅ Evento publicado!');
+  const handleUpdateSchedule = (scheduleData) => {
+    console.log('📝 Actualizando evento ID:', editingEventId);
+    console.log('📦 Nuevos datos:', scheduleData);
+
+    // Actualizar el evento manteniendo su ID
+    const updatedSchedule = schedule.map(s => {
+      if (s.id === editingEventId) {
+        return {
+          ...s,
+          title: scheduleData.title,
+          description: scheduleData.description,
+          schedule_type: scheduleData.schedule_type,
+          start_time: scheduleData.start_time,
+          end_time: scheduleData.end_time,
+          discipline: scheduleData.discipline || null,
+          category: scheduleData.category || null,
+          location: scheduleData.location
+        };
+      }
+      return s;
+    }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+    // Guardar en localStorage
+    const scheduleKey = `fei_schedule_${competitionId}`;
+    localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
+    console.log('💾 Guardado en localStorage:', scheduleKey);
+
+    // Actualizar estado
+    setSchedule(updatedSchedule);
+
+    // Cerrar modal y limpiar estado de edición
+    setShowEditModal(false);
+    setEditingEventId(null);
+
+    // Mostrar mensaje de éxito
+    alert('✅ Evento actualizado exitosamente!');
   };
 
-  const handleStartEvent = (scheduleId) => {
-    // Simular inicio de evento
-    alert('🚀 Evento iniciado! Los participantes pueden proceder.');
-  };
-
-  const handleDeleteSchedule = (scheduleId) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este evento?')) {
-      setSchedule(prev => prev.filter(s => s.id !== scheduleId));
-      alert('✅ Evento eliminado!');
-    }
-  };
-
+  // Funciones auxiliares (deben estar antes de los handlers que las usan)
   const getScheduleTypeDisplay = (type) => {
     const types = {
       competition_start: 'Inicio de Competencia',
@@ -206,6 +225,275 @@ const CompetitionSchedulePage = () => {
       day: 'numeric',
       month: 'long'
     });
+  };
+
+  // Handlers de eventos
+  const handlePublishSchedule = (e, scheduleId) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const updatedSchedule = schedule.map(s =>
+      s.id === scheduleId ? { ...s, is_published: true } : s
+    );
+
+    // Guardar en localStorage
+    const scheduleKey = `fei_schedule_${competitionId}`;
+    localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
+
+    setSchedule(updatedSchedule);
+    alert('✅ Evento publicado!');
+  };
+
+  const handleStartEvent = (e, scheduleId) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Simular inicio de evento
+    alert('🚀 Evento iniciado! Los participantes pueden proceder.');
+  };
+
+  const handleDeleteSchedule = (e, scheduleId) => {
+    // Prevenir propagación de eventos
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    console.log('🗑️ Iniciando eliminación de evento:', {
+      scheduleId,
+      totalEventos: schedule.length,
+      competitionId
+    });
+
+    const event = schedule.find(s => s.id === scheduleId);
+
+    if (!event) {
+      console.error('❌ Evento no encontrado:', scheduleId);
+      alert('⚠️ Error: Evento no encontrado');
+      return;
+    }
+
+    console.log('📋 Evento a eliminar:', {
+      id: event.id,
+      title: event.title,
+      is_published: event.is_published
+    });
+
+    // Abrir modal de confirmación en lugar de window.confirm
+    setEventToDelete(event);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (!eventToDelete) return;
+
+    try {
+      const updatedSchedule = schedule.filter(s => s.id !== eventToDelete.id);
+      console.log('✅ Schedule actualizado:', {
+        eventosAntes: schedule.length,
+        eventosDespues: updatedSchedule.length,
+        eliminados: schedule.length - updatedSchedule.length
+      });
+
+      // Guardar en localStorage
+      const scheduleKey = `fei_schedule_${competitionId}`;
+      localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
+      console.log('💾 Guardado en localStorage:', scheduleKey);
+
+      // Verificar que se guardó correctamente
+      const verificacion = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
+      console.log('✔️ Verificación localStorage:', verificacion.length, 'eventos');
+
+      // Actualizar estado
+      setSchedule(updatedSchedule);
+
+      alert('✅ Evento eliminado exitosamente!');
+      console.log('🎉 Eliminación completada exitosamente');
+    } catch (error) {
+      console.error('❌ Error eliminando evento:', {
+        error: error.message,
+        stack: error.stack,
+        scheduleId: eventToDelete.id
+      });
+      alert('❌ Error al eliminar el evento. Por favor intenta de nuevo.');
+    } finally {
+      // Cerrar modal y limpiar estado
+      setShowDeleteConfirm(false);
+      setEventToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    console.log('❌ Eliminación cancelada por el usuario');
+    setShowDeleteConfirm(false);
+    setEventToDelete(null);
+  };
+
+  const handleEditSchedule = (e, scheduleId) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    console.log('✏️ Editar evento ID:', scheduleId);
+    const event = schedule.find(s => s.id === scheduleId);
+    if (event) {
+      setEditingEventId(scheduleId);
+      setShowEditModal(true);
+    } else {
+      alert('⚠️ Error: Evento no encontrado');
+    }
+  };
+
+  const handlePublishAll = () => {
+    const count = schedule.filter(s => !s.is_published).length;
+
+    if (count === 0) {
+      alert('ℹ️ Todos los eventos ya están publicados.');
+      return;
+    }
+
+    console.log('📢 Iniciando publicación masiva:', {
+      eventosSinPublicar: count,
+      totalEventos: schedule.length,
+      competitionId
+    });
+
+    // Abrir modal de confirmación
+    setUnpublishedCount(count);
+    setShowPublishAllConfirm(true);
+  };
+
+  const confirmPublishAll = () => {
+    try {
+      const updatedSchedule = schedule.map(s => ({ ...s, is_published: true }));
+
+      console.log('✅ Publicando todos los eventos:', {
+        eventosAntes: schedule.filter(s => !s.is_published).length,
+        eventosDespues: updatedSchedule.filter(s => !s.is_published).length,
+        totalPublicados: unpublishedCount
+      });
+
+      // Guardar en localStorage
+      const scheduleKey = `fei_schedule_${competitionId}`;
+      localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
+      console.log('💾 Guardado en localStorage:', scheduleKey);
+
+      // Verificar que se guardó correctamente
+      const verificacion = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
+      console.log('✔️ Verificación localStorage:', {
+        totalEventos: verificacion.length,
+        publicados: verificacion.filter(s => s.is_published).length
+      });
+
+      setSchedule(updatedSchedule);
+      alert(`✅ ${unpublishedCount} evento(s) publicado(s) exitosamente!`);
+      console.log('🎉 Publicación masiva completada');
+    } catch (error) {
+      console.error('❌ Error publicando eventos:', error);
+      alert('❌ Error al publicar eventos. Por favor intenta de nuevo.');
+    } finally {
+      // Cerrar modal
+      setShowPublishAllConfirm(false);
+      setUnpublishedCount(0);
+    }
+  };
+
+  const cancelPublishAll = () => {
+    console.log('❌ Publicación masiva cancelada por el usuario');
+    setShowPublishAllConfirm(false);
+    setUnpublishedCount(0);
+  };
+
+  const handleGeneratePDF = () => {
+    if (schedule.length === 0) {
+      alert('⚠️ No hay eventos para generar PDF');
+      return;
+    }
+
+    // Generar contenido para PDF (simulado con texto)
+    let content = `PROGRAMACIÓN DE LA COMPETENCIA\n`;
+    content += `${competition.name}\n`;
+    content += `${competition.discipline} • ${competition.location}\n`;
+    content += `${competition.startDate} - ${competition.endDate}\n`;
+    content += `\n${'='.repeat(80)}\n\n`;
+
+    // Agrupar por fecha
+    const eventsByDate = {};
+    schedule.forEach(event => {
+      const date = formatDate(event.start_time);
+      if (!eventsByDate[date]) {
+        eventsByDate[date] = [];
+      }
+      eventsByDate[date].push(event);
+    });
+
+    // Construir contenido
+    Object.keys(eventsByDate).forEach(date => {
+      content += `\n📅 ${date}\n`;
+      content += `${'-'.repeat(80)}\n\n`;
+
+      eventsByDate[date].forEach(event => {
+        content += `${formatTime(event.start_time)} - ${formatTime(event.end_time)}\n`;
+        content += `${getScheduleTypeIcon(event.schedule_type)} ${event.title}\n`;
+        content += `   Tipo: ${getScheduleTypeDisplay(event.schedule_type)}\n`;
+        content += `   Ubicación: ${event.location}\n`;
+        if (event.category) {
+          content += `   Categoría: ${event.category}\n`;
+        }
+        content += `   ${event.description}\n`;
+        content += `   Estado: ${getStatusText(event)}\n\n`;
+      });
+    });
+
+    // Crear archivo de texto (simulando PDF)
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `programacion_${competition.name.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert('✅ Programación generada y descargada!');
+  };
+
+  const handleExportSchedule = () => {
+    if (schedule.length === 0) {
+      alert('⚠️ No hay eventos para exportar');
+      return;
+    }
+
+    // Crear CSV
+    let csv = 'Fecha,Hora Inicio,Hora Fin,Título,Tipo,Categoría,Ubicación,Descripción,Estado\n';
+
+    schedule.forEach(event => {
+      const date = formatDate(event.start_time);
+      const startTime = formatTime(event.start_time);
+      const endTime = formatTime(event.end_time);
+
+      csv += `"${date}",`;
+      csv += `"${startTime}","${endTime}",`;
+      csv += `"${event.title}",`;
+      csv += `"${getScheduleTypeDisplay(event.schedule_type)}",`;
+      csv += `"${event.category || 'N/A'}",`;
+      csv += `"${event.location}",`;
+      csv += `"${event.description}",`;
+      csv += `"${getStatusText(event)}"\n`;
+    });
+
+    // Descargar CSV
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `programacion_${competition.name.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert('✅ Programación exportada a CSV!');
   };
 
   if (!competition) {
@@ -409,40 +697,51 @@ const CompetitionSchedulePage = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end space-y-2">
+                        <div className="flex flex-col items-end space-y-3">
                           <div className="text-right">
                             <div className="text-sm font-medium text-gray-900">
                               {formatDate(event.start_time)}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs text-gray-500">
                               {formatTime(event.start_time)} - {formatTime(event.end_time)}
                             </div>
                           </div>
-                          <div className="flex space-x-2">
+                          <div className="flex gap-2">
                             {!event.is_published && (
                               <button
-                                onClick={() => handlePublishSchedule(event.id)}
-                                className="text-green-600 hover:text-green-500 text-sm font-medium"
+                                onClick={(e) => handlePublishSchedule(e, event.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 text-xs font-medium shadow-sm hover:shadow"
+                                title="Publicar evento para participantes"
                               >
-                                Publicar
+                                <span className="text-sm">📢</span>
+                                <span>Publicar</span>
                               </button>
                             )}
                             {event.schedule_type === 'category_start' && event.is_published && (
                               <button
-                                onClick={() => handleStartEvent(event.id)}
-                                className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                                onClick={(e) => handleStartEvent(e, event.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 text-xs font-medium shadow-sm hover:shadow"
+                                title="Iniciar prueba"
                               >
-                                Iniciar
+                                <span className="text-sm">🚀</span>
+                                <span>Iniciar</span>
                               </button>
                             )}
-                            <button className="text-yellow-600 hover:text-yellow-500 text-sm font-medium">
-                              Editar
+                            <button
+                              onClick={(e) => handleEditSchedule(e, event.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg hover:bg-yellow-100 hover:border-yellow-300 transition-all duration-200 text-xs font-medium shadow-sm hover:shadow"
+                              title="Editar evento"
+                            >
+                              <span className="text-sm">✏️</span>
+                              <span>Editar</span>
                             </button>
                             <button
-                              onClick={() => handleDeleteSchedule(event.id)}
-                              className="text-red-600 hover:text-red-500 text-sm font-medium"
+                              onClick={(e) => handleDeleteSchedule(e, event.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 hover:border-red-300 transition-all duration-200 text-xs font-medium shadow-sm hover:shadow"
+                              title="Eliminar evento"
                             >
-                              Eliminar
+                              <span className="text-sm">🗑️</span>
+                              <span>Eliminar</span>
                             </button>
                           </div>
                         </div>
@@ -455,23 +754,49 @@ const CompetitionSchedulePage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-6 flex justify-between">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              + Programar Evento
-            </button>
-            <div className="flex space-x-2">
-              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                Publicar Todo
-              </button>
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                Generar PDF
-              </button>
-              <button className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                Exportar
-              </button>
+          <div className="mt-8 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 shadow-sm border border-purple-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Acciones Rápidas</h3>
+                <p className="text-sm text-gray-600">Gestiona la programación y exporta información</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm transform hover:scale-105"
+                  title="Programar nuevo evento"
+                >
+                  <span className="text-lg">➕</span>
+                  <span>Programar Evento</span>
+                </button>
+                <button
+                  onClick={handlePublishAll}
+                  disabled={schedule.filter(s => !s.is_published).length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  title={schedule.filter(s => !s.is_published).length === 0 ? 'Todos los eventos están publicados' : 'Publicar todos los eventos en borrador'}
+                >
+                  <span className="text-lg">📢</span>
+                  <span>Publicar Todo</span>
+                </button>
+                <button
+                  onClick={handleGeneratePDF}
+                  disabled={schedule.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  title={schedule.length === 0 ? 'No hay eventos para generar PDF' : 'Generar programación en formato PDF'}
+                >
+                  <span className="text-lg">📄</span>
+                  <span>Generar PDF</span>
+                </button>
+                <button
+                  onClick={handleExportSchedule}
+                  disabled={schedule.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-lg hover:from-gray-800 hover:to-gray-900 transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  title={schedule.length === 0 ? 'No hay eventos para exportar' : 'Exportar programación a CSV'}
+                >
+                  <span className="text-lg">📥</span>
+                  <span>Exportar CSV</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -481,6 +806,143 @@ const CompetitionSchedulePage = () => {
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreateSchedule}
           />
+
+          {/* Modal de Editar Evento */}
+          <CreateScheduleModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingEventId(null);
+            }}
+            onSubmit={handleUpdateSchedule}
+            initialData={schedule.find(s => s.id === editingEventId)}
+            isEditMode={true}
+          />
+
+          {/* Modal de Confirmación de Eliminación */}
+          {showDeleteConfirm && eventToDelete && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+              <div className="relative mx-auto p-8 border w-full max-w-md shadow-2xl rounded-lg bg-white">
+                <div className="text-center">
+                  {/* Icono de advertencia */}
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                    <span className="text-4xl">⚠️</span>
+                  </div>
+
+                  {/* Título */}
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    ¿Eliminar evento?
+                  </h3>
+
+                  {/* Mensaje */}
+                  <div className="mb-6">
+                    <p className="text-sm text-gray-600 mb-2">
+                      ¿Estás seguro de que deseas eliminar el evento:
+                    </p>
+                    <p className="text-base font-semibold text-gray-900 mb-2">
+                      "{eventToDelete.title}"
+                    </p>
+                    <p className="text-sm text-red-600 font-medium">
+                      Esta acción no se puede deshacer.
+                    </p>
+                  </div>
+
+                  {/* Información adicional */}
+                  <div className="bg-gray-50 rounded-lg p-3 mb-6 text-left">
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <p><span className="font-semibold">Tipo:</span> {getScheduleTypeDisplay(eventToDelete.schedule_type)}</p>
+                      <p><span className="font-semibold">Fecha:</span> {formatDate(eventToDelete.start_time)}</p>
+                      <p><span className="font-semibold">Hora:</span> {formatTime(eventToDelete.start_time)} - {formatTime(eventToDelete.end_time)}</p>
+                      <p><span className="font-semibold">Estado:</span> {eventToDelete.is_published ? 'Publicado' : 'Borrador'}</p>
+                    </div>
+                  </div>
+
+                  {/* Botones */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={cancelDelete}
+                      className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="flex-1 px-4 py-3 text-sm font-medium text-white bg-red-600 border-2 border-red-600 rounded-lg hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                    >
+                      Sí, eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Confirmación de Publicar Todo */}
+          {showPublishAllConfirm && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+              <div className="relative mx-auto p-8 border w-full max-w-md shadow-2xl rounded-lg bg-white">
+                <div className="text-center">
+                  {/* Icono de publicación */}
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                    <span className="text-4xl">📢</span>
+                  </div>
+
+                  {/* Título */}
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    ¿Publicar todos los eventos?
+                  </h3>
+
+                  {/* Mensaje */}
+                  <div className="mb-6">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Estás a punto de publicar:
+                    </p>
+                    <p className="text-3xl font-bold text-green-600 mb-2">
+                      {unpublishedCount}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {unpublishedCount === 1 ? 'evento en borrador' : 'eventos en borrador'}
+                    </p>
+                    <p className="text-sm text-green-700 font-medium bg-green-50 rounded-lg p-3">
+                      Los participantes podrán ver estos eventos en la programación pública.
+                    </p>
+                  </div>
+
+                  {/* Lista de eventos que se publicarán */}
+                  <div className="bg-gray-50 rounded-lg p-3 mb-6 text-left max-h-40 overflow-y-auto">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Eventos a publicar:</p>
+                    <div className="text-xs text-gray-600 space-y-1">
+                      {schedule.filter(s => !s.is_published).map((event, index) => (
+                        <div key={event.id} className="flex items-start gap-2 py-1 border-b border-gray-200 last:border-0">
+                          <span className="text-gray-400">{index + 1}.</span>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">{event.title}</p>
+                            <p className="text-gray-500">{formatDate(event.start_time)} • {formatTime(event.start_time)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Botones */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={cancelPublishAll}
+                      className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmPublishAll}
+                      className="flex-1 px-4 py-3 text-sm font-medium text-white bg-green-600 border-2 border-green-600 rounded-lg hover:bg-green-700 hover:border-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                    >
+                      Sí, publicar todo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

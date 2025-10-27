@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import ScoreParticipantModal from '../components/ScoreParticipantModal';
+import DressageScoreModal from '../components/scoring/DressageScoreModal';
+import MultiJudgePanel from '../components/MultiJudgePanel';
+import ImportExcelModal from '../components/ImportExcelModal';
+import { exportCompetitionScores, exportBlankScoringTemplate } from '../services/excelService';
 
 const ScoringPage = () => {
   const { competitionId } = useParams();
@@ -12,9 +16,169 @@ const ScoringPage = () => {
   const [loading, setLoading] = useState(true);
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState(null);
+  const [myAssignment, setMyAssignment] = useState(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+
+  // Estado para disciplina y tipo de calificación
+  const [discipline, setDiscipline] = useState('dressage'); // 'dressage' o 'show_jumping'
+  const [dressageTemplate, setDressageTemplate] = useState('futuros_campeones_a');
+
+  // Estado para vista de calificación
+  const [viewMode, setViewMode] = useState('individual'); // 'individual' o 'multi_judge'
+
+  // Estado para importación/exportación
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState([]);
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  // Cargar plantillas personalizadas desde localStorage
+  useEffect(() => {
+    const savedTemplates = localStorage.getItem('fei_custom_templates');
+    if (savedTemplates) {
+      try {
+        setCustomTemplates(JSON.parse(savedTemplates));
+      } catch (error) {
+        console.error('Error al cargar plantillas personalizadas:', error);
+      }
+    }
+  }, []);
+
+  // Manejar importación de tabla de Excel
+  const handleImportTemplate = (template) => {
+    console.log('📤 Plantilla importada:', template);
+
+    // Agregar a plantillas personalizadas
+    const updatedTemplates = [...customTemplates, template];
+    setCustomTemplates(updatedTemplates);
+
+    // Guardar en localStorage
+    localStorage.setItem('fei_custom_templates', JSON.stringify(updatedTemplates));
+
+    // Seleccionar automáticamente la plantilla importada
+    setDressageTemplate(template.id);
+
+    alert(`✅ Plantilla "${template.name}" importada exitosamente!\n\n` +
+          `Ejercicios: ${template.exercises.length}\n` +
+          `Notas de Conjunto: ${template.collectiveMarks.length}\n` +
+          `Puntuación Máxima: ${template.maxScore}`);
+  };
+
+  // Exportar resultados completos de la competencia
+  const handleExportResults = () => {
+    try {
+      // Cargar jueces desde localStorage
+      const storageKey = `fei_staff_${competitionId}`;
+      const savedStaff = localStorage.getItem(storageKey);
+      const judges = savedStaff ? JSON.parse(savedStaff).filter(s =>
+        s.role === 'judge' || s.role === 'chief_judge'
+      ) : [];
+
+      const fileName = exportCompetitionScores(competition, participants, scores, judges);
+      alert(`✅ Resultados exportados exitosamente!\n\nArchivo: ${fileName}`);
+    } catch (error) {
+      console.error('Error al exportar resultados:', error);
+      alert('❌ Error al exportar resultados. Verifica la consola para más detalles.');
+    }
+  };
+
+  // Exportar plantilla vacía para un participante
+  const handleExportBlankTemplate = (participant) => {
+    try {
+      // Obtener la plantilla actual (puede ser personalizada o predeterminada)
+      const template = customTemplates.find(t => t.id === dressageTemplate) || {
+        id: 'futuros_campeones_a',
+        name: 'FUTUROS CAMPEONES - TABLA A',
+        exercises: [],
+        collectiveMarks: [],
+        maxScore: 160
+      };
+
+      const fileName = exportBlankScoringTemplate(template, participant);
+      alert(`✅ Plantilla exportada exitosamente!\n\nArchivo: ${fileName}`);
+    } catch (error) {
+      console.error('Error al exportar plantilla:', error);
+      alert('❌ Error al exportar plantilla. Verifica la consola para más detalles.');
+    }
+  };
+
+  // Verificar asignación del juez a esta competencia
+  useEffect(() => {
+    if (!user || !competitionId) return;
+
+    const storageKey = `fei_staff_${competitionId}`;
+    const savedStaff = localStorage.getItem(storageKey);
+
+    if (savedStaff) {
+      try {
+        const staff = JSON.parse(savedStaff);
+        const assignment = staff.find(
+          s => s.staff_member.email === user.email || s.staff_member.id === user.id
+        );
+
+        if (assignment) {
+          console.log('📋 Asignación encontrada:', assignment);
+          setMyAssignment(assignment);
+          setIsConfirmed(assignment.is_confirmed);
+        } else {
+          console.log('⚠️ No estás asignado a esta competencia');
+        }
+      } catch (error) {
+        console.error('Error al cargar asignación:', error);
+      }
+    }
+  }, [user, competitionId]);
+
+  // Aceptar asignación
+  const handleAcceptAssignment = () => {
+    const storageKey = `fei_staff_${competitionId}`;
+    const savedStaff = localStorage.getItem(storageKey);
+
+    if (savedStaff) {
+      try {
+        const staff = JSON.parse(savedStaff);
+        const updatedStaff = staff.map(s => {
+          if (s.id === myAssignment.id) {
+            return { ...s, is_confirmed: true };
+          }
+          return s;
+        });
+
+        localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+        setMyAssignment({ ...myAssignment, is_confirmed: true });
+        setIsConfirmed(true);
+        alert('✅ Has aceptado la asignación a la competencia!');
+      } catch (error) {
+        console.error('Error al aceptar asignación:', error);
+        alert('❌ Error al aceptar la asignación');
+      }
+    }
+  };
+
+  // Rechazar asignación
+  const handleRejectAssignment = () => {
+    if (!window.confirm('¿Estás seguro de que quieres rechazar esta asignación? No podrás calificar en esta competencia.')) {
+      return;
+    }
+
+    const storageKey = `fei_staff_${competitionId}`;
+    const savedStaff = localStorage.getItem(storageKey);
+
+    if (savedStaff) {
+      try {
+        const staff = JSON.parse(savedStaff);
+        const updatedStaff = staff.filter(s => s.id !== myAssignment.id);
+
+        localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+        alert('❌ Has rechazado la asignación. Serás redirigido al dashboard.');
+        window.location.href = '/judge';
+      } catch (error) {
+        console.error('Error al rechazar asignación:', error);
+        alert('❌ Error al rechazar la asignación');
+      }
+    }
   };
 
   // Datos de ejemplo para demostración
@@ -26,15 +190,20 @@ const ScoringPage = () => {
       const compId = competitionId || '1';
       console.log('✅ Cargando competencia:', compId);
 
+      // Cargar disciplina desde localStorage si existe
+      const savedDiscipline = localStorage.getItem(`fei_competition_${compId}_discipline`) || 'dressage';
+
       setCompetition({
         id: compId,
         name: 'Copa Internacional de Salto 2024',
-        discipline: 'Show Jumping',
+        discipline: savedDiscipline === 'show_jumping' ? 'Show Jumping' : 'Dressage',
         location: 'Madrid, España',
         startDate: '2025-10-03',
         endDate: '2025-10-06',
         status: 'in_progress'
       });
+
+      setDiscipline(savedDiscipline);
 
       setParticipants([
         {
@@ -90,26 +259,59 @@ const ScoringPage = () => {
   };
 
   const handleSubmitScore = (scoreData) => {
-    // Calcular puntuación final según reglas FEI de salto
-    const finalScore = scoreData.faults + scoreData.time_faults + (scoreData.refusals * 4);
+    let newScore;
 
-    const newScore = {
-      id: scores.length + 1,
-      participant_id: selectedParticipant.id,
-      judge_id: user?.id || 1,
-      judge_name: user?.first_name + ' ' + user?.last_name || 'Juez Principal',
-      time_seconds: parseFloat(scoreData.time_seconds),
-      faults: parseInt(scoreData.faults),
-      time_faults: parseFloat(scoreData.time_faults),
-      refusals: parseInt(scoreData.refusals),
-      final_score: finalScore,
-      status: 'completed',
-      notes: scoreData.notes || '',
-      created_at: new Date().toISOString()
-    };
+    if (discipline === 'dressage') {
+      // Calificación de Adiestramiento
+      newScore = {
+        id: scores.length + 1,
+        participant_id: selectedParticipant.id,
+        judge_id: user?.id || 1,
+        judge_name: user?.first_name + ' ' + user?.last_name || 'Juez Principal',
+        judge_position: scoreData.judgePosition || 'C',
+        discipline: 'dressage',
+        template: scoreData.template,
+        exercises: scoreData.exercises,
+        collectiveMarks: scoreData.collectiveMarks,
+        exercisesSubtotal: scoreData.exercisesSubtotal,
+        collectiveSubtotal: scoreData.collectiveSubtotal,
+        totalScore: scoreData.totalScore,
+        percentage: scoreData.percentage,
+        maxScore: scoreData.maxScore,
+        comments: scoreData.comments || '',
+        status: 'completed',
+        created_at: new Date().toISOString()
+      };
+    } else {
+      // Calificación de Salto (Show Jumping)
+      const finalScore = scoreData.faults + scoreData.time_faults + (scoreData.refusals * 4);
+
+      newScore = {
+        id: scores.length + 1,
+        participant_id: selectedParticipant.id,
+        judge_id: user?.id || 1,
+        judge_name: user?.first_name + ' ' + user?.last_name || 'Juez Principal',
+        discipline: 'show_jumping',
+        time_seconds: parseFloat(scoreData.time_seconds),
+        faults: parseInt(scoreData.faults),
+        time_faults: parseFloat(scoreData.time_faults),
+        refusals: parseInt(scoreData.refusals),
+        final_score: finalScore,
+        status: 'completed',
+        notes: scoreData.notes || '',
+        created_at: new Date().toISOString()
+      };
+    }
 
     setScores(prev => [...prev, newScore]);
-    alert('✅ Puntuación registrada exitosamente!');
+
+    // Guardar en localStorage
+    const storageKey = `fei_scores_${competitionId}`;
+    const updatedScores = [...scores, newScore];
+    localStorage.setItem(storageKey, JSON.stringify(updatedScores));
+
+    console.log('💾 Calificación guardada:', newScore);
+    alert(`✅ Puntuación ${discipline === 'dressage' ? 'de Adiestramiento' : 'de Salto'} registrada exitosamente!`);
   };
 
   const getParticipantScore = (participantId) => {
@@ -178,6 +380,72 @@ const ScoringPage = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
 
+          {/* Banner de Confirmación Pendiente */}
+          {myAssignment && !isConfirmed && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg mb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="text-3xl mr-4">⏳</div>
+                  <div>
+                    <h3 className="text-lg font-bold text-yellow-900">
+                      Confirmación de Asignación Pendiente
+                    </h3>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      Has sido asignado como{' '}
+                      <span className="font-semibold">
+                        {myAssignment.role === 'judge' && 'Juez'}
+                        {myAssignment.role === 'chief_judge' && 'Juez Principal'}
+                        {myAssignment.role === 'observer' && 'Observador'}
+                      </span>{' '}
+                      para esta competencia. Por favor, confirma tu participación.
+                    </p>
+                    {myAssignment.notes && (
+                      <p className="text-sm text-yellow-700 mt-2">
+                        <span className="font-medium">Notas del organizador:</span> {myAssignment.notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleRejectAssignment}
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <span>❌</span>
+                    <span>Rechazar</span>
+                  </button>
+                  <button
+                    onClick={handleAcceptAssignment}
+                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                  >
+                    <span>✅</span>
+                    <span>Aceptar Asignación</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Banner de Confirmación Exitosa */}
+          {myAssignment && isConfirmed && (
+            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg mb-8">
+              <div className="flex items-center">
+                <div className="text-2xl mr-3">✅</div>
+                <div>
+                  <h3 className="text-sm font-bold text-green-900">
+                    Asignación Confirmada
+                  </h3>
+                  <p className="text-xs text-green-700">
+                    Has confirmado tu participación como{' '}
+                    {myAssignment.role === 'judge' && 'Juez'}
+                    {myAssignment.role === 'chief_judge' && 'Juez Principal'}
+                    {myAssignment.role === 'observer' && 'Observador'} en esta competencia.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Competition Info */}
           <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
             <div className="px-4 py-5 sm:p-6">
@@ -199,6 +467,101 @@ const ScoringPage = () => {
               </div>
             </div>
           </div>
+
+          {/* Configuración de Disciplina */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Selector de Disciplina */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📋 Disciplina
+                </label>
+                <select
+                  value={discipline}
+                  onChange={(e) => {
+                    const newDiscipline = e.target.value;
+                    setDiscipline(newDiscipline);
+                    localStorage.setItem(`fei_competition_${competitionId}_discipline`, newDiscipline);
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium"
+                >
+                  <option value="dressage">🎯 Adiestramiento / Dressage</option>
+                  <option value="show_jumping">🏇 Salto / Show Jumping</option>
+                </select>
+              </div>
+
+              {/* Selector de Template (solo para Dressage) */}
+              {discipline === 'dressage' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📄 Tabla de Cómputos
+                  </label>
+                  <select
+                    value={dressageTemplate}
+                    onChange={(e) => setDressageTemplate(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white font-medium"
+                  >
+                    <option value="futuros_campeones_a">Futuros Campeones - Tabla A</option>
+                    <option value="young_riders">Young Riders - Prix St George</option>
+                    {customTemplates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} (Importada)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 text-xs text-gray-600">
+              {discipline === 'dressage' ? (
+                <p>⚠️ Modo Adiestramiento: Calificación por ejercicios (0-10) con coeficientes y notas de conjunto</p>
+              ) : (
+                <p>⚠️ Modo Salto: Calificación por tiempo, faltas y rechazos</p>
+              )}
+            </div>
+          </div>
+
+          {/* Excel Import/Export (Solo Admin/Organizer) */}
+          {(user?.role === 'admin' || user?.role === 'organizer') && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6 mb-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                <span className="mr-2">📊</span>
+                Gestión de Excel
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Importar Tabla */}
+                {discipline === 'dressage' && (
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    className="flex items-center justify-center space-x-2 bg-white hover:bg-green-50 border-2 border-green-300 text-green-700 px-4 py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-md"
+                  >
+                    <span className="text-xl">📤</span>
+                    <span>Importar Tabla de Cómputos (.xlsx)</span>
+                  </button>
+                )}
+
+                {/* Exportar Resultados */}
+                <button
+                  onClick={handleExportResults}
+                  disabled={scores.length === 0}
+                  className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    scores.length > 0
+                      ? 'bg-white hover:bg-blue-50 border-2 border-blue-300 text-blue-700 hover:shadow-md'
+                      : 'bg-gray-200 border-2 border-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="text-xl">📥</span>
+                  <span>Exportar Resultados Completos (.xlsx)</span>
+                </button>
+              </div>
+
+              <div className="mt-3 text-xs text-gray-600">
+                <p>💡 <strong>Importar:</strong> Sube tus tablas de cómputos oficiales en Excel para usarlas en las calificaciones</p>
+                <p>💡 <strong>Exportar:</strong> Descarga todos los resultados con rankings, promedios y detalles por juez</p>
+              </div>
+            </div>
+          )}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -283,16 +646,61 @@ const ScoringPage = () => {
             </div>
           </div>
 
-          {/* Participants List */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Orden de Participación
-              </h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                Participantes en orden de salida - FEI Show Jumping Rules
-              </p>
+          {/* View Mode Toggle (Solo para Admin/Organizer) */}
+          {(user?.role === 'admin' || user?.role === 'organizer') && (
+            <div className="bg-white shadow rounded-lg p-4 mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Vista de Calificación</h3>
+                  <p className="text-sm text-gray-600">Selecciona cómo deseas ver las calificaciones</p>
+                </div>
+                <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('individual')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      viewMode === 'individual'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    👤 Vista Individual
+                  </button>
+                  <button
+                    onClick={() => setViewMode('multi_judge')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      viewMode === 'multi_judge'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    👥 Panel Multi-Juez
+                  </button>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Panel Multi-Juez (Solo para Admin/Organizer) */}
+          {viewMode === 'multi_judge' && (user?.role === 'admin' || user?.role === 'organizer') && (
+            <MultiJudgePanel
+              competitionId={competitionId}
+              participants={participants}
+            />
+          )}
+
+          {/* Vista Individual de Participantes */}
+          {viewMode === 'individual' && (
+            <>
+              {/* Participants List */}
+              <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                <div className="px-4 py-5 sm:px-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Orden de Participación
+                  </h3>
+                  <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                    Participantes en orden de salida - FEI Show Jumping Rules
+                  </p>
+                </div>
 
             {loading ? (
               <div className="px-4 py-5 sm:p-6">
@@ -380,40 +788,61 @@ const ScoringPage = () => {
             )}
           </div>
 
-          {/* Reglas FEI */}
-          <div className="mt-8 bg-blue-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-blue-900 mb-4">
-              📖 Reglas FEI de Puntuación - Salto Ecuestre
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-              <div>
-                <h4 className="font-semibold mb-2">Penalizaciones por Faltas:</h4>
-                <ul className="space-y-1">
-                  <li>• Derribo de obstáculo: 4 puntos</li>
-                  <li>• Primera desobediencia: 4 puntos</li>
-                  <li>• Segunda desobediencia: Eliminación</li>
-                  <li>• Caída del jinete: Eliminación</li>
-                </ul>
+              {/* Reglas FEI */}
+              <div className="mt-8 bg-blue-50 p-6 rounded-lg">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">
+                  📖 Reglas FEI de Puntuación - Salto Ecuestre
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+                  <div>
+                    <h4 className="font-semibold mb-2">Penalizaciones por Faltas:</h4>
+                    <ul className="space-y-1">
+                      <li>• Derribo de obstáculo: 4 puntos</li>
+                      <li>• Primera desobediencia: 4 puntos</li>
+                      <li>• Segunda desobediencia: Eliminación</li>
+                      <li>• Caída del jinete: Eliminación</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Penalizaciones por Tiempo:</h4>
+                    <ul className="space-y-1">
+                      <li>• Cada segundo excedido: 1 punto</li>
+                      <li>• Tiempo máximo: 2x tiempo permitido</li>
+                      <li>• Menor puntuación = mejor resultado</li>
+                      <li>• En caso de empate: tiempo menor gana</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold mb-2">Penalizaciones por Tiempo:</h4>
-                <ul className="space-y-1">
-                  <li>• Cada segundo excedido: 1 punto</li>
-                  <li>• Tiempo máximo: 2x tiempo permitido</li>
-                  <li>• Menor puntuación = mejor resultado</li>
-                  <li>• En caso de empate: tiempo menor gana</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
-          {/* Modal de Calificación */}
-          <ScoreParticipantModal
-            isOpen={showScoreModal}
-            onClose={() => setShowScoreModal(false)}
-            onSubmit={handleSubmitScore}
-            participant={selectedParticipant}
-            existingScore={selectedParticipant ? getParticipantScore(selectedParticipant.id) : null}
+          {/* Modal de Calificación - Renderizado Condicional según Disciplina */}
+          {discipline === 'dressage' ? (
+            <DressageScoreModal
+              isOpen={showScoreModal}
+              onClose={() => setShowScoreModal(false)}
+              onSubmit={handleSubmitScore}
+              participant={selectedParticipant}
+              existingScore={selectedParticipant ? getParticipantScore(selectedParticipant.id) : null}
+              template={dressageTemplate}
+              judgePosition={myAssignment?.role === 'chief_judge' ? 'C' : 'B'}
+            />
+          ) : (
+            <ScoreParticipantModal
+              isOpen={showScoreModal}
+              onClose={() => setShowScoreModal(false)}
+              onSubmit={handleSubmitScore}
+              participant={selectedParticipant}
+              existingScore={selectedParticipant ? getParticipantScore(selectedParticipant.id) : null}
+            />
+          )}
+
+          {/* Modal de Importación de Excel */}
+          <ImportExcelModal
+            isOpen={showImportModal}
+            onClose={() => setShowImportModal(false)}
+            onImport={handleImportTemplate}
           />
         </div>
       </main>

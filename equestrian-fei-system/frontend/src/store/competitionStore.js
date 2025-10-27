@@ -662,7 +662,7 @@ const useCompetitionStore = create(
       try {
         const result = await competitionService.confirmParticipant(id);
         set(state => ({
-          participants: state.participants.map(participant => 
+          participants: state.participants.map(participant =>
             participant.id === id ? { ...participant, is_confirmed: true } : participant
           ),
           loading: false
@@ -670,11 +670,30 @@ const useCompetitionStore = create(
         return { success: true, message: result.message };
       } catch (error) {
         console.error('Error confirmando participante:', error);
-        set({ 
+        set({
           error: error.response?.data?.detail || 'Error confirmando participante',
-          loading: false 
+          loading: false
         });
         return { success: false, error: error.response?.data };
+      }
+    },
+
+    deleteParticipant: async (id) => {
+      set({ participantsLoading: true, error: null });
+      try {
+        await competitionService.deleteParticipant(id);
+        set(state => ({
+          participants: state.participants.filter(participant => participant.id !== id),
+          participantsLoading: false
+        }));
+        return { success: true };
+      } catch (error) {
+        console.error('Error eliminando participante:', error);
+        set({
+          error: error.response?.data?.detail || 'Error eliminando participante',
+          participantsLoading: false
+        });
+        return { success: false, error: error.response?.data || error.message };
       }
     },
 

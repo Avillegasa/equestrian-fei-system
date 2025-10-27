@@ -31,12 +31,27 @@ const CompetitionStaffPage = () => {
     }
   }, [competitionId, loadCompetitionById]);
 
-  // Inicializar staff vacío (se puede cargar del backend en el futuro)
+  // Cargar personal desde localStorage
   useEffect(() => {
-    // TODO: Cargar personal desde el backend cuando esté disponible
-    // Por ahora iniciamos con array vacío
-    console.log('👥 Inicializando personal de la competencia');
-    setStaff([]);
+    if (!competitionId) return;
+
+    console.log('👥 Cargando personal de la competencia desde localStorage');
+    const storageKey = `fei_staff_${competitionId}`;
+    const savedStaff = localStorage.getItem(storageKey);
+
+    if (savedStaff) {
+      try {
+        const parsedStaff = JSON.parse(savedStaff);
+        console.log('✅ Personal cargado:', parsedStaff.length, 'miembros');
+        setStaff(parsedStaff);
+      } catch (error) {
+        console.error('❌ Error al cargar personal:', error);
+        setStaff([]);
+      }
+    } else {
+      console.log('ℹ️ No hay personal guardado para esta competencia');
+      setStaff([]);
+    }
   }, [competitionId]);
 
   const handleAssignStaff = (staffData) => {
@@ -44,20 +59,27 @@ const CompetitionStaffPage = () => {
     const newStaff = {
       id: staff.length + 1,
       staff_member: {
-        id: staff.length + 10,
+        id: staffData.user_id || (staff.length + 10),
         first_name: staffData.first_name,
         last_name: staffData.last_name,
         email: staffData.email,
         role: staffData.user_role
       },
       role: staffData.staff_role,
+      judge_position: staffData.judge_position || null,
       is_confirmed: false,
       assigned_date: new Date().toISOString().split('T')[0],
       notes: staffData.notes || ''
     };
 
-    // Agregar el nuevo miembro al estado
-    setStaff(prev => [newStaff, ...prev]);
+    // Agregar el nuevo miembro al estado y guardar en localStorage
+    const updatedStaff = [newStaff, ...staff];
+    setStaff(updatedStaff);
+
+    // Guardar en localStorage
+    const storageKey = `fei_staff_${competitionId}`;
+    localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+    console.log('💾 Personal guardado en localStorage:', storageKey);
 
     // Mostrar mensaje de éxito
     alert('✅ Personal asignado exitosamente!');
@@ -73,7 +95,14 @@ const CompetitionStaffPage = () => {
     if (!staffToDelete) return;
 
     console.log('🗑️ Eliminando staff ID:', staffToDelete.id);
-    setStaff(prev => prev.filter(s => s.id !== staffToDelete.id));
+    const updatedStaff = staff.filter(s => s.id !== staffToDelete.id);
+    setStaff(updatedStaff);
+
+    // Guardar en localStorage
+    const storageKey = `fei_staff_${competitionId}`;
+    localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+    console.log('💾 Personal actualizado en localStorage después de eliminar');
+
     setShowDeleteModal(false);
     setStaffToDelete(null);
     alert('✅ Personal removido exitosamente!');
@@ -87,30 +116,42 @@ const CompetitionStaffPage = () => {
 
   const getRoleDisplay = (role) => {
     const roles = {
+      organizer: 'Organizador',
       chief_judge: 'Juez Principal',
       judge: 'Juez',
-      technical_delegate: 'Delegado Técnico',
-      steward: 'Comisario',
-      veterinarian: 'Veterinario',
-      course_designer: 'Diseñador de Pista',
-      announcer: 'Locutor',
-      timekeeper: 'Cronometrador',
-      scorer: 'Anotador'
+      observer: 'Observador'
     };
     return roles[role] || role;
   };
 
+  const getJudgePositionDisplay = (position) => {
+    const positions = {
+      C: 'Posición C (Central - Principal)',
+      B: 'Posición B (Lateral Izquierda)',
+      H: 'Posición H (Lateral Derecha)',
+      E: 'Posición E (Final)',
+      M: 'Posición M (Media)'
+    };
+    return positions[position] || position;
+  };
+
+  const getPositionColor = (position) => {
+    const colors = {
+      C: 'bg-blue-100 text-blue-800',
+      B: 'bg-purple-100 text-purple-800',
+      H: 'bg-green-100 text-green-800',
+      E: 'bg-orange-100 text-orange-800',
+      M: 'bg-pink-100 text-pink-800'
+    };
+    return colors[position] || 'bg-gray-100 text-gray-800';
+  };
+
   const getRoleIcon = (role) => {
     const icons = {
+      organizer: '📋',
       chief_judge: '👨‍⚖️',
       judge: '⚖️',
-      technical_delegate: '📋',
-      steward: '🛡️',
-      veterinarian: '🩺',
-      course_designer: '📐',
-      announcer: '📢',
-      timekeeper: '⏱️',
-      scorer: '📊'
+      observer: '👁️'
     };
     return icons[role] || '👤';
   };
@@ -351,6 +392,11 @@ const CompetitionStaffPage = () => {
                               <span className="mr-1">💼</span>
                               {getRoleDisplay(member.role)}
                             </span>
+                            {member.judge_position && (member.role === 'judge' || member.role === 'chief_judge') && (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${getPositionColor(member.judge_position)}`}>
+                                🎯 {member.judge_position}
+                              </span>
+                            )}
                             <span className="flex items-center">
                               <span className="mr-1">📧</span>
                               {member.staff_member.email}
@@ -360,6 +406,11 @@ const CompetitionStaffPage = () => {
                               Asignado: {member.assigned_date}
                             </span>
                           </div>
+                          {member.judge_position && (member.role === 'judge' || member.role === 'chief_judge') && (
+                            <div className="mt-2 text-xs text-gray-500 bg-blue-50 px-3 py-1 rounded-lg inline-block">
+                              <span className="font-medium">📍 {getJudgePositionDisplay(member.judge_position)}</span>
+                            </div>
+                          )}
                           {member.notes && (
                             <div className="mt-2 text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
                               <span className="font-medium">Notas:</span> {member.notes}
@@ -384,7 +435,7 @@ const CompetitionStaffPage = () => {
           </div>
 
           {/* Action Buttons Profesionales */}
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="mt-8">
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
               <h3 className="text-lg font-bold mb-3">Gestión de Personal</h3>
               <p className="text-blue-100 text-sm mb-4">Administra el equipo técnico de la competencia</p>
@@ -402,27 +453,6 @@ const CompetitionStaffPage = () => {
                 >
                   <span>✅</span>
                   <span>Confirmar Todos</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-green-600 to-teal-600 rounded-xl shadow-lg p-6 text-white">
-              <h3 className="text-lg font-bold mb-3">Comunicación y Reportes</h3>
-              <p className="text-green-100 text-sm mb-4">Envía invitaciones y genera documentos oficiales</p>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => alert('📧 Invitaciones enviadas a todo el personal pendiente')}
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2"
-                >
-                  <span>📧</span>
-                  <span>Enviar Invitaciones</span>
-                </button>
-                <button
-                  onClick={() => alert('📄 Exportando lista de personal...')}
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2"
-                >
-                  <span>📄</span>
-                  <span>Exportar Lista</span>
                 </button>
               </div>
             </div>

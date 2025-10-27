@@ -1,445 +1,450 @@
 /**
- * Servicio de sincronización offline
- * Maneja almacenamiento local, detección de conectividad y sincronización automática
+ * Servicio de Almacenamiento Offline con IndexedDB
+ * Proporciona almacenamiento robusto para datos de competencias,
+ * calificaciones y sincronización inteligente
  */
 
-import { openDB } from 'idb';
+const DB_NAME = 'FEI_Competition_DB';
+const DB_VERSION = 1;
 
-class OfflineService {
-  constructor() {
-    this.dbName = 'FEI_System_Offline';
-    this.dbVersion = 1;
-    this.db = null;
-    this.isOnline = navigator.onLine;
-    this.syncQueue = [];
-    this.deviceId = this.generateDeviceId();
+// Nombres de los object stores
+const STORES = {
+  COMPETITIONS: 'competitions',
+  PARTICIPANTS: 'participants',
+  SCORES: 'scores',
+  JUDGES: 'judges',
+  PENDING_SYNC: 'pending_sync',
+  SETTINGS: 'settings'
+};
 
-    this.initializeDatabase();
-    this.setupConnectionListeners();
-  }
+/**
+ * Inicializar IndexedDB
+ */
+export const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-  /**
-   * Generar ID único de dispositivo
-   */
-  generateDeviceId() {
-    let deviceId = localStorage.getItem('fei_device_id');
-    if (!deviceId) {
-      deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('fei_device_id', deviceId);
-    }
-    return deviceId;
-  }
-
-  /**
-   * Inicializar base de datos IndexedDB
-   */
-  async initializeDatabase() {
-    try {
-      this.db = await openDB(this.dbName, this.dbVersion, {
-        upgrade(db) {
-          // Store para acciones offline
-          if (!db.objectStoreNames.contains('actions')) {
-            const actionStore = db.createObjectStore('actions', {
-              keyPath: 'id',
-              autoIncrement: true
-            });
-            actionStore.createIndex('timestamp', 'timestamp');
-            actionStore.createIndex('type', 'type');
-            actionStore.createIndex('status', 'status');
-          }
-
-          // Store para datos de calificación
-          if (!db.objectStoreNames.contains('scores')) {
-            const scoresStore = db.createObjectStore('scores', {
-              keyPath: 'id'
-            });
-            scoresStore.createIndex('evaluationId', 'evaluationId');
-            scoresStore.createIndex('timestamp', 'timestamp');
-            scoresStore.createIndex('isSynced', 'isSynced');
-          }
-
-          // Store para datos de competencias
-          if (!db.objectStoreNames.contains('competitions')) {
-            const competitionsStore = db.createObjectStore('competitions', {
-              keyPath: 'id'
-            });
-            competitionsStore.createIndex('timestamp', 'timestamp');
-          }
-
-          // Store para participantes
-          if (!db.objectStoreNames.contains('participants')) {
-            const participantsStore = db.createObjectStore('participants', {
-              keyPath: 'id'
-            });
-            participantsStore.createIndex('competitionId', 'competitionId');
-          }
-
-          // Store para configuración offline
-          if (!db.objectStoreNames.contains('config')) {
-            db.createObjectStore('config', {
-              keyPath: 'key'
-            });
-          }
-        }
-      });
-
-      console.log('Base de datos offline inicializada');
-    } catch (error) {
-      console.error('Error inicializando base de datos offline:', error);
-    }
-  }
-
-  /**
-   * Configurar listeners de conectividad
-   */
-  setupConnectionListeners() {
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      console.log('Conexión restaurada - iniciando sincronización');
-      this.syncWhenOnline();
-    });
-
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-      console.log('Conexión perdida - modo offline activado');
-    });
-  }
-
-  /**
-   * Verificar estado de conectividad
-   */
-  isConnected() {
-    return this.isOnline && navigator.onLine;
-  }
-
-  /**
-   * Guardar acción offline
-   */
-  async saveOfflineAction(action) {
-    if (!this.db) await this.initializeDatabase();
-
-    const actionData = {
-      ...action,
-      timestamp: new Date().toISOString(),
-      deviceId: this.deviceId,
-      status: 'pending',
-      retryCount: 0
+    request.onerror = () => {
+      console.error('❌ Error al abrir IndexedDB:', request.error);
+      reject(request.error);
     };
 
-    try {
-      await this.db.add('actions', actionData);
-      console.log('Acción guardada offline:', actionData);
-      return actionData;
-    } catch (error) {
-      console.error('Error guardando acción offline:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Guardar puntuación offline
-   */
-  async saveOfflineScore(scoreData) {
-    if (!this.db) await this.initializeDatabase();
-
-    const offlineScore = {
-      ...scoreData,
-      id: scoreData.id || `offline_${Date.now()}_${Math.random()}`,
-      timestamp: new Date().toISOString(),
-      deviceId: this.deviceId,
-      isSynced: false
+    request.onsuccess = () => {
+      console.log('✅ IndexedDB inicializado correctamente');
+      resolve(request.result);
     };
 
-    try {
-      await this.db.put('scores', offlineScore);
-      console.log('Puntuación guardada offline:', offlineScore);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      console.log('🔧 Creando/actualizando estructura de IndexedDB...');
 
-      // Agregar a cola de sincronización
-      await this.saveOfflineAction({
-        type: 'score_update',
-        data: offlineScore,
-        priority: 'high'
-      });
-
-      return offlineScore;
-    } catch (error) {
-      console.error('Error guardando puntuación offline:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Obtener puntuaciones offline
-   */
-  async getOfflineScores(evaluationId = null) {
-    if (!this.db) await this.initializeDatabase();
-
-    try {
-      const tx = this.db.transaction('scores', 'readonly');
-      const store = tx.objectStore('scores');
-
-      if (evaluationId) {
-        const index = store.index('evaluationId');
-        return await index.getAll(evaluationId);
-      } else {
-        return await store.getAll();
-      }
-    } catch (error) {
-      console.error('Error obteniendo puntuaciones offline:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Obtener acciones pendientes de sincronización
-   */
-  async getPendingActions() {
-    if (!this.db) await this.initializeDatabase();
-
-    try {
-      const tx = this.db.transaction('actions', 'readonly');
-      const store = tx.objectStore('actions');
-      const index = store.index('status');
-
-      return await index.getAll('pending');
-    } catch (error) {
-      console.error('Error obteniendo acciones pendientes:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Marcar acción como sincronizada
-   */
-  async markActionAsSynced(actionId) {
-    if (!this.db) await this.initializeDatabase();
-
-    try {
-      const tx = this.db.transaction('actions', 'readwrite');
-      const store = tx.objectStore('actions');
-
-      const action = await store.get(actionId);
-      if (action) {
-        action.status = 'synced';
-        action.syncedAt = new Date().toISOString();
-        await store.put(action);
-      }
-    } catch (error) {
-      console.error('Error marcando acción como sincronizada:', error);
-    }
-  }
-
-  /**
-   * Marcar puntuación como sincronizada
-   */
-  async markScoreAsSynced(scoreId) {
-    if (!this.db) await this.initializeDatabase();
-
-    try {
-      const tx = this.db.transaction('scores', 'readwrite');
-      const store = tx.objectStore('scores');
-
-      const score = await store.get(scoreId);
-      if (score) {
-        score.isSynced = true;
-        score.syncedAt = new Date().toISOString();
-        await store.put(score);
-      }
-    } catch (error) {
-      console.error('Error marcando puntuación como sincronizada:', error);
-    }
-  }
-
-  /**
-   * Sincronizar cuando vuelva la conexión
-   */
-  async syncWhenOnline() {
-    if (!this.isConnected()) {
-      console.log('No hay conexión para sincronizar');
-      return;
-    }
-
-    try {
-      console.log('Iniciando sincronización...');
-
-      const pendingActions = await this.getPendingActions();
-      console.log(`${pendingActions.length} acciones pendientes de sincronización`);
-
-      // Importar servicio de sincronización
-      const { syncService } = await import('./syncService');
-
-      for (const action of pendingActions) {
-        try {
-          const result = await syncService.syncAction(action);
-
-          if (result.success) {
-            await this.markActionAsSynced(action.id);
-
-            // Si es una puntuación, marcarla también como sincronizada
-            if (action.type === 'score_update' && action.data.id) {
-              await this.markScoreAsSynced(action.data.id);
-            }
-
-            console.log(`Acción ${action.id} sincronizada exitosamente`);
-          } else {
-            // Incrementar contador de reintentos
-            action.retryCount = (action.retryCount || 0) + 1;
-
-            if (action.retryCount >= 3) {
-              action.status = 'failed';
-              console.error(`Acción ${action.id} falló después de 3 reintentos`);
-            }
-
-            // Actualizar acción en la base de datos
-            const tx = this.db.transaction('actions', 'readwrite');
-            await tx.objectStore('actions').put(action);
-          }
-        } catch (error) {
-          console.error(`Error sincronizando acción ${action.id}:`, error);
-        }
+      // Store de Competencias
+      if (!db.objectStoreNames.contains(STORES.COMPETITIONS)) {
+        const competitionsStore = db.createObjectStore(STORES.COMPETITIONS, { keyPath: 'id' });
+        competitionsStore.createIndex('status', 'status', { unique: false });
+        competitionsStore.createIndex('startDate', 'startDate', { unique: false });
       }
 
-      console.log('Sincronización completada');
-    } catch (error) {
-      console.error('Error durante la sincronización:', error);
-    }
-  }
-
-  /**
-   * Limpiar datos antiguos
-   */
-  async cleanupOldData(daysOld = 30) {
-    if (!this.db) await this.initializeDatabase();
-
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-    try {
-      // Limpiar acciones sincronizadas antiguas
-      const tx = this.db.transaction('actions', 'readwrite');
-      const store = tx.objectStore('actions');
-      const index = store.index('timestamp');
-
-      const oldActions = await index.getAll(IDBKeyRange.upperBound(cutoffDate.toISOString()));
-
-      for (const action of oldActions) {
-        if (action.status === 'synced') {
-          await store.delete(action.id);
-        }
+      // Store de Participantes
+      if (!db.objectStoreNames.contains(STORES.PARTICIPANTS)) {
+        const participantsStore = db.createObjectStore(STORES.PARTICIPANTS, { keyPath: 'id' });
+        participantsStore.createIndex('competition_id', 'competition_id', { unique: false });
+        participantsStore.createIndex('bib_number', 'bib_number', { unique: false });
       }
 
-      console.log(`Limpiadas ${oldActions.length} acciones antiguas`);
-    } catch (error) {
-      console.error('Error limpiando datos antiguos:', error);
-    }
+      // Store de Calificaciones
+      if (!db.objectStoreNames.contains(STORES.SCORES)) {
+        const scoresStore = db.createObjectStore(STORES.SCORES, { keyPath: 'id', autoIncrement: true });
+        scoresStore.createIndex('participant_id', 'participant_id', { unique: false });
+        scoresStore.createIndex('judge_id', 'judge_id', { unique: false });
+        scoresStore.createIndex('competition_id', 'competition_id', { unique: false });
+        scoresStore.createIndex('created_at', 'created_at', { unique: false });
+      }
+
+      // Store de Jueces
+      if (!db.objectStoreNames.contains(STORES.JUDGES)) {
+        const judgesStore = db.createObjectStore(STORES.JUDGES, { keyPath: 'id', autoIncrement: true });
+        judgesStore.createIndex('competition_id', 'competition_id', { unique: false });
+        judgesStore.createIndex('judge_position', 'judge_position', { unique: false });
+      }
+
+      // Store de Sincronización Pendiente
+      if (!db.objectStoreNames.contains(STORES.PENDING_SYNC)) {
+        const pendingSyncStore = db.createObjectStore(STORES.PENDING_SYNC, { keyPath: 'id', autoIncrement: true });
+        pendingSyncStore.createIndex('type', 'type', { unique: false });
+        pendingSyncStore.createIndex('timestamp', 'timestamp', { unique: false });
+        pendingSyncStore.createIndex('synced', 'synced', { unique: false });
+      }
+
+      // Store de Configuración
+      if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
+        db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' });
+      }
+
+      console.log('✅ Estructura de IndexedDB creada');
+    };
+  });
+};
+
+/**
+ * Obtener conexión a la base de datos
+ */
+const getDB = async () => {
+  try {
+    return await initDB();
+  } catch (error) {
+    console.error('Error obteniendo DB:', error);
+    throw error;
   }
+};
 
-  /**
-   * Obtener estadísticas offline
-   */
-  async getOfflineStats() {
-    if (!this.db) await this.initializeDatabase();
+// ==================== OPERACIONES GENÉRICAS ====================
 
-    try {
-      const [pendingActions, allScores] = await Promise.all([
-        this.getPendingActions(),
-        this.getOfflineScores()
-      ]);
+/**
+ * Agregar o actualizar un registro
+ */
+export const saveData = async (storeName, data) => {
+  try {
+    const db = await getDB();
+    const transaction = db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
 
-      const unsyncedScores = allScores.filter(score => !score.isSynced);
+    const request = store.put(data);
 
-      return {
-        pendingActions: pendingActions.length,
-        unsyncedScores: unsyncedScores.length,
-        totalOfflineData: pendingActions.length + unsyncedScores.length,
-        isOnline: this.isConnected(),
-        deviceId: this.deviceId,
-        lastSyncAttempt: localStorage.getItem('last_sync_attempt')
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        console.log(`✅ Datos guardados en ${storeName}:`, data.id || 'nuevo registro');
+        resolve(request.result);
       };
-    } catch (error) {
-      console.error('Error obteniendo estadísticas offline:', error);
-      return {
-        pendingActions: 0,
-        unsyncedScores: 0,
-        totalOfflineData: 0,
-        isOnline: this.isConnected(),
-        deviceId: this.deviceId,
-        error: error.message
+
+      request.onerror = () => {
+        console.error(`❌ Error guardando en ${storeName}:`, request.error);
+        reject(request.error);
       };
-    }
+    });
+  } catch (error) {
+    console.error('Error en saveData:', error);
+    throw error;
   }
+};
 
-  /**
-   * Forzar sincronización manual
-   */
-  async forceSyncNow() {
-    if (!this.isConnected()) {
-      throw new Error('No hay conexión a internet');
-    }
+/**
+ * Obtener un registro por ID
+ */
+export const getData = async (storeName, id) => {
+  try {
+    const db = await getDB();
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.get(id);
 
-    localStorage.setItem('last_sync_attempt', new Date().toISOString());
-    await this.syncWhenOnline();
-  }
-
-  /**
-   * Exportar datos offline para backup
-   */
-  async exportOfflineData() {
-    if (!this.db) await this.initializeDatabase();
-
-    try {
-      const [actions, scores, competitions, participants] = await Promise.all([
-        this.db.getAll('actions'),
-        this.db.getAll('scores'),
-        this.db.getAll('competitions'),
-        this.db.getAll('participants')
-      ]);
-
-      return {
-        deviceId: this.deviceId,
-        exportDate: new Date().toISOString(),
-        data: {
-          actions,
-          scores,
-          competitions,
-          participants
-        }
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        resolve(request.result);
       };
-    } catch (error) {
-      console.error('Error exportando datos offline:', error);
-      throw error;
-    }
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error en getData:', error);
+    throw error;
   }
+};
 
-  /**
-   * Importar datos offline desde backup
-   */
-  async importOfflineData(backupData) {
-    if (!this.db) await this.initializeDatabase();
-    if (!backupData.data) throw new Error('Datos de backup inválidos');
+/**
+ * Obtener todos los registros de un store
+ */
+export const getAllData = async (storeName) => {
+  try {
+    const db = await getDB();
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
 
-    try {
-      const tx = this.db.transaction(['actions', 'scores', 'competitions', 'participants'], 'readwrite');
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
 
-      // Importar cada tipo de datos
-      for (const [storeName, items] of Object.entries(backupData.data)) {
-        if (Array.isArray(items)) {
-          const store = tx.objectStore(storeName);
-          for (const item of items) {
-            await store.put(item);
-          }
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error en getAllData:', error);
+    return [];
+  }
+};
+
+/**
+ * Obtener registros por índice
+ */
+export const getByIndex = async (storeName, indexName, value) => {
+  try {
+    const db = await getDB();
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const index = store.index(indexName);
+    const request = index.getAll(value);
+
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error en getByIndex:', error);
+    return [];
+  }
+};
+
+/**
+ * Eliminar un registro
+ */
+export const deleteData = async (storeName, id) => {
+  try {
+    const db = await getDB();
+    const transaction = db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.delete(id);
+
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        console.log(`🗑️ Registro eliminado de ${storeName}:`, id);
+        resolve();
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error en deleteData:', error);
+    throw error;
+  }
+};
+
+/**
+ * Limpiar todos los datos de un store
+ */
+export const clearStore = async (storeName) => {
+  try {
+    const db = await getDB();
+    const transaction = db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.clear();
+
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        console.log(`🗑️ Store ${storeName} limpiado`);
+        resolve();
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error en clearStore:', error);
+    throw error;
+  }
+};
+
+// ==================== OPERACIONES ESPECÍFICAS ====================
+
+/**
+ * Guardar competencia offline
+ */
+export const saveCompetitionOffline = async (competition) => {
+  return saveData(STORES.COMPETITIONS, {
+    ...competition,
+    offline_saved_at: new Date().toISOString()
+  });
+};
+
+/**
+ * Guardar calificación offline (para sincronizar después)
+ */
+export const saveScoreOffline = async (score) => {
+  // Guardar la calificación
+  const scoreId = await saveData(STORES.SCORES, {
+    ...score,
+    offline: true,
+    created_at: new Date().toISOString()
+  });
+
+  // Agregar a cola de sincronización pendiente
+  await saveData(STORES.PENDING_SYNC, {
+    type: 'score',
+    data: { ...score, id: scoreId },
+    timestamp: new Date().toISOString(),
+    synced: false
+  });
+
+  return scoreId;
+};
+
+/**
+ * Obtener calificaciones pendientes de sincronización
+ */
+export const getPendingSyncItems = async () => {
+  return getByIndex(STORES.PENDING_SYNC, 'synced', false);
+};
+
+/**
+ * Marcar item como sincronizado
+ */
+export const markAsSynced = async (syncItemId) => {
+  const item = await getData(STORES.PENDING_SYNC, syncItemId);
+
+  if (item) {
+    item.synced = true;
+    item.synced_at = new Date().toISOString();
+    await saveData(STORES.PENDING_SYNC, item);
+  }
+};
+
+/**
+ * Obtener calificaciones de una competencia
+ */
+export const getCompetitionScores = async (competitionId) => {
+  return getByIndex(STORES.SCORES, 'competition_id', competitionId);
+};
+
+/**
+ * Obtener participantes de una competencia
+ */
+export const getCompetitionParticipants = async (competitionId) => {
+  return getByIndex(STORES.PARTICIPANTS, 'competition_id', competitionId);
+};
+
+/**
+ * Obtener jueces de una competencia
+ */
+export const getCompetitionJudges = async (competitionId) => {
+  return getByIndex(STORES.JUDGES, 'competition_id', competitionId);
+};
+
+/**
+ * Guardar configuración
+ */
+export const saveSetting = async (key, value) => {
+  return saveData(STORES.SETTINGS, { key, value, updated_at: new Date().toISOString() });
+};
+
+/**
+ * Obtener configuración
+ */
+export const getSetting = async (key) => {
+  const setting = await getData(STORES.SETTINGS, key);
+  return setting ? setting.value : null;
+};
+
+/**
+ * Exportar toda la base de datos (para backup)
+ */
+export const exportDatabase = async () => {
+  try {
+    const db = await getDB();
+    const data = {};
+
+    for (const storeName of Object.values(STORES)) {
+      data[storeName] = await getAllData(storeName);
+    }
+
+    return {
+      version: DB_VERSION,
+      exported_at: new Date().toISOString(),
+      data
+    };
+  } catch (error) {
+    console.error('Error exportando database:', error);
+    throw error;
+  }
+};
+
+/**
+ * Importar base de datos (desde backup)
+ */
+export const importDatabase = async (backup) => {
+  try {
+    if (!backup.data) {
+      throw new Error('Formato de backup inválido');
+    }
+
+    for (const [storeName, records] of Object.entries(backup.data)) {
+      if (Object.values(STORES).includes(storeName)) {
+        for (const record of records) {
+          await saveData(storeName, record);
         }
       }
-
-      await tx.done;
-      console.log('Datos offline importados exitosamente');
-    } catch (error) {
-      console.error('Error importando datos offline:', error);
-      throw error;
     }
-  }
-}
 
-// Crear instancia singleton
-export const offlineService = new OfflineService();
-export default offlineService;
+    console.log('✅ Database importada correctamente');
+    return true;
+  } catch (error) {
+    console.error('Error importando database:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtener estadísticas de almacenamiento
+ */
+export const getStorageStats = async () => {
+  try {
+    const stats = {};
+
+    for (const storeName of Object.values(STORES)) {
+      const data = await getAllData(storeName);
+      stats[storeName] = data.length;
+    }
+
+    // Calcular tamaño estimado
+    if (navigator.storage && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      stats.usage = estimate.usage;
+      stats.quota = estimate.quota;
+      stats.percentage = ((estimate.usage / estimate.quota) * 100).toFixed(2);
+    }
+
+    return stats;
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error);
+    return {};
+  }
+};
+
+// Inicializar automáticamente al cargar
+initDB().catch(error => {
+  console.error('Error inicializando IndexedDB:', error);
+});
+
+export default {
+  initDB,
+  saveData,
+  getData,
+  getAllData,
+  getByIndex,
+  deleteData,
+  clearStore,
+  saveCompetitionOffline,
+  saveScoreOffline,
+  getPendingSyncItems,
+  markAsSynced,
+  getCompetitionScores,
+  getCompetitionParticipants,
+  getCompetitionJudges,
+  saveSetting,
+  getSetting,
+  exportDatabase,
+  importDatabase,
+  getStorageStats,
+  STORES
+};

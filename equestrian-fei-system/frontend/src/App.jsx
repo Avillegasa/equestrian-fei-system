@@ -3,6 +3,9 @@ import useAuth from './hooks/useAuth';
 import { PublicRoute } from './components/ProtectedRoute';
 import ProtectedRoute, { AdminRoute, OrganizerRoute, JudgeRoute } from './components/ProtectedRoute';
 
+// Componentes globales
+import OfflineIndicator from './components/OfflineIndicator';
+
 // Páginas de autenticación
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -24,6 +27,7 @@ import CategoriesPage from './pages/CategoriesPage';
 import CompetitionStaffPage from './pages/CompetitionStaffPage';
 import ParticipantsPage from './pages/ParticipantsPage';
 import CompetitionSchedulePage from './pages/CompetitionSchedulePage';
+import PublicSchedulePage from './pages/PublicSchedulePage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import ActivityLogPage from './pages/ActivityLogPage';
 import ScoringPage from './pages/ScoringPage';
@@ -66,6 +70,9 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
+        {/* Indicador de modo offline - siempre visible */}
+        <OfflineIndicator />
+
         <Routes>
           {/* Rutas públicas (solo para no autenticados) */}
           <Route 
@@ -115,6 +122,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <RankingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedule/:competitionId"
+            element={
+              <ProtectedRoute>
+                <PublicSchedulePage />
               </ProtectedRoute>
             }
           />
@@ -247,9 +262,9 @@ function App() {
           <Route
             path="/admin/competitions/:competitionId/schedule"
             element={
-              <AdminRoute>
+              <OrganizerRoute>
                 <CompetitionSchedulePage />
-              </AdminRoute>
+              </OrganizerRoute>
             }
           />
           <Route

@@ -5,10 +5,15 @@ import useCompetitionStore from '../store/competitionStore';
 import CreateCategoryModal from '../components/CreateCategoryModal';
 
 const CategoriesPage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+  // Verificar si el usuario actual es administrador
+  const userIsAdmin = isAdmin();
 
   // Usar store en lugar de estado local
   const {
@@ -74,6 +79,12 @@ const CategoriesPage = () => {
   };
 
   const handleToggleActive = async (category) => {
+    // Solo administradores pueden activar/desactivar
+    if (!userIsAdmin) {
+      alert('⚠️ Solo los administradores pueden activar/desactivar categorías');
+      return;
+    }
+
     try {
       const result = await updateCategory(category.id, {
         ...category,
@@ -88,6 +99,47 @@ const CategoriesPage = () => {
       console.error('Error cambiando estado:', error);
       alert('❌ Error al cambiar estado: ' + error.message);
     }
+  };
+
+  const handleDeleteCategory = (category) => {
+    // Solo administradores pueden eliminar
+    if (!userIsAdmin) {
+      alert('⚠️ Solo los administradores pueden eliminar categorías');
+      return;
+    }
+
+    // Abrir modal de confirmación
+    setCategoryToDelete(category);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    try {
+      console.log('🗑️ Eliminando categoría:', categoryToDelete.name);
+      const result = await deleteCategory(categoryToDelete.id);
+      if (result.success) {
+        alert('✅ Categoría eliminada exitosamente!');
+        console.log('✅ Categoría eliminada correctamente');
+      } else {
+        alert('❌ Error al eliminar categoría: ' + (result.error?.detail || 'Error desconocido'));
+        console.error('❌ Error al eliminar:', result.error);
+      }
+    } catch (error) {
+      console.error('Error eliminando categoría:', error);
+      alert('❌ Error al eliminar categoría: ' + error.message);
+    } finally {
+      // Cerrar modal y limpiar estado
+      setShowDeleteConfirm(false);
+      setCategoryToDelete(null);
+    }
+  };
+
+  const cancelDeleteCategory = () => {
+    console.log('❌ Eliminación de categoría cancelada por el usuario');
+    setShowDeleteConfirm(false);
+    setCategoryToDelete(null);
   };
 
   const getCategoryTypeDisplay = (type) => {
@@ -151,7 +203,9 @@ const CategoriesPage = () => {
                 <p className="text-sm font-medium text-gray-900">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-gray-600">Gestor de Categorías</p>
+                <p className="text-xs text-gray-600">
+                  {userIsAdmin ? 'Administrador' : 'Organizador'}
+                </p>
               </div>
               <button
                 onClick={handleLogout}
@@ -364,22 +418,40 @@ const CategoriesPage = () => {
                         </div>
                       </div>
                       <div className="flex space-x-2">
+                        {/* Botón Editar - Disponible para Admin y Organizador */}
                         <button
                           onClick={() => handleEditCategory(category)}
                           className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                          title="Editar categoría"
                         >
                           ✏️ Editar
                         </button>
-                        <button
-                          onClick={() => handleToggleActive(category)}
-                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                            category.is_active
-                              ? 'bg-red-100 hover:bg-red-200 text-red-700'
-                              : 'bg-green-100 hover:bg-green-200 text-green-700'
-                          }`}
-                        >
-                          {category.is_active ? '🔴 Desactivar' : '🟢 Activar'}
-                        </button>
+
+                        {/* Botón Activar/Desactivar - Solo Admin */}
+                        {userIsAdmin && (
+                          <button
+                            onClick={() => handleToggleActive(category)}
+                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                              category.is_active
+                                ? 'bg-red-100 hover:bg-red-200 text-red-700'
+                                : 'bg-green-100 hover:bg-green-200 text-green-700'
+                            }`}
+                            title={category.is_active ? 'Desactivar categoría' : 'Activar categoría'}
+                          >
+                            {category.is_active ? '🔴 Desactivar' : '🟢 Activar'}
+                          </button>
+                        )}
+
+                        {/* Botón Eliminar - Solo Admin */}
+                        {userIsAdmin && (
+                          <button
+                            onClick={() => handleDeleteCategory(category)}
+                            className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                            title="Eliminar categoría"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -440,6 +512,77 @@ const CategoriesPage = () => {
             initialData={selectedCategory}
             isEdit={true}
           />
+        )}
+
+        {/* Modal de Confirmación de Eliminación */}
+        {showDeleteConfirm && categoryToDelete && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative mx-auto p-8 border w-full max-w-md shadow-2xl rounded-lg bg-white">
+              <div className="text-center">
+                {/* Icono de advertencia */}
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <span className="text-4xl">⚠️</span>
+                </div>
+
+                {/* Título */}
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  ¿Eliminar categoría?
+                </h3>
+
+                {/* Mensaje */}
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600 mb-2">
+                    ¿Estás seguro de que deseas eliminar la categoría:
+                  </p>
+                  <p className="text-base font-semibold text-gray-900 mb-2">
+                    "{categoryToDelete.name}" ({categoryToDelete.code})
+                  </p>
+                  <p className="text-sm text-red-600 font-medium">
+                    Esta acción no se puede deshacer.
+                  </p>
+                </div>
+
+                {/* Información adicional */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-6 text-left">
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <p><span className="font-semibold">Tipo:</span> {getCategoryTypeDisplay(categoryToDelete.category_type)}</p>
+                    <p><span className="font-semibold">Nivel:</span> {getLevelDisplay(categoryToDelete.level)}</p>
+                    {categoryToDelete.min_height_cm && categoryToDelete.max_height_cm && (
+                      <p><span className="font-semibold">Altura:</span> {categoryToDelete.min_height_cm}cm - {categoryToDelete.max_height_cm}cm</p>
+                    )}
+                    <p><span className="font-semibold">Tarifa:</span> €{typeof categoryToDelete.entry_fee === 'number' ? categoryToDelete.entry_fee.toFixed(2) : parseFloat(categoryToDelete.entry_fee || 0).toFixed(2)}</p>
+                    <p><span className="font-semibold">Estado:</span> {categoryToDelete.is_active ? 'Activa' : 'Inactiva'}</p>
+                  </div>
+                </div>
+
+                {/* Advertencia adicional */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">⚠️</span>
+                    <p className="text-xs text-yellow-800 text-left">
+                      <strong>Advertencia:</strong> Si hay competencias o participantes asociados a esta categoría, también podrían verse afectados.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Botones */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelDeleteCategory}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmDeleteCategory}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-white bg-red-600 border-2 border-red-600 rounded-lg hover:bg-red-700 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

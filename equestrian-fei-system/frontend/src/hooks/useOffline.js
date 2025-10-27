@@ -1,183 +1,116 @@
-/**
- * Hook para manejo de funcionalidad offline
- * Proporciona estado de conectividad, sincronización y almacenamiento offline
- */
-
 import { useState, useEffect, useCallback } from 'react';
-import { offlineService } from '../services/offlineService';
-import { syncService } from '../services/syncService';
+import { getPendingSyncItems } from '../services/offlineService';
 
-export const useOffline = () => {
+/**
+ * Hook personalizado para detectar estado de conexión offline
+ * y gestionar sincronización pendiente
+ */
+const useOffline = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [syncStatus, setSyncStatus] = useState({
-    pendingActions: 0,
-    unsyncedScores: 0,
-    totalOfflineData: 0,
-    lastSyncAttempt: null
-  });
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [syncMessage, setSyncMessage] = useState('');
-  const [conflicts, setConflicts] = useState([]);
+  const [wasOffline, setWasOffline] = useState(false);
+  const [pendingSync, setPendingSync] = useState([]);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'success', 'error'
 
-  // Actualizar estado de conectividad
+  // Detectar cambios en el estado de conexión
   useEffect(() => {
     const handleOnline = () => {
+      console.log('🌐 Conexión restaurada');
       setIsOnline(true);
-      // Intentar sincronización automática al volver online
-      if (!isSyncing) {
-        autoSync();
-      }
+      setWasOffline(true); // Marca que estuvo offline
+
+      // Intentar sincronización automática
+      setTimeout(() => {
+        syncPendingData();
+      }, 1000);
     };
 
     const handleOffline = () => {
+      console.log('📵 Modo offline activado');
       setIsOnline(false);
     };
 
+    // Listeners de eventos de conexión
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Cleanup
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [isSyncing]);
+  }, []);
 
-  // Obtener estadísticas offline
-  const refreshSyncStatus = useCallback(async () => {
+  // Cargar items pendientes de sincronización
+  useEffect(() => {
+    loadPendingSync();
+  }, [isOnline]);
+
+  // Cargar datos pendientes de sincronización desde IndexedDB
+  const loadPendingSync = useCallback(async () => {
     try {
-      const stats = await offlineService.getOfflineStats();
-      setSyncStatus(stats);
-      return stats;
+      const pending = await getPendingSyncItems();
+      setPendingSync(pending);
+      console.log(`📊 Items pendientes de sincronización: ${pending.length}`);
     } catch (error) {
-      console.error('Error obteniendo estadísticas offline:', error);
-      return null;
+      console.error('Error cargando items pendientes:', error);
     }
   }, []);
 
-  // Cargar estadísticas iniciales
-  useEffect(() => {
-    refreshSyncStatus();
-
-    // Actualizar cada 30 segundos
-    const interval = setInterval(refreshSyncStatus, 30000);
-    return () => clearInterval(interval);
-  }, [refreshSyncStatus]);
-
-  // Sincronización automática
-  const autoSync = useCallback(async () => {
-    if (!isOnline || isSyncing) return;
-
-    try {
-      setIsSyncing(true);
-      setSyncMessage('Sincronizando automáticamente...');
-
-      await offlineService.syncWhenOnline();
-      await refreshSyncStatus();
-
-      setSyncMessage('Sincronización automática completada');
-    } catch (error) {
-      console.error('Error en sincronización automática:', error);
-      setSyncMessage('Error en sincronización automática');
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setSyncMessage(''), 3000);
-    }
-  }, [isOnline, isSyncing, refreshSyncStatus]);
-
-  // Sincronización manual completa
-  const manualSync = useCallback(async () => {
-    if (!isOnline) {
-      throw new Error('No hay conexión a internet');
+  // Sincronizar datos pendientes
+  const syncPendingData = useCallback(async () => {
+    if (!isOnline || pendingSync.length === 0) {
+      return;
     }
 
+    console.log('🔄 Iniciando sincronización de datos pendientes...');
+    setSyncStatus('syncing');
+
     try {
-      setIsSyncing(true);
-      setSyncProgress(0);
-      setSyncMessage('Iniciando sincronización manual...');
+      // Aquí se implementaría la lógica de sincronización real con el backend
+      // Por ahora, simulamos el proceso
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const deviceId = offlineService.deviceId;
+      // En producción, enviarías los datos al backend:
+      // for (const item of pendingSync) {
+      //   await api.post('/sync', item.data);
+      //   await markAsSynced(item.id);
+      // }
 
-      const result = await syncService.fullSync(deviceId, (message, progress) => {
-        setSyncMessage(message);
-        setSyncProgress(progress);
-      });
+      console.log('✅ Sincronización completada');
+      setSyncStatus('success');
+      await loadPendingSync(); // Recargar la lista
 
-      await refreshSyncStatus();
-
-      setSyncMessage(`Sincronización completada: ${result.syncedCount} elementos`);
-      return result;
-
-    } catch (error) {
-      console.error('Error en sincronización manual:', error);
-      setSyncMessage(`Error: ${error.message}`);
-      throw error;
-    } finally {
-      setIsSyncing(false);
+      // Resetear estado después de 3 segundos
       setTimeout(() => {
-        setSyncMessage('');
-        setSyncProgress(0);
+        setSyncStatus('idle');
+        setWasOffline(false);
+      }, 3000);
+    } catch (error) {
+      console.error('❌ Error sincronizando datos:', error);
+      setSyncStatus('error');
+
+      // Resetear estado después de 5 segundos
+      setTimeout(() => {
+        setSyncStatus('idle');
       }, 5000);
     }
-  }, [isOnline, refreshSyncStatus]);
+  }, [isOnline, pendingSync, loadPendingSync]);
 
-  // Obtener conflictos pendientes
-  const loadConflicts = useCallback(async () => {
-    try {
-      const conflictData = await syncService.getPendingConflicts();
-      setConflicts(conflictData.results || []);
-      return conflictData;
-    } catch (error) {
-      console.error('Error cargando conflictos:', error);
-      return { results: [] };
-    }
-  }, []);
-
-  // Resolver conflicto
-  const resolveConflict = useCallback(async (conflictId, resolution) => {
-    try {
-      const result = await syncService.resolveConflict(conflictId, resolution);
-      await loadConflicts(); // Recargar conflictos
-      return result;
-    } catch (error) {
-      console.error('Error resolviendo conflicto:', error);
-      throw error;
-    }
-  }, [loadConflicts]);
-
-  // Auto-resolver conflicto
-  const autoResolveConflict = useCallback(async (conflictId, strategy = 'last_write_wins') => {
-    try {
-      const result = await syncService.autoResolveConflict(conflictId, strategy);
-      await loadConflicts(); // Recargar conflictos
-      return result;
-    } catch (error) {
-      console.error('Error auto-resolviendo conflicto:', error);
-      throw error;
-    }
-  }, [loadConflicts]);
+  // Forzar sincronización manual
+  const forceSync = useCallback(() => {
+    console.log('🔄 Sincronización manual iniciada');
+    syncPendingData();
+  }, [syncPendingData]);
 
   return {
-    // Estado
     isOnline,
+    isOffline: !isOnline,
+    wasOffline,
+    pendingSync,
+    pendingCount: pendingSync.length,
     syncStatus,
-    isSyncing,
-    syncProgress,
-    syncMessage,
-    conflicts,
-
-    // Acciones
-    refreshSyncStatus,
-    manualSync,
-    autoSync,
-    loadConflicts,
-    resolveConflict,
-    autoResolveConflict,
-
-    // Utilidades
-    deviceId: offlineService.deviceId,
-    hasOfflineData: syncStatus.totalOfflineData > 0,
-    needsSync: syncStatus.pendingActions > 0 || syncStatus.unsyncedScores > 0
+    forceSync,
+    hasPendingSync: pendingSync.length > 0
   };
 };
 

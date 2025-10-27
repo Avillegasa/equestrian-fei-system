@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-const CreateScheduleModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, isEditMode = false }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -11,6 +11,34 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit }) => {
     category: '',
     location: 'Arena Principal'
   });
+
+  // Cargar datos iniciales cuando se está editando
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      setFormData({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        schedule_type: initialData.schedule_type || 'category_start',
+        start_time: initialData.start_time || '',
+        end_time: initialData.end_time || '',
+        discipline: initialData.discipline || 'Show Jumping',
+        category: initialData.category || '',
+        location: initialData.location || 'Arena Principal'
+      });
+    } else if (!isEditMode) {
+      // Reset form cuando se cierra el modal de edición
+      setFormData({
+        title: '',
+        description: '',
+        schedule_type: 'category_start',
+        start_time: '',
+        end_time: '',
+        discipline: 'Show Jumping',
+        category: '',
+        location: 'Arena Principal'
+      });
+    }
+  }, [isEditMode, initialData, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -85,7 +113,7 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit }) => {
         <div className="mt-3">
           <div className="flex items-center justify-between pb-4 border-b">
             <h3 className="text-lg font-medium text-gray-900">
-              📅 Programar Nuevo Evento
+              {isEditMode ? '✏️ Editar Evento' : '📅 Programar Nuevo Evento'}
             </h3>
             <button
               onClick={onClose}
@@ -323,7 +351,7 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit }) => {
                 type="submit"
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Programar Evento
+                {isEditMode ? 'Guardar Cambios' : 'Programar Evento'}
               </button>
             </div>
           </form>

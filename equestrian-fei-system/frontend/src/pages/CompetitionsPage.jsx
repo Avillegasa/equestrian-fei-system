@@ -415,39 +415,58 @@ const CompetitionsPage = () => {
                           >
                             📊 Rankings
                           </Link>
+
+                          {/* Botones solo para Admin y Organizer */}
+                          {(user?.role === 'admin' || user?.role === 'organizer') && (
+                            <>
+                              <Link
+                                to={`/admin/competitions/${competition.id}/staff`}
+                                className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                              >
+                                👥 Personal
+                              </Link>
+                              <Link
+                                to={`/admin/competitions/${competition.id}/participants`}
+                                className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                              >
+                                🏇 Participantes
+                              </Link>
+                              <Link
+                                to={`/admin/competitions/${competition.id}/schedule`}
+                                className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                                title="Gestionar programación (Admin/Organizer)"
+                              >
+                                📋 Gestionar Programación
+                              </Link>
+                            </>
+                          )}
+
+                          {/* Botón para todos los roles */}
                           <Link
-                            to={`/admin/competitions/${competition.id}/staff`}
-                            className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                            to={`/schedule/${competition.id}`}
+                            className="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                            title="Ver programación publicada"
                           >
-                            👥 Personal
-                          </Link>
-                          <Link
-                            to={`/admin/competitions/${competition.id}/participants`}
-                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                          >
-                            🏇 Participantes
-                          </Link>
-                          <Link
-                            to={`/admin/competitions/${competition.id}/schedule`}
-                            className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                          >
-                            📋 Programación
+                            📅 Ver Programación
                           </Link>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleEditCompetition(competition)}
-                            className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                          >
-                            ✏️ Editar
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCompetition(competition)}
-                            className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
-                          >
-                            🗑️ Eliminar
-                          </button>
-                        </div>
+                        {/* Botones de edición solo para Admin y Organizer */}
+                        {(user?.role === 'admin' || user?.role === 'organizer') && (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => handleEditCompetition(competition)}
+                              className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCompetition(competition)}
+                              className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200"
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

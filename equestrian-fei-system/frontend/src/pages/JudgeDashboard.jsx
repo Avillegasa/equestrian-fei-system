@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import useCompetitionStore from '../store/competitionStore';
 
 const JudgeDashboard = () => {
   const { user, logout } = useAuth();
+  const [pendingAssignments, setPendingAssignments] = useState([]);
+  const [confirmedAssignments, setConfirmedAssignments] = useState([]);
 
   // Conectar al store de competencias
   const {
@@ -19,8 +21,132 @@ const JudgeDashboard = () => {
     loadCompetitions();
   }, []);
 
+  // Cargar asignaciones de personal desde localStorage
+  useEffect(() => {
+    if (!user || competitions.length === 0) return;
+
+    console.log('🔍 Buscando asignaciones para juez:', user.email, 'ID:', user.id);
+
+    const pending = [];
+    const confirmed = [];
+
+    competitions.forEach(comp => {
+      const storageKey = `fei_staff_${comp.id}`;
+      const savedStaff = localStorage.getItem(storageKey);
+
+      if (savedStaff) {
+        try {
+          const staff = JSON.parse(savedStaff);
+          console.log(`🔍 Competencia "${comp.name}" - Personal encontrado:`, staff.length);
+
+          // Mostrar todos los staff members para debug
+          staff.forEach(s => {
+            console.log(`  - ${s.staff_member.first_name} ${s.staff_member.last_name} (${s.role})`,
+              'Email:', s.staff_member.email, 'ID:', s.staff_member.id);
+          });
+
+          // Buscar si el usuario actual está asignado (comparación más flexible)
+          const myAssignment = staff.find(s => {
+            const emailMatch = s.staff_member.email?.toLowerCase() === user.email?.toLowerCase();
+            const idMatch = s.staff_member.id === user.id;
+            const firstNameMatch = s.staff_member.first_name?.toLowerCase() === user.first_name?.toLowerCase();
+            const lastNameMatch = s.staff_member.last_name?.toLowerCase() === user.last_name?.toLowerCase();
+
+            return emailMatch || idMatch || (firstNameMatch && lastNameMatch);
+          });
+
+          if (myAssignment) {
+            console.log('✅ ¡Asignación encontrada en competencia:', comp.name);
+            const assignmentData = {
+              ...myAssignment,
+              competition: comp
+            };
+
+            if (myAssignment.is_confirmed) {
+              confirmed.push(assignmentData);
+            } else {
+              pending.push(assignmentData);
+            }
+          } else {
+            console.log('❌ No encontrado en esta competencia');
+          }
+        } catch (error) {
+          console.error('Error al cargar staff:', error);
+        }
+      }
+    });
+
+    console.log('📋 Asignaciones pendientes:', pending.length);
+    console.log('✅ Asignaciones confirmadas:', confirmed.length);
+
+    setPendingAssignments(pending);
+    setConfirmedAssignments(confirmed);
+  }, [user, competitions]);
+
   const handleLogout = async () => {
     await logout();
+  };
+
+  // Aceptar asignación
+  const handleAcceptAssignment = (assignment) => {
+    const competitionId = assignment.competition.id;
+    const storageKey = `fei_staff_${competitionId}`;
+    const savedStaff = localStorage.getItem(storageKey);
+
+    if (savedStaff) {
+      try {
+        const staff = JSON.parse(savedStaff);
+        // Actualizar la confirmación del staff member
+        const updatedStaff = staff.map(s => {
+          if (s.id === assignment.id) {
+            return { ...s, is_confirmed: true };
+          }
+          return s;
+        });
+
+        localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+        console.log('✅ Asignación aceptada para competencia:', competitionId);
+
+        // Actualizar estados
+        setPendingAssignments(prev => prev.filter(a => a.id !== assignment.id));
+        setConfirmedAssignments(prev => [...prev, { ...assignment, is_confirmed: true }]);
+
+        alert('✅ Has aceptado la asignación a la competencia!');
+      } catch (error) {
+        console.error('Error al aceptar asignación:', error);
+        alert('❌ Error al aceptar la asignación');
+      }
+    }
+  };
+
+  // Rechazar asignación
+  const handleRejectAssignment = (assignment) => {
+    if (!window.confirm('¿Estás seguro de que quieres rechazar esta asignación?')) {
+      return;
+    }
+
+    const competitionId = assignment.competition.id;
+    const storageKey = `fei_staff_${competitionId}`;
+    const savedStaff = localStorage.getItem(storageKey);
+
+    if (savedStaff) {
+      try {
+        const staff = JSON.parse(savedStaff);
+        // Eliminar la asignación del personal
+        const updatedStaff = staff.filter(s => s.id !== assignment.id);
+
+        localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+        console.log('❌ Asignación rechazada para competencia:', competitionId);
+
+        // Actualizar estados
+        setPendingAssignments(prev => prev.filter(a => a.id !== assignment.id));
+
+        alert('❌ Has rechazado la asignación a la competencia');
+      } catch (error) {
+        console.error('Error al rechazar asignación:', error);
+        alert('❌ Error al rechazar la asignación');
+      }
+    }
   };
 
   // Filtrar competencias donde podría ser juez asignado
@@ -290,27 +416,49 @@ const JudgeDashboard = () => {
               </div>
             </Link>
 
-            <Link
-              to="/judge/scoring/1"
-              className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
-            >
-              <div className="text-center">
-                <div className="text-4xl mb-3">⚖️</div>
-                <h3 className="text-lg font-bold">Calificar</h3>
-                <p className="text-sm opacity-90 mt-1">Sistema de puntuación</p>
+            {/* Botón Calificar - solo si tiene asignaciones confirmadas */}
+            {confirmedAssignments.length > 0 ? (
+              <Link
+                to={`/judge/scoring/${confirmedAssignments[0].competition.id}`}
+                className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                <div className="text-center">
+                  <div className="text-4xl mb-3">⚖️</div>
+                  <h3 className="text-lg font-bold">Calificar</h3>
+                  <p className="text-sm opacity-90 mt-1">Sistema de puntuación</p>
+                </div>
+              </Link>
+            ) : (
+              <div className="bg-gradient-to-r from-gray-400 to-gray-500 text-white p-6 rounded-xl shadow-lg opacity-60 cursor-not-allowed">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">⚖️</div>
+                  <h3 className="text-lg font-bold">Calificar</h3>
+                  <p className="text-sm opacity-90 mt-1">Sin asignaciones confirmadas</p>
+                </div>
               </div>
-            </Link>
+            )}
 
-            <Link
-              to="/rankings/1"
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
-            >
-              <div className="text-center">
-                <div className="text-4xl mb-3">📊</div>
-                <h3 className="text-lg font-bold">Rankings</h3>
-                <p className="text-sm opacity-90 mt-1">Ver clasificaciones</p>
+            {/* Botón Rankings - solo si tiene asignaciones */}
+            {(confirmedAssignments.length > 0 || pendingAssignments.length > 0) ? (
+              <Link
+                to={`/rankings/${(confirmedAssignments[0] || pendingAssignments[0]).competition.id}`}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                <div className="text-center">
+                  <div className="text-4xl mb-3">📊</div>
+                  <h3 className="text-lg font-bold">Rankings</h3>
+                  <p className="text-sm opacity-90 mt-1">Ver clasificaciones</p>
+                </div>
+              </Link>
+            ) : (
+              <div className="bg-gradient-to-r from-gray-400 to-gray-500 text-white p-6 rounded-xl shadow-lg opacity-60 cursor-not-allowed">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">📊</div>
+                  <h3 className="text-lg font-bold">Rankings</h3>
+                  <p className="text-sm opacity-90 mt-1">Sin asignaciones</p>
+                </div>
               </div>
-            </Link>
+            )}
 
             <Link
               to="/profile"
@@ -323,6 +471,88 @@ const JudgeDashboard = () => {
               </div>
             </Link>
           </div>
+
+          {/* Asignaciones Pendientes de Confirmación */}
+          {pendingAssignments.length > 0 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg mb-8">
+              <div className="flex items-center mb-4">
+                <div className="text-3xl mr-3">⏳</div>
+                <div>
+                  <h3 className="text-lg font-bold text-yellow-900">
+                    Asignaciones Pendientes de Confirmación
+                  </h3>
+                  <p className="text-sm text-yellow-700">
+                    Tienes {pendingAssignments.length} asignación(es) que requieren tu aceptación
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {pendingAssignments.map((assignment) => (
+                  <div key={assignment.id} className="bg-white rounded-lg shadow-md p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-lg font-bold text-gray-900 mb-2">
+                          {assignment.competition.name}
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                          <div className="flex items-center">
+                            <span className="mr-2">📋</span>
+                            <span className="font-medium">Rol:</span>
+                            <span className="ml-1">
+                              {assignment.role === 'judge' && 'Juez'}
+                              {assignment.role === 'chief_judge' && 'Juez Principal'}
+                              {assignment.role === 'observer' && 'Observador'}
+                              {assignment.role === 'organizer' && 'Organizador'}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="mr-2">📅</span>
+                            <span className="font-medium">Asignado:</span>
+                            <span className="ml-1">{assignment.assigned_date}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="mr-2">📍</span>
+                            <span className="font-medium">Ubicación:</span>
+                            <span className="ml-1">{assignment.competition.location || 'Por definir'}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="mr-2">🗓️</span>
+                            <span className="font-medium">Fechas:</span>
+                            <span className="ml-1">
+                              {assignment.competition.start_date} - {assignment.competition.end_date}
+                            </span>
+                          </div>
+                        </div>
+                        {assignment.notes && (
+                          <div className="bg-gray-50 p-2 rounded text-sm text-gray-700 mb-3">
+                            <span className="font-medium">Notas:</span> {assignment.notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => handleRejectAssignment(assignment)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <span>❌</span>
+                        <span>Rechazar</span>
+                      </button>
+                      <button
+                        onClick={() => handleAcceptAssignment(assignment)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <span>✅</span>
+                        <span>Aceptar Asignación</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Assigned Competitions */}
@@ -403,12 +633,18 @@ const JudgeDashboard = () => {
                         <p>🎯 Disciplina: {evaluation.discipline}</p>
                       </div>
                       <div className="mt-3">
-                        <Link
-                          to={`/judge/scoring/${assignedCompetitions[0]?.id || 1}`}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                        >
-                          ⚖️ Evaluar ahora
-                        </Link>
+                        {confirmedAssignments.length > 0 ? (
+                          <Link
+                            to={`/judge/scoring/${confirmedAssignments[0].competition.id}`}
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                          >
+                            ⚖️ Evaluar ahora
+                          </Link>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-gray-400 cursor-not-allowed">
+                            ⚖️ Sin asignaciones confirmadas
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}

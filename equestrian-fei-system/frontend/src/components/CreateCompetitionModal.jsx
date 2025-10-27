@@ -44,6 +44,22 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
     return `${year}-${month}-${day}T${hour}:${minute}`;
   };
 
+  // Categorías FEI disponibles
+  const availableCategories = [
+    'Pony',
+    'Junior (14-18 años)',
+    'Young Rider (18-21 años)',
+    'Amateur',
+    'Professional',
+    'Senior',
+    'Veterans (45+ años)',
+    'CSI1* (1.30m-1.35m)',
+    'CSI2* (1.35m-1.40m)',
+    'CSI3* (1.40m-1.45m)',
+    'CSI4* (1.45m-1.50m)',
+    'CSI5* (1.50m-1.60m)'
+  ];
+
   const getInitialFormData = () => {
     if (isEditMode && initialData) {
       return {
@@ -60,7 +76,8 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
         venue_city: initialData.venueCity || initialData.venue_city || '',
         venue_country: initialData.venueCountry || initialData.venue_country || '',
         max_participants: initialData.maxParticipants || initialData.max_participants || '',
-        entry_fee: initialData.entryFee || initialData.entry_fee || '0'
+        entry_fee: initialData.entryFee || initialData.entry_fee || '0',
+        accepted_categories: initialData.acceptedCategories || initialData.accepted_categories || []
       };
     }
     return {
@@ -77,7 +94,8 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
       venue_city: '',
       venue_country: '',
       max_participants: '',
-      entry_fee: '0'
+      entry_fee: '0',
+      accepted_categories: []
     };
   };
 
@@ -89,6 +107,20 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
       setFormData(getInitialFormData());
     }
   }, [isOpen, initialData, isEditMode]);
+
+  const handleCategoryToggle = (category) => {
+    setFormData(prev => {
+      const currentCategories = prev.accepted_categories || [];
+      const isSelected = currentCategories.includes(category);
+
+      return {
+        ...prev,
+        accepted_categories: isSelected
+          ? currentCategories.filter(c => c !== category)
+          : [...currentCategories, category]
+      };
+    });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -129,6 +161,13 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validar que haya al menos una categoría seleccionada
+    if (!formData.accepted_categories || formData.accepted_categories.length === 0) {
+      alert('⚠️ Debes seleccionar al menos una categoría para la competencia');
+      return;
+    }
+
     // Esperar a que se complete la creación antes de cerrar
     await onSubmit(formData);
     // Reset form después de envío exitoso
@@ -146,7 +185,8 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
       venue_city: '',
       venue_country: '',
       max_participants: '',
-      entry_fee: '0'
+      entry_fee: '0',
+      accepted_categories: []
     });
     // No cerramos aquí, lo hace el parent después del éxito
   };
@@ -400,6 +440,46 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
+            </div>
+
+            {/* Categorías Aceptadas */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <label className="block text-sm font-medium text-gray-900 mb-3">
+                🏆 Categorías Aceptadas *
+              </label>
+              <p className="text-xs text-gray-600 mb-3">
+                Selecciona las categorías de jinetes que pueden inscribirse en esta competencia
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {availableCategories.map((category) => (
+                  <label
+                    key={category}
+                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                      formData.accepted_categories.includes(category)
+                        ? 'bg-blue-100 border-blue-500 shadow-sm'
+                        : 'bg-white border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.accepted_categories.includes(category)}
+                      onChange={() => handleCategoryToggle(category)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-900">{category}</span>
+                  </label>
+                ))}
+              </div>
+              {formData.accepted_categories.length === 0 && (
+                <p className="text-xs text-red-600 mt-2">
+                  ⚠️ Debes seleccionar al menos una categoría
+                </p>
+              )}
+              {formData.accepted_categories.length > 0 && (
+                <p className="text-xs text-green-600 mt-2">
+                  ✓ {formData.accepted_categories.length} categoría(s) seleccionada(s)
+                </p>
+              )}
             </div>
 
             {/* Botones */}
