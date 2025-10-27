@@ -74,20 +74,18 @@ class AuthService {
   async login(credentials) {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login/`, credentials);
-      const { data } = response.data;
-      const { user, access, refresh } = data;
-      const tokens = { access, refresh };
-      
+      const { user, tokens } = response.data;
+
       // Guardar tokens y usuario
       this.saveTokens(tokens);
       this.saveUser(user);
-      
+
       return { user, success: true };
     } catch (error) {
       console.error('Login error:', error);
       throw new Error(
-        error.response?.data?.error || 
-        error.response?.data?.detail || 
+        error.response?.data?.error ||
+        error.response?.data?.detail ||
         error.response?.data?.message ||
         'Error al iniciar sesión'
       );
