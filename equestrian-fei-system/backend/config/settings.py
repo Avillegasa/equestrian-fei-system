@@ -226,35 +226,32 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
-        'json': {
-            '()': 'apps.sync.services.logging_service.StructuredFormatter',
-        },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': 'verbose',
         },
         'file_system': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOGS_DIR, 'system.log'),
             'maxBytes': 10*1024*1024,  # 10MB
             'backupCount': 5,
-            'formatter': 'json',
+            'formatter': 'verbose',
         },
         'file_api': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOGS_DIR, 'api.log'),
             'maxBytes': 10*1024*1024,  # 10MB
             'backupCount': 5,
-            'formatter': 'json',
+            'formatter': 'verbose',
         },
         'file_sync': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(LOGS_DIR, 'sync.log'),
             'maxBytes': 10*1024*1024,  # 10MB
             'backupCount': 5,
-            'formatter': 'json',
+            'formatter': 'verbose',
         },
     },
     'root': {
