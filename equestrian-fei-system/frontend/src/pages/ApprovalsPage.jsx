@@ -35,8 +35,9 @@ const ApprovalsPage = () => {
 
   // Datos de ejemplo para demostración
   useEffect(() => {
-    // Combinar datos de ejemplo con aplicaciones reales de riders
-    const exampleApprovals = [
+    setTimeout(() => {
+      // Combinar datos de ejemplo con aplicaciones reales de riders
+      const exampleApprovals = [
       {
         id: 1,
         type: 'judge_registration',
