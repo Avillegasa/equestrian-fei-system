@@ -29,11 +29,32 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         # Get the token data from parent
         data = super().validate(attrs)
-        
-        # Add user data to response
-        user_serializer = UserProfileSerializer(self.user)
-        data['user'] = user_serializer.data
-        
+
+        # Add user data to response (simplified to avoid serializer issues)
+        try:
+            data['user'] = {
+                'id': self.user.id,
+                'username': self.user.username,
+                'email': self.user.email,
+                'role': self.user.role,
+                'first_name': self.user.first_name,
+                'last_name': self.user.last_name,
+                'full_name': f"{self.user.first_name} {self.user.last_name}",
+                'phone': self.user.phone,
+                'nationality': self.user.nationality,
+                'is_verified': self.user.is_verified,
+                'date_joined': self.user.date_joined.isoformat() if self.user.date_joined else None,
+                'last_login': self.user.last_login.isoformat() if self.user.last_login else None,
+            }
+        except Exception as e:
+            # Fallback: datos mínimos si algo falla
+            print(f"Error serializing user data: {e}")
+            data['user'] = {
+                'id': self.user.id,
+                'username': self.user.username,
+                'role': self.user.role,
+            }
+
         return data
 
 
