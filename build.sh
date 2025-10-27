@@ -20,7 +20,6 @@ pip install --upgrade pip
 # 2. INSTALL DEPENDENCIES
 # ============================================
 echo "📦 Installing Python dependencies..."
-cd equestrian-fei-system/backend
 pip install -r requirements.txt
 
 # ============================================

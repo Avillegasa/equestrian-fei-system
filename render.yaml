@@ -7,7 +7,7 @@ services:
     plan: free
     branch: main
     rootDir: equestrian-fei-system/backend
-    buildCommand: chmod +x ../../build.sh && ../../build.sh
+    buildCommand: chmod +x ../../build.sh && bash ../../build.sh
     startCommand: gunicorn config.wsgi:application --config gunicorn_config.py
     healthCheckPath: /api/health/
 
