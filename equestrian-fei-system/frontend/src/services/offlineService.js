@@ -187,11 +187,26 @@ export const getByIndex = async (storeName, indexName, value) => {
     const transaction = db.transaction([storeName], 'readonly');
     const store = transaction.objectStore(storeName);
     const index = store.index(indexName);
-    const request = index.getAll(value);
+
+    // Validar que value sea un tipo válido para IndexedDB
+    // Si es undefined, null o boolean, obtener todos y filtrar manualmente
+    let request;
+    if (value === undefined || value === null || typeof value === 'boolean') {
+      request = index.getAll();
+    } else {
+      request = index.getAll(value);
+    }
 
     return new Promise((resolve, reject) => {
       request.onsuccess = () => {
-        resolve(request.result || []);
+        let results = request.result || [];
+
+        // Si se pasó un boolean, filtrar manualmente
+        if (typeof value === 'boolean' && results.length > 0) {
+          results = results.filter(item => item[indexName] === value);
+        }
+
+        resolve(results);
       };
 
       request.onerror = () => {
