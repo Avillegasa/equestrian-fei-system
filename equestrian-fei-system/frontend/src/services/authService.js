@@ -76,6 +76,11 @@ class AuthService {
   async login(credentials) {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login/`, credentials);
+
+      // DEBUG: Log para verificar respuesta
+      console.log('🔍 Login Response:', response.data);
+      console.log('🔍 Response keys:', Object.keys(response.data));
+
       const { user, tokens } = response.data;
 
       // Guardar tokens y usuario
