@@ -70,6 +70,8 @@ class AuthService {
 
   /**
    * Login de usuario
+   * Endpoint: POST /api/auth/login/
+   * Response: { user: {...}, tokens: { access, refresh } }
    */
   async login(credentials) {
     try {
@@ -86,7 +88,7 @@ class AuthService {
       throw new Error(
         error.response?.data?.error ||
         error.response?.data?.detail ||
-        error.response?.data?.message ||
+        error.response?.data?.non_field_errors?.[0] ||
         'Error al iniciar sesión'
       );
     }
@@ -94,40 +96,52 @@ class AuthService {
 
   /**
    * Registro de usuario
+   * Endpoint: POST /api/auth/register/
+   * Response: { user: {...}, tokens: { access, refresh } }
    */
   async register(userData) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/users/auth/register/`, userData);
+      const response = await axios.post(`${API_BASE_URL}/auth/register/`, userData);
       const { user, tokens } = response.data;
-      
+
       // Guardar tokens y usuario
       this.saveTokens(tokens);
       this.saveUser(user);
-      
+
       return { user, success: true };
     } catch (error) {
       console.error('Register error:', error);
-      const errorMessage = error.response?.data;
-      
+      const errorData = error.response?.data;
+
       // Formatear errores de validación
-      if (typeof errorMessage === 'object' && errorMessage !== null) {
-        const errorMessages = Object.entries(errorMessage)
-          .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
-          .join('\n');
-        throw new Error(errorMessages);
+      if (typeof errorData === 'object' && errorData !== null) {
+        // Si hay errores de campo específicos
+        if (!errorData.error && !errorData.detail) {
+          const errorMessages = Object.entries(errorData)
+            .map(([field, messages]) => {
+              const msgArray = Array.isArray(messages) ? messages : [messages];
+              return `${field}: ${msgArray.join(', ')}`;
+            })
+            .join('\n');
+          throw new Error(errorMessages);
+        }
+
+        // Si hay error general
+        throw new Error(errorData.error || errorData.detail || 'Error al registrar usuario');
       }
-      
-      throw new Error(errorMessage?.message || 'Error al registrar usuario');
+
+      throw new Error('Error al registrar usuario');
     }
   }
 
   /**
    * Logout de usuario
+   * Endpoint: POST /api/users/logout/
    */
   async logout() {
     try {
       // Notificar al servidor del logout
-      await axios.post(`${API_BASE_URL}/auth/logout/`);
+      await axios.post(`${API_BASE_URL}/users/logout/`);
     } catch (error) {
       console.warn('Error en logout:', error);
     } finally {
@@ -139,6 +153,7 @@ class AuthService {
 
   /**
    * Refresh del access token
+   * Endpoint: POST /api/auth/refresh/
    */
   async refreshToken() {
     const refreshToken = this.getRefreshToken();
@@ -150,10 +165,10 @@ class AuthService {
       const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
         refresh: refreshToken
       });
-      
+
       const { access, refresh } = response.data;
       this.saveTokens({ access, refresh });
-      
+
       return access;
     } catch (error) {
       this.clearTokens();
@@ -163,10 +178,11 @@ class AuthService {
 
   /**
    * Obtener perfil del usuario actual
+   * Endpoint: GET /api/users/profile/
    */
   async getProfile() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/users/auth/profile/`);
+      const response = await axios.get(`${API_BASE_URL}/users/profile/`);
       const user = response.data;
       this.saveUser(user);
       return user;
@@ -178,10 +194,11 @@ class AuthService {
 
   /**
    * Actualizar perfil del usuario
+   * Endpoint: PATCH /api/users/profile/
    */
   async updateProfile(userData) {
     try {
-      const response = await axios.patch(`${API_BASE_URL}/users/auth/profile/`, userData);
+      const response = await axios.patch(`${API_BASE_URL}/users/profile/`, userData);
       const { user } = response.data;
       this.saveUser(user);
       return user;
@@ -193,10 +210,11 @@ class AuthService {
 
   /**
    * Cambiar contraseña
+   * Endpoint: POST /api/users/change-password/
    */
   async changePassword(passwordData) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/users/auth/change-password/`, passwordData);
+      const response = await axios.post(`${API_BASE_URL}/users/change-password/`, passwordData);
       return response.data;
     } catch (error) {
       console.error('Change password error:', error);

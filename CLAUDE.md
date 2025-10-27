@@ -839,15 +839,67 @@ TOTAL:                  $24/mes
 
 ---
 
-### Documentation Files
+## 🔐 Authentication API - Sistema Unificado
 
-- **DEPLOYMENT_STATUS.md** - Current deployment status and configuration
-- **DEPLOYMENT_GUIDE.md** - Complete step-by-step deployment guide
-- **DEPLOYMENT_CHECKLIST.md** - Interactive checklist for deployment
-- **DEPLOYMENT_SUMMARY.md** - Executive summary of deployment decision
-- **README_DEPLOYMENT.md** - Quick reference for deployment
+**Estado:** ✅ Sistema unificado y simplificado (Octubre 27, 2025)
 
----
+### Endpoints de Autenticación
+
+#### 1. **Login** - `POST /api/auth/login/`
+```json
+// Request
+{ "username": "admin", "password": "admin123" }
+
+// Response (200)
+{
+  "user": {
+    "id": "uuid", "username": "admin", "email": "admin@example.com",
+    "role": "admin", "first_name": "Admin", "last_name": "User",
+    "full_name": "Admin User", "is_verified": true, ...
+  },
+  "tokens": { "access": "eyJhbGci...", "refresh": "eyJhbGci..." }
+}
+```
+
+#### 2. **Register** - `POST /api/auth/register/`
+```json
+// Request (campos requeridos: username, email, password, password_confirm, first_name, last_name, role)
+{
+  "username": "newuser", "email": "new@example.com",
+  "password": "Pass123!", "password_confirm": "Pass123!",
+  "first_name": "John", "last_name": "Doe", "role": "rider"
+}
+
+// Response (201) - Mismo formato que login
+{ "user": {...}, "tokens": {...} }
+```
+
+#### 3. **Refresh Token** - `POST /api/auth/refresh/`
+```json
+// Request
+{ "refresh": "eyJhbGci..." }
+
+// Response (200)
+{ "access": "eyJhbGci...", "refresh": "eyJhbGci..." }
+```
+
+#### 4. **Profile** - `GET/PATCH /api/users/profile/` (requiere auth)
+#### 5. **Change Password** - `POST /api/users/change-password/` (requiere auth)
+#### 6. **Logout** - `POST /api/users/logout/` (requiere auth)
+
+### Token Lifetimes
+- **Access Token:** 1 hora (3600s)
+- **Refresh Token:** 7 días (604800s)
+
+### Archivos Clave
+- **Backend**: `apps/users/authentication.py` (CustomTokenObtainPairView, RegisterView)
+- **Backend**: `config/urls.py` (endpoints principales de auth)
+- **Frontend**: `services/authService.js` (servicio unificado)
+
+### Test Credentials
+- Admin: `admin` / `admin123`
+- Organizer: `organizer1` / `org123`
+- Judge: `judge1` / `judge123`
 
 ---
 

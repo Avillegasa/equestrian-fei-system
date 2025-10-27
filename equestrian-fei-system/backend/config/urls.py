@@ -21,7 +21,7 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.views import TokenRefreshView
-from apps.users.authentication import CustomTokenObtainPairView
+from apps.users.authentication import CustomTokenObtainPairView, RegisterView
 
 def api_health_check(request):
     """Health check endpoint"""
@@ -34,11 +34,19 @@ def api_health_check(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/health/', api_health_check, name='api_health'),
-    
-    # JWT Authentication
-    path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    
+
+    # ==========================================
+    # AUTHENTICATION ENDPOINTS (Unified System)
+    # ==========================================
+    # Login: POST /api/auth/login/ { username, password }
+    # Register: POST /api/auth/register/ { username, email, password, password_confirm, first_name, last_name, role }
+    # Refresh: POST /api/auth/refresh/ { refresh }
+    # Logout: POST /api/auth/logout/ (handled by frontend - token removal)
+
+    path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='auth_login'),
+    path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
+    path('api/auth/refresh/', TokenRefreshView.as_view(), name='auth_refresh'),
+
     # API Apps
     path('api/users/', include('apps.users.urls')),
     path('api/competitions/', include('apps.competitions.urls')),

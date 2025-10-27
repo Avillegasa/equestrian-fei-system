@@ -14,16 +14,12 @@ router.register('audit-logs', views.AuditLogViewSet)
 urlpatterns = [
     # Health check
     path('health/', views.health_check, name='health_check'),
-    
-    # Authentication endpoints
-    path('auth/register/', views.UserRegistrationView.as_view(), name='register'),
-    path('auth/login/', views.UserLoginView.as_view(), name='login'),
-    path('auth/logout/', views.UserLogoutView.as_view(), name='logout'),
-    
-    # Profile management
-    path('auth/profile/', views.UserProfileView.as_view(), name='profile'),
-    path('auth/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
-    
+
+    # Profile management (authenticated endpoints)
+    path('profile/', views.UserProfileView.as_view(), name='profile'),
+    path('change-password/', views.ChangePasswordView.as_view(), name='change_password'),
+    path('logout/', views.UserLogoutView.as_view(), name='logout'),
+
     # Include router URLs
     path('', include(router.urls)),
 ]
