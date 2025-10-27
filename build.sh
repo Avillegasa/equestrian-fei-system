@@ -44,7 +44,7 @@ User = get_user_model()
 
 # Crear admin si no existe
 if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser(
+    admin = User.objects.create_superuser(
         username='admin',
         email='admin@equestrian-fei.com',
         password='admin123',
@@ -52,13 +52,21 @@ if not User.objects.filter(username='admin').exists():
         last_name='FEI',
         role='admin'
     )
-    print("✅ Superuser 'admin' created")
+    admin.is_verified = True
+    admin.save()
+    print("✅ Superuser 'admin' created and verified")
 else:
-    print("ℹ️  Superuser 'admin' already exists")
+    admin = User.objects.get(username='admin')
+    if not admin.is_verified:
+        admin.is_verified = True
+        admin.save()
+        print("✅ Superuser 'admin' verified")
+    else:
+        print("ℹ️  Superuser 'admin' already exists and verified")
 
 # Crear organizer de prueba si no existe
 if not User.objects.filter(username='organizer1').exists():
-    User.objects.create_user(
+    organizer = User.objects.create_user(
         username='organizer1',
         email='organizer@equestrian-fei.com',
         password='org123',
@@ -66,13 +74,21 @@ if not User.objects.filter(username='organizer1').exists():
         last_name='Prueba',
         role='organizer'
     )
-    print("✅ Organizer 'organizer1' created")
+    organizer.is_verified = True
+    organizer.save()
+    print("✅ Organizer 'organizer1' created and verified")
 else:
-    print("ℹ️  Organizer 'organizer1' already exists")
+    organizer = User.objects.get(username='organizer1')
+    if not organizer.is_verified:
+        organizer.is_verified = True
+        organizer.save()
+        print("✅ Organizer 'organizer1' verified")
+    else:
+        print("ℹ️  Organizer 'organizer1' already exists and verified")
 
 # Crear judge de prueba si no existe
 if not User.objects.filter(username='judge1').exists():
-    User.objects.create_user(
+    judge = User.objects.create_user(
         username='judge1',
         email='judge@equestrian-fei.com',
         password='judge123',
@@ -80,9 +96,17 @@ if not User.objects.filter(username='judge1').exists():
         last_name='Prueba',
         role='judge'
     )
-    print("✅ Judge 'judge1' created")
+    judge.is_verified = True
+    judge.save()
+    print("✅ Judge 'judge1' created and verified")
 else:
-    print("ℹ️  Judge 'judge1' already exists")
+    judge = User.objects.get(username='judge1')
+    if not judge.is_verified:
+        judge.is_verified = True
+        judge.save()
+        print("✅ Judge 'judge1' verified")
+    else:
+        print("ℹ️  Judge 'judge1' already exists and verified")
 END
 
 # ============================================
