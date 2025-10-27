@@ -77,9 +77,13 @@ class AuthService {
     try {
       const response = await axios.post(`${API_BASE_URL}/auth/login/`, credentials);
 
-      // DEBUG: Log para verificar respuesta
-      console.log('🔍 Login Response:', response.data);
-      console.log('🔍 Response keys:', Object.keys(response.data));
+      // DEBUG: Log completo para verificar respuesta
+      console.log('🔍 Full Response:', response);
+      console.log('🔍 Response Status:', response.status);
+      console.log('🔍 Response Headers:', response.headers);
+      console.log('🔍 Response Data:', response.data);
+      console.log('🔍 Response Data Type:', typeof response.data);
+      console.log('🔍 Response Data Keys:', response.data ? Object.keys(response.data) : 'null/undefined');
 
       const { user, tokens } = response.data;
 
@@ -89,7 +93,8 @@ class AuthService {
 
       return { user, success: true };
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
+      console.error('❌ Error response:', error.response);
       throw new Error(
         error.response?.data?.error ||
         error.response?.data?.detail ||
