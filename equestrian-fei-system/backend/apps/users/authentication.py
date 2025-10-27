@@ -42,11 +42,27 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     Custom JWT login view that includes user data
     """
     serializer_class = CustomTokenObtainPairSerializer
-    
+
     def post(self, request, *args, **kwargs):
         try:
             response = super().post(request, *args, **kwargs)
             if response.status_code == 200:
+                # Verificar que response.data tiene los campos necesarios
+                if not response.data:
+                    return Response({
+                        'success': False,
+                        'message': 'Empty response data',
+                        'error': 'Server returned empty response'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+                # Verificar que tiene access, refresh y user
+                if 'access' not in response.data or 'refresh' not in response.data:
+                    return Response({
+                        'success': False,
+                        'message': 'Missing tokens in response',
+                        'error': 'Server did not return authentication tokens'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
                 return Response({
                     'success': True,
                     'message': 'Login successful',
@@ -55,8 +71,12 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             else:
                 return response
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Login error: {error_details}")  # Log para debugging
             return Response({
                 'success': False,
                 'message': 'Login failed',
-                'error': str(e)
+                'error': str(e),
+                'details': error_details if request.user.is_staff else None
             }, status=status.HTTP_400_BAD_REQUEST)
