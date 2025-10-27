@@ -72,8 +72,8 @@ services:
         destination: /index.html
 
     envVars:
-      - key: VITE_API_URL
-        value: "https://equestrian-backend.onrender.com"
+      - key: VITE_API_BASE_URL
+        value: "https://equestrian-backend.onrender.com/api"
 
       - key: VITE_WS_URL
         value: "wss://equestrian-backend.onrender.com"
