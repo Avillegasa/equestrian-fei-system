@@ -1,10 +1,47 @@
 /**
- * Service Worker para funcionalidad offline
- * Maneja cache de recursos y sincronización en background
+ * Service Worker - DISABLED
+ * Auto-unregister para evitar problemas con POST requests
  */
 
-const CACHE_NAME = 'fei-system-v2';
-const API_CACHE_NAME = 'fei-api-v2';
+// Auto-desregistrarse inmediatamente
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    // Limpiar todos los caches
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => caches.delete(cacheName))
+      );
+    }).then(() => {
+      // Auto-desregistrarse
+      return self.registration.unregister();
+    }).then(() => {
+      console.log('Service Worker desregistrado - recarga la página');
+      // Recargar todas las pestañas
+      return clients.matchAll().then((clients) => {
+        clients.forEach(client => client.navigate(client.url));
+      });
+    })
+  );
+});
+
+// NO manejar ningún fetch mientras nos desregistramos
+self.addEventListener('fetch', (event) => {
+  // Dejar que todo pase sin interceptar
+  return;
+});
+
+console.log('Service Worker en modo de desregistro');
+
+// ============================================
+// CÓDIGO VIEJO DESHABILITADO
+// ============================================
+
+const CACHE_NAME = 'fei-system-v2-disabled';
+const API_CACHE_NAME = 'fei-api-v2-disabled';
 
 // Recursos críticos que siempre deben estar en cache
 const CRITICAL_RESOURCES = [
