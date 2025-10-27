@@ -43,6 +43,7 @@ yarn-error.log*
 # React Build
 build/
 dist/
+.vite/
 
 # Environment variables
 .env
