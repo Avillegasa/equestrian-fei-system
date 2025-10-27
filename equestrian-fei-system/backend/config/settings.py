@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +26,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-@7357zf!&3=sxk^x@i(ab-m-h*#5&r@3ar(!&sjrp@e88e1kk6'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-@7357zf!&3=sxk^x@i(ab-m-h*#5&r@3ar(!&sjrp@e88e1kk6')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+# Allowed hosts
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -54,6 +60,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static files in production
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'apps.sync.middleware.PerformanceMonitoringMiddleware',
@@ -89,16 +96,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('DB_NAME', 'equestrian_fei_db'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+# Database configuration
+# Use DATABASE_URL if available (Render.com), otherwise use individual env vars
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
+            'NAME': os.getenv('DB_NAME', 'equestrian_fei_db'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
 
 
 # Password validation
@@ -135,7 +153,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# WhiteNoise configuration for static file serving
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -149,29 +171,43 @@ INSTALLED_APPS.append('channels')
 # ASGI application
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Channel layers (Redis for production, in-memory for development)
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
-    },
-}
+# Channel layers configuration
+# Use REDIS_URL from environment if available (Render.com)
+REDIS_URL = os.getenv('REDIS_URL')
 
-# Fallback to in-memory channel layer if Redis is not available
-try:
-    import redis
-    redis_client = redis.Redis(host='127.0.0.1', port=6379, db=1)
-    redis_client.ping()
-    print("✅ Redis disponible para Channel Layers")
-except:
-    print("⚠️ Redis no disponible, usando InMemoryChannelLayer")
+if REDIS_URL:
+    # Production: Use Redis from Render.com
     CHANNEL_LAYERS = {
         'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer'
-        }
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [REDIS_URL],
+            },
+        },
     }
+    print("✅ Using Redis from REDIS_URL for Channel Layers")
+else:
+    # Development: Try local Redis, fallback to in-memory
+    try:
+        import redis
+        redis_client = redis.Redis(host='127.0.0.1', port=6379, db=1)
+        redis_client.ping()
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [('127.0.0.1', 6379)],
+                },
+            },
+        }
+        print("✅ Redis disponible para Channel Layers")
+    except:
+        print("⚠️ Redis no disponible, usando InMemoryChannelLayer")
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels.layers.InMemoryChannelLayer'
+            }
+        }
 
 # =============== LOGGING CONFIGURATION ===============
 import os
@@ -301,16 +337,28 @@ REST_FRAMEWORK = {
 }
 
 # =============== CORS CONFIGURATION ===============
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
+# Get CORS origins from environment variable
+CORS_ORIGINS_ENV = os.getenv('CORS_ALLOWED_ORIGINS', '')
+if CORS_ORIGINS_ENV:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_ENV.split(',')]
+else:
+    # Development defaults
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo
+# Only allow all origins in development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 # =============== CUSTOM USER MODEL ===============
 AUTH_USER_MODEL = 'users.User'
@@ -357,3 +405,27 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(hours=1),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
 }
+
+# =============== PRODUCTION SECURITY SETTINGS ===============
+if not DEBUG:
+    # HTTPS/SSL
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # HSTS (HTTP Strict Transport Security)
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Other security headers
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+
+    # Proxy headers
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # Trust Render.com proxy
+    USE_X_FORWARDED_HOST = True
+    USE_X_FORWARDED_PORT = True

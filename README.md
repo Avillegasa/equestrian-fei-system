@@ -2,10 +2,6 @@
 
 Sistema profesional de gestión de competencias ecuestres con calificación FEI compliant, rankings en tiempo real y control de acceso basado en roles.
 
-**Estado:** ✅ **SISTEMA FUNCIONAL Y LISTO PARA PRODUCCIÓN**
-**Versión:** 2024.1.0
-**Fecha:** 22 de Octubre de 2025
-
 ---
 
 ## ✨ Características Principales
@@ -67,23 +63,3 @@ npm run dev
 
 ---
 
-## 🔐 Credenciales de Prueba
-
-| Usuario | Password | Rol |
-|---------|----------|-----|
-| admin | admin123 | Administrador |
-| organizer1 | org123 | Organizador |
-| judge1 | judge123 | Juez |
-
----
-
-## 📚 Documentación
-
-- **[MANUAL_TESTING_GUIDE.md](./MANUAL_TESTING_GUIDE.md)** - Guía completa de pruebas manuales
-- **[CLAUDE.md](./CLAUDE.md)** - Documentación técnica del proyecto
-
----
-
-## 🎯 Estado: ✅ LISTO PARA PRODUCCIÓN
-
-**Última actualización:** 22 de Octubre de 2025

@@ -1,0 +1,140 @@
+# ============================================
+# RENDER.COM DEPLOYMENT CONFIGURATION
+# Sistema de Gestión Ecuestre FEI
+# ============================================
+
+services:
+  # ============================================
+  # BACKEND - Django API + WebSockets
+  # ============================================
+  - type: web
+    name: equestrian-backend
+    runtime: python
+    region: oregon # Cambia según tu ubicación: oregon, frankfurt, singapore
+    plan: free # Opciones: free, starter ($7/mes), standard ($25/mes)
+    branch: main
+    rootDir: equestrian-fei-system/backend
+    buildCommand: chmod +x ../build.sh && ../build.sh
+    startCommand: gunicorn config.wsgi:application --config gunicorn_config.py
+    healthCheckPath: /api/health/
+
+    envVars:
+      # Python Configuration
+      - key: PYTHON_VERSION
+        value: "3.11"
+
+      # Django Configuration
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+
+      - key: SECRET_KEY
+        generateValue: true # Render genera automáticamente
+
+      - key: DEBUG
+        value: "False"
+
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+
+      # Database (PostgreSQL) - Conectado automáticamente
+      - key: DATABASE_URL
+        fromDatabase:
+          name: equestrian-db
+          property: connectionString
+
+      # Redis (para Django Channels) - Conectado automáticamente
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: equestrian-redis
+          property: connectionString
+
+      # CORS Configuration
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://equestrian-frontend.onrender.com,http://localhost:5173"
+
+      # JWT Configuration
+      - key: JWT_ACCESS_TOKEN_LIFETIME
+        value: "3600" # 1 hora en segundos
+
+      - key: JWT_REFRESH_TOKEN_LIFETIME
+        value: "604800" # 7 días en segundos
+
+      # Monitoring
+      - key: MONITORING_ENABLED
+        value: "True"
+
+    # Auto-deploy on push
+    autoDeploy: true
+
+    # Disk storage para archivos media y backups
+    disk:
+      name: equestrian-data
+      mountPath: /opt/render/project/src/equestrian-fei-system/backend/media
+      sizeGB: 1 # Free tier: 1GB
+
+  # ============================================
+  # FRONTEND - React/Vite SPA
+  # ============================================
+  - type: web
+    name: equestrian-frontend
+    runtime: static
+    region: oregon
+    branch: main
+    rootDir: equestrian-fei-system/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+
+    # Headers para SPA
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-XSS-Protection
+        value: 1; mode=block
+
+    # Rutas para SPA (React Router)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    envVars:
+      # Backend API URL
+      - key: VITE_API_URL
+        value: "https://equestrian-backend.onrender.com"
+
+      - key: VITE_WS_URL
+        value: "wss://equestrian-backend.onrender.com"
+
+    autoDeploy: true
+
+# ============================================
+# DATABASES
+# ============================================
+databases:
+  - name: equestrian-db
+    databaseName: equestrian_fei_db
+    user: postgres
+    region: oregon
+    plan: free # Free: 1GB, Starter: 10GB ($7/mes), Standard: 50GB ($25/mes)
+    ipAllowList: [] # Vacío = permite todas las IPs de Render
+
+    # Backup automático (solo planes pagados)
+    # postgresMajorVersion: 15
+
+# ============================================
+# REDIS (para Django Channels y Cache)
+# ============================================
+# Nota: Redis free tier en Render es limitado
+# Alternativa: usar InMemoryChannelLayer en settings.py
+- type: redis
+  name: equestrian-redis
+  region: oregon
+  plan: free # Free: 25MB, Starter: 256MB ($10/mes)
+  maxmemoryPolicy: allkeys-lru # Estrategia de evicción
+  ipAllowList: []
