@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 import { PublicRoute } from './components/ProtectedRoute';
-import ProtectedRoute, { AdminRoute, OrganizerRoute, JudgeRoute } from './components/ProtectedRoute';
+import ProtectedRoute, { AdminRoute, OrganizerRoute, JudgeRoute, RiderRoute } from './components/ProtectedRoute';
 
 // Componentes globales
 import OfflineIndicator from './components/OfflineIndicator';
@@ -19,11 +19,14 @@ import ReportsPage from './pages/ReportsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
+import RiderDashboard from './pages/RiderDashboard';
+import ViewerDashboard from './pages/ViewerDashboard';
 
 // Páginas de gestión
 import UsersPage from './pages/UsersPage';
 import CompetitionsPage from './pages/CompetitionsPage';
 import CategoriesPage from './pages/CategoriesPage';
+import TemplatesManagementPage from './pages/TemplatesManagementPage';
 import CompetitionStaffPage from './pages/CompetitionStaffPage';
 import ParticipantsPage from './pages/ParticipantsPage';
 import CompetitionSchedulePage from './pages/CompetitionSchedulePage';
@@ -50,6 +53,10 @@ const DashboardRedirect = () => {
       return <Navigate to="/organizer" replace />;
     case 'judge':
       return <Navigate to="/judge" replace />;
+    case 'rider':
+      return <Navigate to="/rider" replace />;
+    case 'viewer':
+      return <Navigate to="/viewer" replace />;
     default:
       return <DashboardPage />;
   }
@@ -176,6 +183,26 @@ function App() {
             }
           />
 
+          {/* Rutas específicas del rider */}
+          <Route
+            path="/rider"
+            element={
+              <RiderRoute>
+                <RiderDashboard />
+              </RiderRoute>
+            }
+          />
+
+          {/* Rutas específicas del viewer/espectador */}
+          <Route
+            path="/viewer"
+            element={
+              <ProtectedRoute>
+                <ViewerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Rutas específicas del organizador */}
           <Route
             path="/organizer/competitions"
@@ -190,6 +217,14 @@ function App() {
             element={
               <OrganizerRoute>
                 <CategoriesPage />
+              </OrganizerRoute>
+            }
+          />
+          <Route
+            path="/organizer/templates"
+            element={
+              <OrganizerRoute>
+                <TemplatesManagementPage />
               </OrganizerRoute>
             }
           />

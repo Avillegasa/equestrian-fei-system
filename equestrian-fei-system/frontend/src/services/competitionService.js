@@ -66,6 +66,67 @@ class CompetitionService {
         }
       ]));
     }
+
+    // Inicializar plantillas de calificación FEI
+    if (!localStorage.getItem('fei_templates')) {
+      localStorage.setItem('fei_templates', JSON.stringify([
+        {
+          id: 'futuros_campeones_a',
+          name: 'FUTUROS CAMPEONES - TABLA A',
+          type: 'system',
+          discipline: 'dressage',
+          description: 'Plantilla oficial FEI para categoría Futuros Campeones - Tabla A',
+          exercises: [
+            { number: 1, description: 'Entrada en paso trabajado. Alto e inmovilidad. Saludo', coefficient: 1, maxScore: 10 },
+            { number: 2, description: 'Paso trabajado', coefficient: 1, maxScore: 10 },
+            { number: 3, description: 'Trote trabajado elevándose al trote', coefficient: 1, maxScore: 10 },
+            { number: 4, description: 'Círculo de 20m al trote trabajado', coefficient: 2, maxScore: 10 },
+            { number: 5, description: 'Transición trote-paso', coefficient: 1, maxScore: 10 },
+            { number: 6, description: 'Paso medio', coefficient: 2, maxScore: 10 },
+            { number: 7, description: 'Transición paso medio-trote', coefficient: 1, maxScore: 10 },
+            { number: 8, description: 'Círculo de 20m al trote trabajado', coefficient: 2, maxScore: 10 },
+            { number: 9, description: 'Galope trabajado', coefficient: 1, maxScore: 10 },
+            { number: 10, description: 'Círculo de 20m al galope trabajado', coefficient: 2, maxScore: 10 },
+            { number: 11, description: 'Transición galope-trote', coefficient: 1, maxScore: 10 },
+            { number: 12, description: 'Cambio de mano en diagonal al trote', coefficient: 1, maxScore: 10 },
+            { number: 13, description: 'Galope trabajado y círculo', coefficient: 2, maxScore: 10 },
+            { number: 14, description: 'Alto, retroceso, saludo', coefficient: 1, maxScore: 10 }
+          ],
+          collectiveMarks: [
+            { aspect: 'Aires (libertad y regularidad)', coefficient: 1, maxScore: 10 },
+            { aspect: 'Impulsión (deseo de avanzar, elasticidad)', coefficient: 2, maxScore: 10 },
+            { aspect: 'Sumisión (atención y confianza)', coefficient: 1, maxScore: 10 },
+            { aspect: 'Posición y asiento del jinete', coefficient: 1, maxScore: 10 },
+            { aspect: 'Corrección y efecto de las ayudas', coefficient: 1, maxScore: 10 }
+          ],
+          maxScore: 160,
+          is_system: true,
+          created_at: '2024-01-01T00:00:00Z'
+        },
+        {
+          id: 'show_jumping_standard',
+          name: 'SALTO ESTÁNDAR FEI',
+          type: 'system',
+          discipline: 'jumping',
+          description: 'Plantilla estándar FEI para pruebas de salto',
+          exercises: [
+            { number: 1, description: 'Falta al salto (derribo)', coefficient: 1, maxScore: 4, penalty: true },
+            { number: 2, description: 'Primera desobediencia', coefficient: 1, maxScore: 4, penalty: true },
+            { number: 3, description: 'Segunda desobediencia', coefficient: 1, maxScore: 0, elimination: true },
+            { number: 4, description: 'Caída del jinete o caballo', coefficient: 1, maxScore: 0, elimination: true }
+          ],
+          collectiveMarks: [
+            { aspect: 'Tiempo (segundos)', coefficient: 1, maxScore: 0, timed: true },
+            { aspect: 'Estilo y técnica', coefficient: 1, maxScore: 10 }
+          ],
+          maxScore: 0,
+          scoring_type: 'penalties',
+          is_system: true,
+          created_at: '2024-01-01T00:00:00Z'
+        }
+      ]));
+      console.log('📋 Plantillas FEI inicializadas');
+    }
   }
 
   async makeRequest(method, url, data = null) {
@@ -106,6 +167,8 @@ class CompetitionService {
         return this.handleCompetitionsRequest(method, id, data);
       case 'categories':
         return this.handleCategoriesRequest(method, id, data);
+      case 'templates':
+        return this.handleTemplatesRequest(method, id, data);
       default:
         return { results: [], message: 'Recurso no encontrado en localStorage' };
     }
@@ -275,6 +338,78 @@ class CompetitionService {
         throw new Error('Método no soportado');
     }
   }
+
+  handleTemplatesRequest(method, id, data) {
+    const templates = JSON.parse(localStorage.getItem('fei_templates') || '[]');
+
+    switch (method) {
+      case 'get':
+        if (id) {
+          return templates.find(t => t.id == id) || null;
+        }
+        return { results: templates };
+
+      case 'post':
+        // Generar ID único para plantilla personalizada
+        const maxId = templates.length > 0
+          ? Math.max(...templates.filter(t => typeof t.id === 'number').map(t => t.id || 0))
+          : 0;
+
+        const newTemplate = {
+          ...data,
+          id: maxId + 1,
+          type: 'custom',
+          is_system: false,
+          created_at: new Date().toISOString()
+        };
+
+        console.log('📝 Creando nueva plantilla:', newTemplate);
+        templates.push(newTemplate);
+        localStorage.setItem('fei_templates', JSON.stringify(templates));
+        console.log('✅ Plantilla guardada en localStorage');
+        return newTemplate;
+
+      case 'put':
+        const index = templates.findIndex(t => t.id == id);
+        if (index !== -1) {
+          // No permitir editar plantillas del sistema
+          if (templates[index].is_system) {
+            throw new Error('No se pueden editar plantillas del sistema');
+          }
+
+          const updatedTemplate = {
+            ...templates[index],
+            ...data,
+            id: templates[index].id,
+            type: 'custom',
+            is_system: false,
+            created_at: templates[index].created_at,
+            updated_at: new Date().toISOString()
+          };
+
+          templates[index] = updatedTemplate;
+          localStorage.setItem('fei_templates', JSON.stringify(templates));
+          console.log('✅ Plantilla actualizada en localStorage');
+          return updatedTemplate;
+        }
+        throw new Error('Plantilla no encontrada');
+
+      case 'delete':
+        const templateToDelete = templates.find(t => t.id == id);
+        if (templateToDelete && templateToDelete.is_system) {
+          throw new Error('No se pueden eliminar plantillas del sistema');
+        }
+
+        const filteredTemplates = templates.filter(t => t.id != id);
+        localStorage.setItem('fei_templates', JSON.stringify(filteredTemplates));
+        console.log('✅ Plantilla eliminada de localStorage');
+        return { success: true };
+
+      default:
+        throw new Error('Método no soportado');
+    }
+  }
+
   // =============== DISCIPLINAS ===============
   async getDisciplines() {
     return this.makeRequest('get', `${API_BASE_URL}/disciplines/`);
@@ -325,6 +460,48 @@ class CompetitionService {
 
   async deleteCategory(id) {
     return this.makeRequest('delete', `${API_BASE_URL}/categories/${id}`);
+  }
+
+  // =============== PLANTILLAS DE CALIFICACIÓN ===============
+  async getTemplates() {
+    return this.makeRequest('get', `${API_BASE_URL}/templates/`);
+  }
+
+  async getTemplateById(id) {
+    return this.makeRequest('get', `${API_BASE_URL}/templates/${id}/`);
+  }
+
+  async createTemplate(templateData) {
+    return this.makeRequest('post', `${API_BASE_URL}/templates/`, templateData);
+  }
+
+  async updateTemplate(id, templateData) {
+    return this.makeRequest('put', `${API_BASE_URL}/templates/${id}/`, templateData);
+  }
+
+  async deleteTemplate(id) {
+    return this.makeRequest('delete', `${API_BASE_URL}/templates/${id}/`);
+  }
+
+  async getCompetitionTemplate(competitionId) {
+    // Obtener la competencia para ver qué template tiene asignado
+    const competition = await this.getCompetitionById(competitionId);
+    if (competition && competition.scoring_template_id) {
+      return this.getTemplateById(competition.scoring_template_id);
+    }
+
+    // Si no tiene template asignado, retornar template por defecto según disciplina
+    const templates = await this.getTemplates();
+    const allTemplates = templates.results || templates;
+
+    if (competition.discipline === 'dressage') {
+      return allTemplates.find(t => t.id === 'futuros_campeones_a');
+    } else if (competition.discipline === 'jumping') {
+      return allTemplates.find(t => t.id === 'show_jumping_standard');
+    }
+
+    // Retornar primera plantilla disponible
+    return allTemplates[0] || null;
   }
 
   // =============== SEDES ===============

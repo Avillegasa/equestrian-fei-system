@@ -39,9 +39,10 @@ const ProtectedRoute = ({
         admin: '/admin',
         organizer: '/organizer',
         judge: '/judge',
+        rider: '/rider',
         viewer: '/'
       };
-      
+
       const redirectPath = roleRedirects[user.role] || '/';
       return <Navigate to={redirectPath} replace />;
     }
@@ -79,6 +80,15 @@ export const JudgeRoute = ({ children }) => (
 );
 
 /**
+ * Componente específico para rutas de rider
+ */
+export const RiderRoute = ({ children }) => (
+  <ProtectedRoute allowedRoles={['admin', 'rider']} fallbackPath="/">
+    {children}
+  </ProtectedRoute>
+);
+
+/**
  * Componente para rutas públicas (solo no autenticados)
  */
 export const PublicRoute = ({ children }) => {
@@ -96,11 +106,12 @@ export const PublicRoute = ({ children }) => {
   if (isAuthenticated && user) {
     const roleRedirects = {
       admin: '/admin',
-      organizer: '/organizer', 
+      organizer: '/organizer',
       judge: '/judge',
+      rider: '/rider',
       viewer: '/dashboard'
     };
-    
+
     const redirectPath = roleRedirects[user.role] || '/dashboard';
     return <Navigate to={redirectPath} replace />;
   }

@@ -220,6 +220,14 @@ const useAuthStore = create(
     },
 
     /**
+     * Verificar si es rider
+     */
+    isRider: () => {
+      const { user } = get();
+      return user?.role === 'rider';
+    },
+
+    /**
      * Verificar permisos específicos
      */
     hasPermission: (permission) => {
@@ -246,9 +254,10 @@ const useAuthStore = create(
         admin: 'Administrador',
         organizer: 'Organizador',
         judge: 'Juez',
+        rider: 'Jinete',
         viewer: 'Espectador'
       };
-      
+
       return roleMap[user.role] || user.role;
     }
   }), {

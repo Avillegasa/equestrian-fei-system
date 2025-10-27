@@ -416,28 +416,6 @@ const JudgeDashboard = () => {
               </div>
             </Link>
 
-            {/* Botón Calificar - solo si tiene asignaciones confirmadas */}
-            {confirmedAssignments.length > 0 ? (
-              <Link
-                to={`/judge/scoring/${confirmedAssignments[0].competition.id}`}
-                className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
-              >
-                <div className="text-center">
-                  <div className="text-4xl mb-3">⚖️</div>
-                  <h3 className="text-lg font-bold">Calificar</h3>
-                  <p className="text-sm opacity-90 mt-1">Sistema de puntuación</p>
-                </div>
-              </Link>
-            ) : (
-              <div className="bg-gradient-to-r from-gray-400 to-gray-500 text-white p-6 rounded-xl shadow-lg opacity-60 cursor-not-allowed">
-                <div className="text-center">
-                  <div className="text-4xl mb-3">⚖️</div>
-                  <h3 className="text-lg font-bold">Calificar</h3>
-                  <p className="text-sm opacity-90 mt-1">Sin asignaciones confirmadas</p>
-                </div>
-              </div>
-            )}
-
             {/* Botón Rankings - solo si tiene asignaciones */}
             {(confirmedAssignments.length > 0 || pendingAssignments.length > 0) ? (
               <Link
@@ -581,18 +559,16 @@ const JudgeDashboard = () => {
                         <p>👥 {competition.participants} participantes</p>
                         <p className="font-medium text-gray-700">🎯 {competition.myRole}</p>
                       </div>
-                      <div className="mt-3 space-x-2">
-                        {competition.status === 'pending_evaluation' && (
-                          <Link
-                            to={`/judge/scoring/${competition.id}`}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                          >
-                            ⚖️ Evaluar
-                          </Link>
-                        )}
+                      <div className="mt-3 flex space-x-2">
+                        <Link
+                          to={`/judge/scoring/${competition.id}`}
+                          className="inline-flex items-center px-3 py-1 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
+                        >
+                          ⚖️ Calificar
+                        </Link>
                         <Link
                           to={`/rankings/${competition.id}`}
-                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                         >
                           📊 Rankings
                         </Link>

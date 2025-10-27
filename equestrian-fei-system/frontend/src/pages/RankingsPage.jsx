@@ -3,7 +3,7 @@ import useAuth from '../hooks/useAuth';
 import LiveRankings from '../components/scoring/LiveRankings';
 
 const RankingsPage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isRider } = useAuth();
 
   const handleLogout = async () => {
     await logout();
@@ -16,7 +16,10 @@ const RankingsPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <Link to="/dashboard" className="text-blue-600 hover:text-blue-500 mr-4">
+              <Link
+                to={isRider() ? "/rider" : "/dashboard"}
+                className="text-blue-600 hover:text-blue-500 mr-4"
+              >
                 ← Volver al Dashboard
               </Link>
               <h1 className="text-3xl font-bold text-gray-900">

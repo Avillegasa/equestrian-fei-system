@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import useParticipantStore from '../store/participantStore';
 
 const ApprovalsPage = () => {
   const { user, logout } = useAuth();
+
+  // Conectar al store de participantes
+  const {
+    applications,
+    applicationsLoading,
+    loadAllApplications,
+    approveApplication,
+    rejectApplication
+  } = useParticipantStore();
+
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -17,25 +28,29 @@ const ApprovalsPage = () => {
     await logout();
   };
 
+  // Cargar aplicaciones de riders
+  useEffect(() => {
+    loadAllApplications();
+  }, []);
+
   // Datos de ejemplo para demostración
   useEffect(() => {
-    // Simular carga de datos
-    setTimeout(() => {
-      setApprovals([
-        {
-          id: 1,
-          type: 'judge_registration',
-          applicant: 'María Carmen López',
-          email: 'maria.lopez@example.com',
-          requestedRole: 'judge',
-          certificationLevel: 'FEI 3*',
-          experience: '8 años',
-          submittedAt: '2025-09-24T10:30:00Z',
-          status: 'pending',
-          documents: ['Certificación FEI', 'CV', 'Referencias'],
-          phone: '+34 612 345 678',
-          country: 'España'
-        },
+    // Combinar datos de ejemplo con aplicaciones reales de riders
+    const exampleApprovals = [
+      {
+        id: 1,
+        type: 'judge_registration',
+        applicant: 'María Carmen López',
+        email: 'maria.lopez@example.com',
+        requestedRole: 'judge',
+        certificationLevel: 'FEI 3*',
+        experience: '8 años',
+        submittedAt: '2025-09-24T10:30:00Z',
+        status: 'pending',
+        documents: ['Certificación FEI', 'CV', 'Referencias'],
+        phone: '+34 612 345 678',
+        country: 'España'
+      },
         {
           id: 2,
           type: 'organizer_verification',
@@ -83,10 +98,36 @@ const ApprovalsPage = () => {
           rejectedBy: 'Admin',
           rejectedAt: '2025-09-21T18:00:00Z'
         }
-      ]);
+      ];
+
+      // Convertir aplicaciones de riders al formato de approvals
+      const riderApplications = applications.map(app => ({
+        id: app.id,
+        type: 'rider_competition_application',
+        applicant: app.riderName,
+        email: app.riderEmail,
+        requestedRole: 'rider',
+        competitionName: app.competitionName,
+        competitionId: app.competitionId,
+        submittedAt: app.appliedAt,
+        status: app.status,
+        documents: [],
+        phone: '-',
+        country: 'No especificado',
+        reviewedBy: app.reviewedBy,
+        reviewedAt: app.reviewedAt,
+        rejectionReason: app.rejectionReason
+      }));
+
+      // Combinar y ordenar por fecha
+      const combined = [...exampleApprovals, ...riderApplications].sort(
+        (a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)
+      );
+
+      setApprovals(combined);
       setLoading(false);
     }, 500);
-  }, []);
+  }, [applications]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -113,7 +154,8 @@ const ApprovalsPage = () => {
       judge_registration: '⚖️',
       organizer_verification: '🏢',
       competition_approval: '🏆',
-      license_renewal: '📄'
+      license_renewal: '📄',
+      rider_competition_application: '🏇'
     };
     return icons[type] || '📋';
   };
@@ -123,7 +165,8 @@ const ApprovalsPage = () => {
       judge_registration: 'Registro de Juez',
       organizer_verification: 'Verificación de Organizador',
       competition_approval: 'Aprobación de Competencia',
-      license_renewal: 'Renovación de Licencia'
+      license_renewal: 'Renovación de Licencia',
+      rider_competition_application: 'Inscripción de Jinete'
     };
     return types[type] || type;
   };
@@ -148,21 +191,34 @@ const ApprovalsPage = () => {
     setShowApproveModal(true);
   };
 
-  const confirmApprove = () => {
+  const confirmApprove = async () => {
     console.log('✅ Aprobando solicitud:', selectedApproval.id);
-    setApprovals(approvals.map(approval =>
-      approval.id === selectedApproval.id
-        ? {
-            ...approval,
-            status: 'approved',
-            approvedBy: user?.username || 'Admin',
-            approvedAt: new Date().toISOString()
-          }
-        : approval
-    ));
+
+    // Si es una aplicación de rider, usar el store
+    if (selectedApproval.type === 'rider_competition_application') {
+      const result = await approveApplication(selectedApproval.id, user?.username || 'Admin');
+      if (result.success) {
+        alert('✅ Inscripción de jinete aprobada exitosamente!');
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } else {
+      // Para otros tipos, actualizar estado local
+      setApprovals(approvals.map(approval =>
+        approval.id === selectedApproval.id
+          ? {
+              ...approval,
+              status: 'approved',
+              approvedBy: user?.username || 'Admin',
+              approvedAt: new Date().toISOString()
+            }
+          : approval
+      ));
+      alert('✅ Solicitud aprobada exitosamente!');
+    }
+
     setShowApproveModal(false);
     setSelectedApproval(null);
-    alert('✅ Solicitud aprobada exitosamente!');
   };
 
   const handleRejectClick = (approval) => {
@@ -171,28 +227,45 @@ const ApprovalsPage = () => {
     setShowRejectModal(true);
   };
 
-  const confirmReject = () => {
+  const confirmReject = async () => {
     if (!rejectReason.trim()) {
       alert('⚠️ Por favor, proporciona un motivo de rechazo');
       return;
     }
 
     console.log('❌ Rechazando solicitud:', selectedApproval.id, 'Motivo:', rejectReason);
-    setApprovals(approvals.map(approval =>
-      approval.id === selectedApproval.id
-        ? {
-            ...approval,
-            status: 'rejected',
-            rejectionReason: rejectReason,
-            rejectedBy: user?.username || 'Admin',
-            rejectedAt: new Date().toISOString()
-          }
-        : approval
-    ));
+
+    // Si es una aplicación de rider, usar el store
+    if (selectedApproval.type === 'rider_competition_application') {
+      const result = await rejectApplication(
+        selectedApproval.id,
+        user?.username || 'Admin',
+        rejectReason
+      );
+      if (result.success) {
+        alert('✅ Inscripción de jinete rechazada');
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } else {
+      // Para otros tipos, actualizar estado local
+      setApprovals(approvals.map(approval =>
+        approval.id === selectedApproval.id
+          ? {
+              ...approval,
+              status: 'rejected',
+              rejectionReason: rejectReason,
+              rejectedBy: user?.username || 'Admin',
+              rejectedAt: new Date().toISOString()
+            }
+          : approval
+      ));
+      alert('✅ Solicitud rechazada');
+    }
+
     setShowRejectModal(false);
     setSelectedApproval(null);
     setRejectReason('');
-    alert('✅ Solicitud rechazada');
   };
 
   const filteredApprovals = filterStatus === 'all'
@@ -428,7 +501,7 @@ const ApprovalsPage = () => {
                           {approval.competitionName && (
                             <p className="text-sm text-gray-600 flex items-center">
                               <span className="font-medium mr-2">Competencia:</span>
-                              {approval.competitionName} ({approval.category})
+                              {approval.competitionName}{approval.category ? ` (${approval.category})` : ''}
                             </p>
                           )}
                         </div>

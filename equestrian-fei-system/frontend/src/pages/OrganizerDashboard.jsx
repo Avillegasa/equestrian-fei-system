@@ -297,6 +297,17 @@ const OrganizerDashboard = () => {
             </Link>
 
             <Link
+              to="/organizer/templates"
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+            >
+              <div className="text-center">
+                <div className="text-4xl mb-3">📄</div>
+                <h3 className="text-lg font-bold">Plantillas</h3>
+                <p className="text-sm opacity-90 mt-1">Gestionar plantillas de calificación</p>
+              </div>
+            </Link>
+
+            <Link
               to="/reports"
               className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >

@@ -12,7 +12,7 @@ const useAuth = () => {
     isAuthenticated,
     isLoading,
     error,
-    
+
     // Acciones
     initializeAuth,
     login,
@@ -21,12 +21,13 @@ const useAuth = () => {
     updateProfile,
     changePassword,
     clearError,
-    
+
     // Utilidades
     hasRole,
     isAdmin,
     isOrganizer,
     isJudge,
+    isRider,
     hasPermission,
     getFullName,
     getRoleDisplay
@@ -43,7 +44,7 @@ const useAuth = () => {
     isAuthenticated,
     isLoading,
     error,
-    
+
     // Acciones
     login,
     register,
@@ -51,16 +52,17 @@ const useAuth = () => {
     updateProfile,
     changePassword,
     clearError,
-    
+
     // Utilidades
     hasRole,
     isAdmin,
     isOrganizer,
     isJudge,
+    isRider,
     hasPermission,
     getFullName,
     getRoleDisplay,
-    
+
     // Datos derivados útiles
     userRole: user?.role,
     userName: getFullName(),

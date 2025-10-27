@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
+import useCompetitionStore from '../store/competitionStore';
 
 const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null, isEditMode = false }) => {
+  const { templates, loadTemplates } = useCompetitionStore();
+
+  // Cargar plantillas al montar el componente
+  useEffect(() => {
+    loadTemplates();
+  }, []);
   // Función para obtener fecha en formato datetime-local (hora local)
   const getDefaultDateTime = (daysFromNow = 0, hours = 10) => {
     const date = new Date();
@@ -77,7 +84,8 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
         venue_country: initialData.venueCountry || initialData.venue_country || '',
         max_participants: initialData.maxParticipants || initialData.max_participants || '',
         entry_fee: initialData.entryFee || initialData.entry_fee || '0',
-        accepted_categories: initialData.acceptedCategories || initialData.accepted_categories || []
+        accepted_categories: initialData.acceptedCategories || initialData.accepted_categories || [],
+        scoring_template_id: initialData.scoringTemplateId || initialData.scoring_template_id || ''
       };
     }
     return {
@@ -95,7 +103,8 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
       venue_country: '',
       max_participants: '',
       entry_fee: '0',
-      accepted_categories: []
+      accepted_categories: [],
+      scoring_template_id: ''
     };
   };
 
@@ -298,6 +307,48 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
                   <option value="driving">Enganche</option>
                 </select>
               </div>
+            </div>
+
+            {/* Plantilla de Calificación */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Plantilla de Calificación
+              </label>
+              <select
+                name="scoring_template_id"
+                value={formData.scoring_template_id}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Plantilla predeterminada (según disciplina)</option>
+
+                {/* Plantillas del Sistema */}
+                {templates.filter(t => t.is_system).length > 0 && (
+                  <optgroup label="Plantillas FEI Estándar">
+                    {templates.filter(t => t.is_system).map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} ({template.discipline})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+
+                {/* Plantillas Personalizadas */}
+                {templates.filter(t => !t.is_system).length > 0 && (
+                  <optgroup label="Mis Plantillas Personalizadas">
+                    {templates.filter(t => !t.is_system).map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} ({template.discipline})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {formData.scoring_template_id
+                  ? `Los jueces usarán esta plantilla para calificar`
+                  : `Se usará la plantilla predeterminada para ${formData.discipline}`}
+              </p>
             </div>
 
             {/* Fechas de inscripción */}

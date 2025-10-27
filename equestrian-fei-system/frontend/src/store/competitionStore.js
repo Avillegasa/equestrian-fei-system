@@ -12,7 +12,8 @@ const useCompetitionStore = create(
     venues: [],
     horses: [],
     participants: [],
-    
+    templates: [],
+
     // Estados de carga
     loading: false,
     disciplinesLoading: false,
@@ -20,6 +21,7 @@ const useCompetitionStore = create(
     venuesLoading: false,
     horsesLoading: false,
     participantsLoading: false,
+    templatesLoading: false,
     
     // Estados de error
     error: null,
@@ -176,6 +178,113 @@ const useCompetitionStore = create(
           categoriesLoading: false
         });
         return { success: false, error: error.response?.data };
+      }
+    },
+
+    // =============== PLANTILLAS DE CALIFICACIÓN ===============
+    loadTemplates: async () => {
+      set({ templatesLoading: true, error: null });
+      try {
+        const data = await competitionService.getTemplates();
+
+        // Asegurar que templates siempre sea un array
+        let templatesData = [];
+        if (Array.isArray(data)) {
+          templatesData = data;
+        } else if (data && Array.isArray(data.results)) {
+          templatesData = data.results;
+        }
+
+        set({
+          templates: templatesData,
+          templatesLoading: false
+        });
+      } catch (error) {
+        console.error('Error cargando plantillas:', error);
+        set({
+          error: error.response?.data?.detail || 'Error cargando plantillas',
+          templates: [],
+          templatesLoading: false
+        });
+      }
+    },
+
+    createTemplate: async (templateData) => {
+      set({ templatesLoading: true, error: null, validationErrors: {} });
+      try {
+        const newTemplate = await competitionService.createTemplate(templateData);
+        set(state => ({
+          templates: [newTemplate, ...state.templates],
+          templatesLoading: false
+        }));
+        return { success: true, data: newTemplate };
+      } catch (error) {
+        console.error('Error creando plantilla:', error);
+        const errorData = error.response?.data || {};
+        set({
+          error: errorData.detail || errorData.message || 'Error creando plantilla',
+          validationErrors: errorData,
+          templatesLoading: false
+        });
+        return { success: false, error: errorData };
+      }
+    },
+
+    updateTemplate: async (id, templateData) => {
+      set({ templatesLoading: true, error: null, validationErrors: {} });
+      try {
+        const updatedTemplate = await competitionService.updateTemplate(id, templateData);
+        set(state => ({
+          templates: state.templates.map(template =>
+            template.id === id ? updatedTemplate : template
+          ),
+          templatesLoading: false
+        }));
+        return { success: true, data: updatedTemplate };
+      } catch (error) {
+        console.error('Error actualizando plantilla:', error);
+        const errorData = error.response?.data || {};
+        set({
+          error: errorData.detail || error.message || 'Error actualizando plantilla',
+          validationErrors: errorData,
+          templatesLoading: false
+        });
+        return { success: false, error: errorData };
+      }
+    },
+
+    deleteTemplate: async (id) => {
+      set({ templatesLoading: true, error: null });
+      try {
+        await competitionService.deleteTemplate(id);
+        set(state => ({
+          templates: state.templates.filter(template => template.id !== id),
+          templatesLoading: false
+        }));
+        return { success: true };
+      } catch (error) {
+        console.error('Error eliminando plantilla:', error);
+        set({
+          error: error.response?.data?.detail || error.message || 'Error eliminando plantilla',
+          templatesLoading: false
+        });
+        return { success: false, error: error.response?.data || error.message };
+      }
+    },
+
+    getCompetitionTemplate: async (competitionId) => {
+      set({ templatesLoading: true, error: null });
+      try {
+        const template = await competitionService.getCompetitionTemplate(competitionId);
+        set({ templatesLoading: false });
+        return template;
+      } catch (error) {
+        console.error('Error obteniendo plantilla de competencia:', error);
+        set({
+          error: error.response?.data?.detail || 'Error obteniendo plantilla',
+          templatesLoading: false
+        });
+        return null;
       }
     },
 
@@ -734,12 +843,14 @@ const useCompetitionStore = create(
       venues: [],
       horses: [],
       participants: [],
+      templates: [],
       loading: false,
       disciplinesLoading: false,
       categoriesLoading: false,
       venuesLoading: false,
       horsesLoading: false,
       participantsLoading: false,
+      templatesLoading: false,
       error: null,
       validationErrors: {},
       filters: {

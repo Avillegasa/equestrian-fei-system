@@ -257,6 +257,7 @@ const RegisterForm = () => {
                 onChange={handleChange}
               >
                 <option value="viewer">Espectador</option>
+                <option value="rider">Jinete/Competidor</option>
                 <option value="organizer">Organizador</option>
                 <option value="judge">Juez</option>
               </select>

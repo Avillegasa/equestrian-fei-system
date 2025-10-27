@@ -411,3 +411,78 @@ export const exportBlankScoringTemplate = (template, participant) => {
 
   return fileName;
 };
+
+/**
+ * Descarga una plantilla Excel de ejemplo para crear plantillas de calificación
+ * Incluye 2 hojas: Ejercicios y Notas de Conjunto con ejemplos
+ */
+export const downloadTemplateExcelExample = () => {
+  const workbook = XLSX.utils.book_new();
+
+  // ==================== HOJA 1: EJERCICIOS ====================
+  const exercisesData = [
+    ['INSTRUCCIONES:', 'Complete esta tabla con los ejercicios de su plantilla de calificación. Puede agregar o eliminar filas según necesite.'],
+    [],
+    ['Número', 'Descripción del Ejercicio', 'Coeficiente', 'Puntuación Máxima'],
+    [1, 'Entrada en paso trabajado. Alto e inmovilidad. Saludo', 1, 10],
+    [2, 'Paso trabajado', 1, 10],
+    [3, 'Trote trabajado elevándose al trote', 1, 10],
+    [4, 'Círculo de 20m al trote trabajado', 2, 10],
+    [5, 'Transición trote-paso', 1, 10],
+    [6, 'Paso medio', 2, 10],
+    [7, 'Transición paso medio-trote', 1, 10],
+    [8, 'Círculo de 20m al trote trabajado', 2, 10],
+    [9, 'Galope trabajado', 1, 10],
+    [10, 'Círculo de 20m al galope trabajado', 2, 10],
+    [11, 'Transición galope-trote', 1, 10],
+    [12, 'Cambio de mano en diagonal al trote', 1, 10],
+    [13, 'Galope trabajado y círculo', 2, 10],
+    [14, 'Alto, retroceso, saludo', 1, 10],
+    [],
+    ['IMPORTANTE:', 'El coeficiente multiplica la puntuación (1, 2 o 3). Puntuación máxima típica: 10 puntos.']
+  ];
+
+  const exercisesSheet = XLSX.utils.aoa_to_sheet(exercisesData);
+
+  // Ajustar anchos de columna
+  exercisesSheet['!cols'] = [
+    { wch: 10 },  // Número
+    { wch: 60 },  // Descripción
+    { wch: 12 },  // Coeficiente
+    { wch: 18 }   // Puntuación Máxima
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, exercisesSheet, 'Ejercicios');
+
+  // ==================== HOJA 2: NOTAS DE CONJUNTO ====================
+  const collectiveData = [
+    ['INSTRUCCIONES:', 'Complete esta tabla con las notas de conjunto (evaluación general del binomio jinete-caballo).'],
+    [],
+    ['Aspecto a Evaluar', 'Coeficiente', 'Puntuación Máxima'],
+    ['Aires (libertad y regularidad)', 1, 10],
+    ['Impulsión (deseo de avanzar, elasticidad de los pasos)', 2, 10],
+    ['Sumisión (atención y confianza, armonía, ligereza)', 1, 10],
+    ['Posición y asiento del jinete, corrección de la posición', 1, 10],
+    ['Corrección y efecto de las ayudas', 1, 10],
+    [],
+    ['IMPORTANTE:', 'Las notas de conjunto evalúan aspectos generales de la presentación, no ejercicios específicos.']
+  ];
+
+  const collectiveSheet = XLSX.utils.aoa_to_sheet(collectiveData);
+
+  // Ajustar anchos de columna
+  collectiveSheet['!cols'] = [
+    { wch: 55 },  // Aspecto
+    { wch: 12 },  // Coeficiente
+    { wch: 18 }   // Puntuación Máxima
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, collectiveSheet, 'Notas de Conjunto');
+
+  // ==================== DESCARGAR ARCHIVO ====================
+  const fileName = 'Plantilla_Calificacion_FEI_Ejemplo.xlsx';
+  XLSX.writeFile(workbook, fileName);
+
+  console.log(`✅ Plantilla Excel descargada: ${fileName}`);
+  return fileName;
+};
