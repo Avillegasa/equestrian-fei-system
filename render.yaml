@@ -32,12 +32,6 @@ services:
           name: equestrian-db
           property: connectionString
 
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: equestrian-redis
-          property: connectionString
-
       - key: CORS_ALLOWED_ORIGINS
         value: "https://equestrian-frontend.onrender.com,http://localhost:5173"
 
@@ -52,16 +46,10 @@ services:
 
     autoDeploy: true
 
-    disk:
-      name: equestrian-data
-      mountPath: /opt/render/project/src/equestrian-fei-system/backend/media
-      sizeGB: 1
-
   # FRONTEND - React/Vite SPA
   - type: web
     name: equestrian-frontend
     runtime: static
-    region: oregon
     branch: main
     rootDir: equestrian-fei-system/frontend
     buildCommand: npm install && npm run build
@@ -95,7 +83,5 @@ services:
 databases:
   - name: equestrian-db
     databaseName: equestrian_fei_db
-    user: postgres
     region: oregon
     plan: free
-    ipAllowList: []
