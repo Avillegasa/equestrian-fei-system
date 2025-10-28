@@ -67,14 +67,15 @@ const AdminDashboardPro = () => {
       color: 'bg-green-600 hover:bg-green-700',
       textColor: 'text-white'
     },
-    {
-      title: 'Reportes FEI',
-      description: 'Generar reportes oficiales',
-      icon: '📊',
-      href: '/admin/reports',
-      color: 'bg-orange-600 hover:bg-orange-700',
-      textColor: 'text-white'
-    },
+    // DISABLED: Reports feature temporarily disabled
+    // {
+    //   title: 'Reportes FEI',
+    //   description: 'Generar reportes oficiales',
+    //   icon: '📊',
+    //   href: '/admin/reports',
+    //   color: 'bg-orange-600 hover:bg-orange-700',
+    //   textColor: 'text-white'
+    // },
     {
       title: 'Aprobaciones',
       description: 'Revisar solicitudes pendientes',

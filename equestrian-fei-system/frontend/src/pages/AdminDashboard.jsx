@@ -216,7 +216,8 @@ const AdminDashboard = () => {
               </div>
             </Link>
 
-            <Link
+            {/* DISABLED: Reports feature temporarily disabled */}
+            {/* <Link
               to="/admin/reports"
               className="bg-orange-600 hover:bg-orange-700 text-white p-6 rounded-lg shadow transition-colors"
             >
@@ -225,7 +226,7 @@ const AdminDashboard = () => {
                 <h3 className="text-lg font-semibold">Reportes</h3>
                 <p className="text-sm opacity-90">Estadísticas y análisis</p>
               </div>
-            </Link>
+            </Link> */}
 
             <Link
               to="/admin/activity-log"

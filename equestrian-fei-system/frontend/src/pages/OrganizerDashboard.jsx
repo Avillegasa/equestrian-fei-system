@@ -307,7 +307,8 @@ const OrganizerDashboard = () => {
               </div>
             </Link>
 
-            <Link
+            {/* DISABLED: Reports feature temporarily disabled */}
+            {/* <Link
               to="/reports"
               className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white p-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
             >
@@ -316,7 +317,7 @@ const OrganizerDashboard = () => {
                 <h3 className="text-lg font-bold">Reportes</h3>
                 <p className="text-sm opacity-90 mt-1">Estadísticas y análisis</p>
               </div>
-            </Link>
+            </Link> */}
 
             <Link
               to="/profile"

@@ -79,12 +79,13 @@ const DashboardPage = () => {
               <span className="ml-2 text-gray-500">Competencias Ecuestres</span>
             </div>
             <div className="flex items-center space-x-4">
-              <Link
+              {/* DISABLED: Reports feature temporarily disabled */}
+              {/* <Link
                 to="/reports"
                 className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
               >
                 📊 Reportes
-              </Link>
+              </Link> */}
               <Link
                 to="/profile"
                 className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
