@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import userService from '../services/userService';
 
 const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
   const [selectedUser, setSelectedUser] = useState(null);
@@ -8,87 +9,26 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Cargar usuarios reales del sistema desde localStorage
+  // Cargar usuarios reales del sistema desde API usando userService
   useEffect(() => {
-    const loadUsers = () => {
-      // Intentar cargar usuarios desde localStorage
-      let users = JSON.parse(localStorage.getItem('fei_system_users') || '[]');
+    const loadUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        console.log('👥 Cargando usuarios desde API...');
 
-      // Si no hay usuarios, inicializar con usuarios del sistema
-      if (users.length === 0) {
-        users = [
-          {
-            id: 1,
-            username: 'admin',
-            first_name: 'Carlos',
-            last_name: 'Administrador',
-            email: 'admin@feisystem.com',
-            role: 'admin',
-            certification: 'Administrador del Sistema'
-          },
-          {
-            id: 2,
-            username: 'organizer1',
-            first_name: 'Juan',
-            last_name: 'Organizador',
-            email: 'organizer@feisystem.com',
-            role: 'organizer',
-            certification: 'Organizador Certificado FEI'
-          },
-          {
-            id: 3,
-            username: 'judge1',
-            first_name: 'María',
-            last_name: 'García',
-            email: 'maria.garcia@feisystem.com',
-            role: 'judge',
-            certification: 'FEI Level 3'
-          },
-          {
-            id: 4,
-            username: 'judge2',
-            first_name: 'Ana',
-            last_name: 'Martínez',
-            email: 'ana.martinez@feisystem.com',
-            role: 'judge',
-            certification: 'FEI Level 4'
-          },
-          {
-            id: 5,
-            username: 'judge3',
-            first_name: 'Roberto',
-            last_name: 'Fernández',
-            email: 'roberto.fernandez@feisystem.com',
-            role: 'judge',
-            certification: 'FEI Level 2'
-          },
-          {
-            id: 6,
-            username: 'vet1',
-            first_name: 'Laura',
-            last_name: 'Veterinaria',
-            email: 'laura.vet@feisystem.com',
-            role: 'veterinarian',
-            certification: 'Veterinaria FEI Certificada'
-          },
-          {
-            id: 7,
-            username: 'staff1',
-            first_name: 'Pedro',
-            last_name: 'Staff',
-            email: 'pedro.staff@feisystem.com',
-            role: 'staff',
-            certification: 'Cronometrador Oficial'
-          }
-        ];
+        // Cargar todos los usuarios del sistema
+        const users = await userService.getUsers();
 
-        // Guardar en localStorage para futuras sesiones
-        localStorage.setItem('fei_system_users', JSON.stringify(users));
+        setAvailableUsers(users);
+        console.log('✅ Usuarios cargados desde API:', users.length);
+      } catch (error) {
+        console.error('❌ Error al cargar usuarios:', error);
+        setAvailableUsers([]);
+      } finally {
+        setLoadingUsers(false);
       }
-
-      setAvailableUsers(users);
-      console.log('👥 Usuarios cargados:', users.length);
     };
 
     if (isOpen) {
@@ -245,7 +185,12 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
                 Usuarios Disponibles ({filteredUsers.length})
               </label>
               <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg">
-                {filteredUsers.length === 0 ? (
+                {loadingUsers ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-500">Cargando usuarios...</p>
+                  </div>
+                ) : filteredUsers.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     No se encontraron usuarios
                   </div>

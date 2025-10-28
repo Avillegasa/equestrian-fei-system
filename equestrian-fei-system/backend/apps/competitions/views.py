@@ -399,6 +399,78 @@ class HorseViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class CompetitionStaffViewSet(viewsets.ModelViewSet):
+    """ViewSet para gestionar personal de competencias"""
+    serializer_class = CompetitionStaffSerializer
+    permission_classes = [CanManageCompetitionStaff]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['staff_member__first_name', 'staff_member__last_name', 'role']
+    ordering_fields = ['assigned_date', 'role', 'staff_member__last_name']
+    ordering = ['assigned_date']
+
+    def get_queryset(self):
+        """Filtrar personal según permisos del usuario"""
+        user = self.request.user
+        if not user.is_authenticated:
+            return CompetitionStaff.objects.none()
+
+        # Filtrar por competencia si se proporciona
+        competition_id = self.request.query_params.get('competition')
+
+        if user.role == 'admin':
+            queryset = CompetitionStaff.objects.select_related('competition', 'staff_member')
+        elif user.role == 'organizer':
+            # Organizadores ven staff de sus competencias
+            queryset = CompetitionStaff.objects.filter(
+                competition__organizer=user
+            ).select_related('competition', 'staff_member')
+        else:
+            # Otros usuarios no tienen acceso
+            queryset = CompetitionStaff.objects.none()
+
+        # Aplicar filtro de competencia
+        if competition_id:
+            queryset = queryset.filter(competition_id=competition_id)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        """Crear asignación de personal con auditoría"""
+        staff = serializer.save()
+
+        # Auditar la creación
+        AuditMiddleware.log_action(
+            self.request.user,
+            'create',
+            'CompetitionStaff',
+            str(staff.id),
+            f"Personal '{staff.staff_member.get_full_name()}' asignado a competencia '{staff.competition.name}' como {staff.get_role_display()}"
+        )
+
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        """Confirmar asignación de personal"""
+        staff = self.get_object()
+        staff.is_confirmed = True
+        staff.save()
+
+        return Response({'message': 'Asignación confirmada exitosamente'})
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Rechazar asignación de personal"""
+        staff = self.get_object()
+        notes = request.data.get('notes', '')
+
+        if notes:
+            staff.notes = f"{staff.notes}\n\nRechazado: {notes}" if staff.notes else f"Rechazado: {notes}"
+            staff.save()
+
+        staff.delete()
+
+        return Response({'message': 'Asignación rechazada exitosamente'})
+
+
 class ParticipantViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar participantes"""
     serializer_class = ParticipantSerializer

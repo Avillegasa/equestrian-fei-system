@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import useCompetitionStore from '../store/competitionStore';
+import staffService from '../services/staffService';
 import AssignStaffModal from '../components/AssignStaffModal';
 
 const CompetitionStaffPage = () => {
   const { competitionId } = useParams();
   const { user, logout } = useAuth();
   const [staff, setStaff] = useState([]);
+  const [loadingStaff, setLoadingStaff] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
@@ -31,58 +33,50 @@ const CompetitionStaffPage = () => {
     }
   }, [competitionId, loadCompetitionById]);
 
-  // Cargar personal desde localStorage
-  useEffect(() => {
+  // Cargar personal desde API usando staffService
+  const loadStaff = async () => {
     if (!competitionId) return;
 
-    console.log('👥 Cargando personal de la competencia desde localStorage');
-    const storageKey = `fei_staff_${competitionId}`;
-    const savedStaff = localStorage.getItem(storageKey);
-
-    if (savedStaff) {
-      try {
-        const parsedStaff = JSON.parse(savedStaff);
-        console.log('✅ Personal cargado:', parsedStaff.length, 'miembros');
-        setStaff(parsedStaff);
-      } catch (error) {
-        console.error('❌ Error al cargar personal:', error);
-        setStaff([]);
-      }
-    } else {
-      console.log('ℹ️ No hay personal guardado para esta competencia');
+    setLoadingStaff(true);
+    try {
+      console.log('👥 Cargando personal de la competencia desde API');
+      const staffData = await staffService.getCompetitionStaff(competitionId);
+      console.log('✅ Personal cargado:', staffData.length, 'miembros');
+      setStaff(staffData);
+    } catch (error) {
+      console.error('❌ Error al cargar personal:', error);
+      alert('Error al cargar personal. Verifica la consola para más detalles.');
       setStaff([]);
+    } finally {
+      setLoadingStaff(false);
     }
+  };
+
+  useEffect(() => {
+    loadStaff();
   }, [competitionId]);
 
-  const handleAssignStaff = (staffData) => {
-    // Generar un ID temporal para el nuevo miembro del personal
-    const newStaff = {
-      id: staff.length + 1,
-      staff_member: {
-        id: staffData.user_id || (staff.length + 10),
-        first_name: staffData.first_name,
-        last_name: staffData.last_name,
-        email: staffData.email,
-        role: staffData.user_role
-      },
-      role: staffData.staff_role,
-      judge_position: staffData.judge_position || null,
-      is_confirmed: false,
-      assigned_date: new Date().toISOString().split('T')[0],
-      notes: staffData.notes || ''
-    };
+  const handleAssignStaff = async (staffData) => {
+    try {
+      console.log('➕ Asignando personal:', staffData);
 
-    // Agregar el nuevo miembro al estado y guardar en localStorage
-    const updatedStaff = [newStaff, ...staff];
-    setStaff(updatedStaff);
+      // Asignar personal usando staffService
+      await staffService.assignStaff(competitionId, {
+        staff_member: staffData.user_id,
+        role: staffData.staff_role,
+        notes: staffData.notes || ''
+      });
 
-    // Guardar en localStorage
-    const storageKey = `fei_staff_${competitionId}`;
-    localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
-    console.log('💾 Personal guardado en localStorage:', storageKey);
+      // Recargar lista de personal
+      await loadStaff();
 
-    // Mostrar mensaje de éxito
-    alert('✅ Personal asignado exitosamente!');
+      // Cerrar modal y mostrar mensaje de éxito
+      setShowAssignModal(false);
+      alert('✅ Personal asignado exitosamente!');
+    } catch (error) {
+      console.error('❌ Error al asignar personal:', error);
+      alert('Error al asignar personal. Verifica la consola para más detalles.');
+    }
   };
 
   const handleRemoveStaff = (member) => {
@@ -91,21 +85,25 @@ const CompetitionStaffPage = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!staffToDelete) return;
 
-    console.log('🗑️ Eliminando staff ID:', staffToDelete.id);
-    const updatedStaff = staff.filter(s => s.id !== staffToDelete.id);
-    setStaff(updatedStaff);
+    try {
+      console.log('🗑️ Eliminando staff ID:', staffToDelete.id);
+      await staffService.removeStaff(staffToDelete.id, competitionId);
 
-    // Guardar en localStorage
-    const storageKey = `fei_staff_${competitionId}`;
-    localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
-    console.log('💾 Personal actualizado en localStorage después de eliminar');
+      // Recargar lista de personal
+      await loadStaff();
 
-    setShowDeleteModal(false);
-    setStaffToDelete(null);
-    alert('✅ Personal removido exitosamente!');
+      setShowDeleteModal(false);
+      setStaffToDelete(null);
+      alert('✅ Personal removido exitosamente!');
+    } catch (error) {
+      console.error('❌ Error al eliminar personal:', error);
+      alert('Error al eliminar personal. Verifica la consola para más detalles.');
+      setShowDeleteModal(false);
+      setStaffToDelete(null);
+    }
   };
 
   const cancelDelete = () => {
@@ -346,7 +344,7 @@ const CompetitionStaffPage = () => {
               </div>
             </div>
 
-            {loading ? (
+            {loadingStaff ? (
               <div className="px-4 py-5 sm:p-6">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

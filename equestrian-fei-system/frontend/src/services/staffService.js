@@ -1,4 +1,5 @@
 import axios from 'axios';
+import authService from './authService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -8,26 +9,108 @@ class StaffService {
   }
 
   /**
+   * Configurar headers de autenticación
+   */
+  getAuthHeaders() {
+    const token = authService.getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  /**
    * Obtener personal de una competencia específica
    */
   async getCompetitionStaff(competitionId) {
     try {
-      // En desarrollo, usar localStorage
+      // Intentar API primero
+      const response = await axios.get(
+        `${API_BASE_URL}/competitions/staff/?competition=${competitionId}`,
+        { headers: this.getAuthHeaders() }
+      );
+      console.log('✅ Personal cargado desde API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al obtener personal desde API:', error);
+
+      // Fallback a localStorage si la API falla
       if (this.useLocalStorage || !navigator.onLine) {
+        console.log('⚠️ Usando localStorage como fallback');
         const storageKey = `fei_staff_${competitionId}`;
         const savedStaff = localStorage.getItem(storageKey);
         return savedStaff ? JSON.parse(savedStaff) : [];
       }
 
-      // En producción, llamar al backend
-      const response = await axios.get(`${API_BASE_URL}/competitions/${competitionId}/staff/`);
+      throw error;
+    }
+  }
+
+  /**
+   * Asignar personal a una competencia
+   */
+  async assignStaff(competitionId, staffData) {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/competitions/staff/`,
+        {
+          competition: competitionId,
+          staff_member: staffData.staff_member,
+          role: staffData.role,
+          notes: staffData.notes || ''
+        },
+        { headers: this.getAuthHeaders() }
+      );
+      console.log('✅ Personal asignado exitosamente:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error al obtener personal:', error);
+      console.error('❌ Error al asignar personal:', error);
+
       // Fallback a localStorage
-      const storageKey = `fei_staff_${competitionId}`;
-      const savedStaff = localStorage.getItem(storageKey);
-      return savedStaff ? JSON.parse(savedStaff) : [];
+      if (this.useLocalStorage || !navigator.onLine) {
+        const storageKey = `fei_staff_${competitionId}`;
+        const savedStaff = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+        const newStaff = {
+          id: Date.now().toString(),
+          competition: competitionId,
+          staff_member: staffData.staff_member,
+          role: staffData.role,
+          notes: staffData.notes || '',
+          is_confirmed: false,
+          assigned_date: new Date().toISOString()
+        };
+
+        savedStaff.push(newStaff);
+        localStorage.setItem(storageKey, JSON.stringify(savedStaff));
+        return newStaff;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Eliminar asignación de personal
+   */
+  async removeStaff(staffId, competitionId) {
+    try {
+      await axios.delete(
+        `${API_BASE_URL}/competitions/staff/${staffId}/`,
+        { headers: this.getAuthHeaders() }
+      );
+      console.log('✅ Personal eliminado exitosamente');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error al eliminar personal:', error);
+
+      // Fallback a localStorage
+      if (this.useLocalStorage || !navigator.onLine) {
+        const storageKey = `fei_staff_${competitionId}`;
+        const savedStaff = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const updatedStaff = savedStaff.filter(s => s.id !== staffId);
+        localStorage.setItem(storageKey, JSON.stringify(updatedStaff));
+        return { success: true };
+      }
+
+      throw error;
     }
   }
 
