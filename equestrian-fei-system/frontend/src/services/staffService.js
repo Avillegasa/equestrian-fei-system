@@ -12,7 +12,7 @@ class StaffService {
    * Configurar headers de autenticación
    */
   getAuthHeaders() {
-    const token = authService.getToken();
+    const token = authService.getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
