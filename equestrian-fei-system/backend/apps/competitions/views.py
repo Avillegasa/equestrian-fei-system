@@ -428,9 +428,16 @@ class CompetitionStaffViewSet(viewsets.ModelViewSet):
             # Otros usuarios no tienen acceso
             queryset = CompetitionStaff.objects.none()
 
-        # Aplicar filtro de competencia
+        # Aplicar filtro de competencia con validación UUID
         if competition_id:
-            queryset = queryset.filter(competition_id=competition_id)
+            try:
+                # Validar que sea un UUID válido
+                import uuid
+                uuid.UUID(competition_id)
+                queryset = queryset.filter(competition_id=competition_id)
+            except (ValueError, AttributeError, TypeError):
+                # Si no es UUID válido, retornar queryset vacío en lugar de error 500
+                return CompetitionStaff.objects.none()
 
         return queryset
 
