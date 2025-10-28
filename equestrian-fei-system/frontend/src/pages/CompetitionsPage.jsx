@@ -477,7 +477,7 @@ const CompetitionsPage = () => {
           </div>
 
         {/* Action Buttons Profesionales */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="mt-8 grid grid-cols-1 gap-6 max-w-2xl mx-auto">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
             <h3 className="text-lg font-bold mb-3">Gestión de Competencias</h3>
             <p className="text-blue-100 text-sm mb-4">Crear y administrar competencias FEI oficiales</p>
@@ -496,21 +496,6 @@ const CompetitionsPage = () => {
                 <span>📋</span>
                 <span>Gestionar Categorías</span>
               </Link>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-green-600 to-teal-600 rounded-xl shadow-lg p-6 text-white">
-            <h3 className="text-lg font-bold mb-3">Reportes y Análisis</h3>
-            <p className="text-green-100 text-sm mb-4">Generar reportes oficiales FEI y análisis de datos</p>
-            <div className="flex flex-wrap gap-3">
-              <button className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
-                <span>📊</span>
-                <span>Exportar Resultados</span>
-              </button>
-              <button className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
-                <span>📈</span>
-                <span>Generar Reporte FEI</span>
-              </button>
             </div>
           </div>
         </div>
