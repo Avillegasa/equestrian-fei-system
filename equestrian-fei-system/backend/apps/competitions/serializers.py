@@ -130,10 +130,39 @@ class CompetitionScheduleSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Validaciones personalizadas"""
+        # Validar que start_time < end_time
         if data.get('start_time') and data.get('end_time'):
             if data['start_time'] >= data['end_time']:
-                raise serializers.ValidationError("La hora de inicio debe ser anterior a la de fin")
-        
+                raise serializers.ValidationError(
+                    "La hora de inicio debe ser anterior a la hora de fin"
+                )
+
+        # Validar que el evento esté dentro del rango de fechas de la competencia
+        competition = data.get('competition') or (self.instance.competition if self.instance else None)
+
+        if competition:
+            # Validar start_time contra fechas de competencia
+            if data.get('start_time'):
+                if data['start_time'] < competition.start_date:
+                    raise serializers.ValidationError({
+                        'start_time': 'La fecha de inicio del evento debe ser posterior al inicio de la competencia'
+                    })
+                if data['start_time'] > competition.end_date:
+                    raise serializers.ValidationError({
+                        'start_time': 'La fecha de inicio del evento debe ser anterior al fin de la competencia'
+                    })
+
+            # Validar end_time contra fechas de competencia
+            if data.get('end_time'):
+                if data['end_time'] < competition.start_date:
+                    raise serializers.ValidationError({
+                        'end_time': 'La fecha de fin del evento debe ser posterior al inicio de la competencia'
+                    })
+                if data['end_time'] > competition.end_date:
+                    raise serializers.ValidationError({
+                        'end_time': 'La fecha de fin del evento debe ser anterior al fin de la competencia'
+                    })
+
         return data
 
 

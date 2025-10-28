@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 
-const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, isEditMode = false }) => {
+const CreateScheduleModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialData = null,
+  isEditMode = false,
+  competitionStartDate = null,
+  competitionEndDate = null,
+  competitionName = ''
+}) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -11,6 +20,8 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, is
     category: '',
     location: 'Arena Principal'
   });
+
+  const [dateError, setDateError] = useState('');
 
   // Cargar datos iniciales cuando se está editando
   useEffect(() => {
@@ -40,16 +51,99 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, is
     }
   }, [isEditMode, initialData, isOpen]);
 
+  // Convertir fechas ISO a formato datetime-local (YYYY-MM-DDTHH:mm)
+  const formatDateForInput = (isoDate) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Formatear fechas para mostrar (dd/mm/yyyy HH:mm)
+  const formatDateForDisplay = (isoDate) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    return date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const minDate = formatDateForInput(competitionStartDate);
+  const maxDate = formatDateForInput(competitionEndDate);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+
+    // Limpiar error cuando usuario empieza a escribir
+    if (dateError && (name === 'start_time' || name === 'end_time')) {
+      setDateError('');
+    }
+  };
+
+  const validateDates = () => {
+    // Validar que start_time esté dentro del rango
+    if (formData.start_time) {
+      const startTime = new Date(formData.start_time);
+      const compStart = competitionStartDate ? new Date(competitionStartDate) : null;
+      const compEnd = competitionEndDate ? new Date(competitionEndDate) : null;
+
+      if (compStart && startTime < compStart) {
+        return 'La fecha de inicio del evento debe ser posterior al inicio de la competencia';
+      }
+      if (compEnd && startTime > compEnd) {
+        return 'La fecha de inicio del evento debe ser anterior al fin de la competencia';
+      }
+    }
+
+    // Validar que end_time esté dentro del rango
+    if (formData.end_time) {
+      const endTime = new Date(formData.end_time);
+      const compStart = competitionStartDate ? new Date(competitionStartDate) : null;
+      const compEnd = competitionEndDate ? new Date(competitionEndDate) : null;
+
+      if (compStart && endTime < compStart) {
+        return 'La fecha de fin del evento debe ser posterior al inicio de la competencia';
+      }
+      if (compEnd && endTime > compEnd) {
+        return 'La fecha de fin del evento debe ser anterior al fin de la competencia';
+      }
+    }
+
+    // Validar que start_time < end_time
+    if (formData.start_time && formData.end_time) {
+      const startTime = new Date(formData.start_time);
+      const endTime = new Date(formData.end_time);
+
+      if (startTime >= endTime) {
+        return 'La hora de inicio debe ser anterior a la hora de fin';
+      }
+    }
+
+    return '';
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validar fechas antes de enviar
+    const error = validateDates();
+    if (error) {
+      setDateError(error);
+      return;
+    }
+
     onSubmit(formData);
     // Reset form
     setFormData({
@@ -62,6 +156,7 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, is
       category: '',
       location: 'Arena Principal'
     });
+    setDateError('');
     onClose();
   };
 
@@ -124,6 +219,49 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, is
           </div>
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            {/* Banner de rango de fechas válidas */}
+            {competitionStartDate && competitionEndDate && (
+              <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <span className="text-2xl">📅</span>
+                  </div>
+                  <div className="ml-3">
+                    <h4 className="text-sm font-bold text-blue-900">
+                      Rango de fechas válidas: {competitionName || 'Competencia'}
+                    </h4>
+                    <div className="mt-1 text-sm text-blue-800">
+                      <p>
+                        <strong>Inicio:</strong> {formatDateForDisplay(competitionStartDate)}
+                      </p>
+                      <p>
+                        <strong>Fin:</strong> {formatDateForDisplay(competitionEndDate)}
+                      </p>
+                      <p className="mt-2 text-xs text-blue-700 italic">
+                        ⚠️ Los eventos deben programarse dentro de estas fechas
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error de validación de fechas */}
+            {dateError && (
+              <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <span className="text-xl">⚠️</span>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-red-800">
+                      {dateError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Información básica */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -184,10 +322,15 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, is
                   type="datetime-local"
                   name="start_time"
                   required
+                  min={minDate}
+                  max={maxDate}
                   value={formData.start_time}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Entre {formatDateForDisplay(competitionStartDate)} y {formatDateForDisplay(competitionEndDate)}
+                </p>
               </div>
 
               <div>
@@ -198,10 +341,15 @@ const CreateScheduleModal = ({ isOpen, onClose, onSubmit, initialData = null, is
                   type="datetime-local"
                   name="end_time"
                   required
+                  min={minDate}
+                  max={maxDate}
                   value={formData.end_time}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Entre {formatDateForDisplay(competitionStartDate)} y {formatDateForDisplay(competitionEndDate)}
+                </p>
               </div>
             </div>
 

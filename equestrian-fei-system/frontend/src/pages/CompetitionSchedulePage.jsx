@@ -537,120 +537,151 @@ const CompetitionSchedulePage = () => {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
 
-          {/* Competition Info */}
-          <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
-            <div className="px-4 py-5 sm:p-6">
+          {/* Competition Info - Redesigned */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 overflow-hidden shadow-xl rounded-xl mb-8">
+            <div className="px-6 py-8 sm:p-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div className="mb-4 md:mb-0">
+                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                    {competition.name}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-3 text-white/90 text-sm">
+                    <span className="flex items-center">
+                      🏆 {competition.discipline}
+                    </span>
+                    <span className="hidden md:inline">•</span>
+                    <span className="flex items-center">
+                      📍 {competition.location}
+                    </span>
+                  </div>
+                  <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 inline-block">
+                    <div className="text-white/90 text-xs font-medium mb-1">
+                      📅 Fechas de la Competencia
+                    </div>
+                    <div className="text-white font-bold text-sm">
+                      {new Date(competition.startDate).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                      {' → '}
+                      {new Date(competition.endDate).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-2">
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-white text-blue-600 shadow-lg">
+                    {competition.status === 'in_progress' ? '🔴 En Progreso' :
+                     competition.status === 'draft' ? '📝 Borrador' :
+                     competition.status === 'open_registration' ? '📝 Inscripción Abierta' :
+                     competition.status === 'completed' ? '✅ Completada' : competition.status}
+                  </span>
+                  <div className="text-white/80 text-xs">
+                    Programación de Eventos
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards - Redesigned */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white overflow-hidden shadow-lg rounded-xl border-t-4 border-blue-500 hover:shadow-xl transition-shadow">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 mb-1">
+                      Total Eventos
+                    </dt>
+                    <dd className="text-3xl font-bold text-gray-900">
+                      {schedule.length}
+                    </dd>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <span className="text-4xl">📅</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow-lg rounded-xl border-t-4 border-green-500 hover:shadow-xl transition-shadow">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 mb-1">
+                      Publicados
+                    </dt>
+                    <dd className="text-3xl font-bold text-green-600">
+                      {schedule.filter(s => s.is_published).length}
+                    </dd>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <span className="text-4xl">✅</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow-lg rounded-xl border-t-4 border-purple-500 hover:shadow-xl transition-shadow">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 mb-1">
+                      Pruebas
+                    </dt>
+                    <dd className="text-3xl font-bold text-purple-600">
+                      {schedule.filter(s => s.schedule_type === 'category_start').length}
+                    </dd>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <span className="text-4xl">🏆</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow-lg rounded-xl border-t-4 border-orange-500 hover:shadow-xl transition-shadow">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500 mb-1">
+                      Borradores
+                    </dt>
+                    <dd className="text-3xl font-bold text-orange-600">
+                      {schedule.filter(s => !s.is_published).length}
+                    </dd>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <span className="text-4xl">📝</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Schedule Timeline - Redesigned */}
+          <div className="bg-white shadow-xl overflow-hidden rounded-xl border border-gray-200">
+            <div className="px-6 py-6 sm:px-8 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">{competition.name}</h2>
-                  <p className="text-sm text-gray-500">
-                    {competition.discipline} • {competition.location}
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                    🗓️ Programación de Eventos
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Cronograma completo ordenado por fecha y hora
                   </p>
-                  <p className="text-sm text-gray-500">
-                    {competition.startDate} - {competition.endDate}
-                  </p>
                 </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {competition.status === 'in_progress' ? 'En Progreso' : competition.status}
-                  </span>
-                </div>
+                {schedule.length > 0 && (
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-blue-600">{schedule.length}</span>
+                    <p className="text-xs text-gray-500">eventos</p>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">📅</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Total Eventos
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {schedule.length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">📢</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Publicados
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {schedule.filter(s => s.is_published).length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">🏆</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Pruebas
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {schedule.filter(s => s.schedule_type === 'category_start').length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">⏳</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Borradores
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {schedule.filter(s => !s.is_published).length}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Schedule Timeline */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Programación de Eventos
-              </h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                Cronograma completo de la competencia
-              </p>
             </div>
 
             {loading ? (
@@ -805,6 +836,9 @@ const CompetitionSchedulePage = () => {
             isOpen={showCreateModal}
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreateSchedule}
+            competitionStartDate={competition?.startDate}
+            competitionEndDate={competition?.endDate}
+            competitionName={competition?.name}
           />
 
           {/* Modal de Editar Evento */}
@@ -817,6 +851,9 @@ const CompetitionSchedulePage = () => {
             onSubmit={handleUpdateSchedule}
             initialData={schedule.find(s => s.id === editingEventId)}
             isEditMode={true}
+            competitionStartDate={competition?.startDate}
+            competitionEndDate={competition?.endDate}
+            competitionName={competition?.name}
           />
 
           {/* Modal de Confirmación de Eliminación */}
