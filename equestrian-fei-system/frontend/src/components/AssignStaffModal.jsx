@@ -11,20 +11,20 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Cargar usuarios reales del sistema desde API usando userService
+  // Cargar jueces desde API usando userService.getJudges()
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadJudges = async () => {
       setLoadingUsers(true);
       try {
-        console.log('👥 Cargando usuarios desde API...');
+        console.log('⚖️ Cargando jueces desde API...');
 
-        // Cargar todos los usuarios del sistema
-        const users = await userService.getUsers();
+        // Cargar solo jueces del sistema
+        const judges = await userService.getJudges();
 
-        setAvailableUsers(users);
-        console.log('✅ Usuarios cargados desde API:', users.length);
+        setAvailableUsers(judges);
+        console.log('✅ Jueces cargados desde API:', judges.length);
       } catch (error) {
-        console.error('❌ Error al cargar usuarios:', error);
+        console.error('❌ Error al cargar jueces:', error);
         setAvailableUsers([]);
       } finally {
         setLoadingUsers(false);
@@ -32,7 +32,7 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
     };
 
     if (isOpen) {
-      loadUsers();
+      loadJudges();
     }
   }, [isOpen]);
 

@@ -7,6 +7,7 @@ app_name = 'users'
 # Router para ViewSets
 router = DefaultRouter()
 router.register('users', views.UserViewSet)
+router.register('judges', views.JudgeViewSet, basename='judge')
 router.register('judge-profiles', views.JudgeProfileViewSet)
 router.register('organizer-profiles', views.OrganizerProfileViewSet)
 router.register('audit-logs', views.AuditLogViewSet)

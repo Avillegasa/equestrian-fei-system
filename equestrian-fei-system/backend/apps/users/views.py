@@ -262,6 +262,22 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({'message': f'Usuario {user.username} desactivado'})
 
 
+class JudgeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet de solo lectura para listar jueces disponibles.
+    Permite a organizadores y admins ver la lista de jueces para asignar a competencias.
+    """
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    search_fields = ['first_name', 'last_name', 'email']
+    ordering_fields = ['first_name', 'last_name', 'created_at']
+    ordering = ['first_name', 'last_name']
+
+    def get_queryset(self):
+        """Retorna solo usuarios con role='judge' y activos"""
+        return User.objects.filter(role='judge', is_active=True).order_by('first_name', 'last_name')
+
+
 class JudgeProfileViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestión de perfiles de jueces

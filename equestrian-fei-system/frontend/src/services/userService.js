@@ -91,6 +91,35 @@ class UserService {
   }
 
   /**
+   * Obtener solo jueces activos (para asignar a competencias)
+   */
+  async getJudges() {
+    try {
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.get(`${API_BASE_URL}/users/judges/`, { headers });
+      console.log('✅ Jueces cargados desde API:', response.data);
+
+      // DRF puede retornar {results: []} con paginación
+      return response.data.results || response.data;
+    } catch (error) {
+      console.error('❌ Error al cargar jueces:', error);
+
+      // Fallback a localStorage si useMockData está activado
+      if (this.useMockData) {
+        const storageKey = 'fei_users';
+        const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const judges = users.filter(u => u.role === 'judge' && u.is_active !== false);
+        console.log('⚠️ Usando localStorage como fallback para jueces:', judges.length);
+        return judges;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Obtener todos los usuarios
    */
   async getUsers(params = {}) {
