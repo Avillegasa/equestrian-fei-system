@@ -32,20 +32,12 @@ def reset_database():
         """)
     print("   Tablas eliminadas")
 
-    # Paso 2: Eliminar migraciones viejas
-    print("\n2. Limpiando migraciones...")
-    call_command('migrate', '--fake', 'zero', '--all')
-
-    # Paso 3: Crear nuevas migraciones
-    print("\n3. Creando nuevas migraciones...")
-    call_command('makemigrations')
-
-    # Paso 4: Aplicar migraciones
-    print("\n4. Aplicando migraciones...")
+    # Paso 2: Aplicar migraciones desde cero
+    print("\n2. Aplicando migraciones...")
     call_command('migrate')
 
-    # Paso 5: Crear usuarios de prueba
-    print("\n5. Creando usuarios de prueba...")
+    # Paso 3: Crear usuarios de prueba
+    print("\n3. Creando usuarios de prueba...")
 
     # Admin
     admin = User.objects.create_superuser(
