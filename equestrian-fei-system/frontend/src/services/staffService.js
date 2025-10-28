@@ -27,7 +27,8 @@ class StaffService {
         { headers: this.getAuthHeaders() }
       );
       console.log('✅ Personal cargado desde API:', response.data);
-      return response.data;
+      // DRF retorna {results: []} con paginación, extraer el array
+      return response.data.results || response.data;
     } catch (error) {
       console.error('❌ Error al obtener personal desde API:', error);
 
