@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import useCompetitionStore from '../store/competitionStore';
 
 const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null, isEditMode = false }) => {
-  const { templates, loadTemplates } = useCompetitionStore();
+  const { templates, categories, loadTemplates, loadCategories } = useCompetitionStore();
 
-  // Cargar plantillas al montar el componente
+  // Cargar plantillas y categorías al montar el componente
   useEffect(() => {
     loadTemplates();
-  }, []);
+    loadCategories();
+  }, [loadTemplates, loadCategories]);
   // Función para obtener fecha en formato datetime-local (hora local)
   const getDefaultDateTime = (daysFromNow = 0, hours = 10) => {
     const date = new Date();
@@ -51,21 +52,12 @@ const CreateCompetitionModal = ({ isOpen, onClose, onSubmit, initialData = null,
     return `${year}-${month}-${day}T${hour}:${minute}`;
   };
 
-  // Categorías FEI disponibles
-  const availableCategories = [
-    'Pony',
-    'Junior (14-18 años)',
-    'Young Rider (18-21 años)',
-    'Amateur',
-    'Professional',
-    'Senior',
-    'Veterans (45+ años)',
-    'CSI1* (1.30m-1.35m)',
-    'CSI2* (1.35m-1.40m)',
-    'CSI3* (1.40m-1.45m)',
-    'CSI4* (1.45m-1.50m)',
-    'CSI5* (1.50m-1.60m)'
-  ];
+  // Categorías FEI disponibles desde el store (solo activas)
+  const availableCategories = Array.isArray(categories)
+    ? categories
+        .filter(cat => cat.is_active) // Solo categorías activas
+        .map(cat => cat.name) // Obtener solo nombres
+    : [];
 
   const getInitialFormData = () => {
     if (isEditMode && initialData) {
