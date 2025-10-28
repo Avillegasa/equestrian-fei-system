@@ -33,74 +33,9 @@ const ApprovalsPage = () => {
     loadAllApplications();
   }, []);
 
-  // Datos de ejemplo para demostración
+  // Cargar aplicaciones reales de riders
   useEffect(() => {
     setTimeout(() => {
-      // Combinar datos de ejemplo con aplicaciones reales de riders
-      const exampleApprovals = [
-      {
-        id: 1,
-        type: 'judge_registration',
-        applicant: 'María Carmen López',
-        email: 'maria.lopez@example.com',
-        requestedRole: 'judge',
-        certificationLevel: 'FEI 3*',
-        experience: '8 años',
-        submittedAt: '2025-09-24T10:30:00Z',
-        status: 'pending',
-        documents: ['Certificación FEI', 'CV', 'Referencias'],
-        phone: '+34 612 345 678',
-        country: 'España'
-      },
-        {
-          id: 2,
-          type: 'organizer_verification',
-          applicant: 'Club Ecuestre Valencia',
-          email: 'admin@clubvalencia.es',
-          requestedRole: 'organizer',
-          organizationType: 'Club Deportivo',
-          license: 'RFHE-2024-045',
-          submittedAt: '2025-09-23T14:15:00Z',
-          status: 'pending',
-          documents: ['Licencia RFHE', 'Seguros', 'Instalaciones'],
-          phone: '+34 963 123 456',
-          country: 'España'
-        },
-        {
-          id: 3,
-          type: 'competition_approval',
-          applicant: 'Federación Andaluza',
-          email: 'competiciones@fedand.es',
-          requestedRole: 'organizer',
-          competitionName: 'Copa Andalucía Dressage 2025',
-          category: 'Regional',
-          submittedAt: '2025-09-22T09:45:00Z',
-          status: 'approved',
-          documents: ['Reglamento', 'Programa', 'Jueces'],
-          phone: '+34 954 789 012',
-          country: 'España',
-          approvedBy: 'Admin',
-          approvedAt: '2025-09-22T12:00:00Z'
-        },
-        {
-          id: 4,
-          type: 'judge_registration',
-          applicant: 'Roberto Fernández',
-          email: 'r.fernandez@juez.es',
-          requestedRole: 'judge',
-          certificationLevel: 'FEI 4*',
-          experience: '15 años',
-          submittedAt: '2025-09-21T16:20:00Z',
-          status: 'rejected',
-          documents: ['Certificación FEI', 'CV', 'Referencias'],
-          rejectionReason: 'Documentación incompleta - Falta certificado actualizado',
-          phone: '+34 677 890 123',
-          country: 'España',
-          rejectedBy: 'Admin',
-          rejectedAt: '2025-09-21T18:00:00Z'
-        }
-      ];
-
       // Convertir aplicaciones de riders al formato de approvals
       const riderApplications = applications.map(app => ({
         id: app.id,
@@ -120,12 +55,12 @@ const ApprovalsPage = () => {
         rejectionReason: app.rejectionReason
       }));
 
-      // Combinar y ordenar por fecha
-      const combined = [...exampleApprovals, ...riderApplications].sort(
+      // Ordenar por fecha (más recientes primero)
+      const sortedApprovals = riderApplications.sort(
         (a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)
       );
 
-      setApprovals(combined);
+      setApprovals(sortedApprovals);
       setLoading(false);
     }, 500);
   }, [applications]);
@@ -151,25 +86,13 @@ const ApprovalsPage = () => {
   };
 
   const getTypeIcon = (type) => {
-    const icons = {
-      judge_registration: '⚖️',
-      organizer_verification: '🏢',
-      competition_approval: '🏆',
-      license_renewal: '📄',
-      rider_competition_application: '🏇'
-    };
-    return icons[type] || '📋';
+    // Solo manejamos inscripciones de jinetes por ahora
+    return type === 'rider_competition_application' ? '🏇' : '📋';
   };
 
   const getTypeDisplay = (type) => {
-    const types = {
-      judge_registration: 'Registro de Juez',
-      organizer_verification: 'Verificación de Organizador',
-      competition_approval: 'Aprobación de Competencia',
-      license_renewal: 'Renovación de Licencia',
-      rider_competition_application: 'Inscripción de Jinete'
-    };
-    return types[type] || type;
+    // Solo manejamos inscripciones de jinetes por ahora
+    return type === 'rider_competition_application' ? 'Inscripción de Jinete' : type;
   };
 
   const formatDate = (dateString) => {
@@ -318,6 +241,29 @@ const ApprovalsPage = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+
+        {/* Mensaje Informativo */}
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8 rounded-lg shadow-md">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <span className="text-3xl">ℹ️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-blue-900 mb-2">
+                Gestión de Inscripciones de Jinetes
+              </h3>
+              <p className="text-sm text-blue-800 mb-2">
+                Esta página administra las <strong>solicitudes de inscripción de jinetes</strong> a competencias FEI.
+                Los jinetes envían aplicaciones para participar en competencias, y aquí puedes aprobarlas o rechazarlas.
+              </p>
+              <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                <li><strong>Aprobar:</strong> El jinete queda inscrito y puede competir</li>
+                <li><strong>Rechazar:</strong> Se debe proporcionar un motivo claro del rechazo</li>
+                <li>Las solicitudes provienen del sistema de inscripción de competencias</li>
+              </ul>
+            </div>
+          </div>
+        </div>
 
         {/* Stats Cards Profesionales */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
