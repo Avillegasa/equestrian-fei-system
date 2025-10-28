@@ -44,6 +44,7 @@ const UsersPage = () => {
   // Cargar usuarios al montar el componente
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, roleFilter]);
 
   // Handler para crear usuario
@@ -52,9 +53,9 @@ const UsersPage = () => {
   };
 
   // Handler cuando se crea un usuario exitosamente
-  const handleUserCreated = (newUser) => {
+  const handleUserCreated = async (newUser) => {
     alert('✅ Usuario creado exitosamente!');
-    loadUsers(); // Recargar lista
+    await loadUsers(); // Recargar lista
   };
 
   // Handler para editar usuario
@@ -64,9 +65,9 @@ const UsersPage = () => {
   };
 
   // Handler cuando se actualiza un usuario exitosamente
-  const handleUserUpdated = (updatedUser) => {
+  const handleUserUpdated = async (updatedUser) => {
     alert('✅ Usuario actualizado exitosamente!');
-    loadUsers(); // Recargar lista
+    await loadUsers(); // Recargar lista
   };
 
   // Handler para abrir modal de confirmación de eliminación
@@ -84,7 +85,7 @@ const UsersPage = () => {
       alert('✅ Usuario eliminado exitosamente');
       setShowDeleteModal(false);
       setUserToDelete(null);
-      loadUsers(); // Recargar lista
+      await loadUsers(); // Recargar lista
     } catch (error) {
       console.error('❌ Error al eliminar usuario:', error);
       alert('❌ Error al eliminar usuario: ' + error.message);
@@ -96,7 +97,7 @@ const UsersPage = () => {
     try {
       await userService.verifyUser(userId);
       alert('✅ Usuario verificado exitosamente');
-      loadUsers(); // Recargar lista
+      await loadUsers(); // Recargar lista
     } catch (error) {
       console.error('❌ Error al verificar usuario:', error);
       alert('❌ Error al verificar usuario: ' + error.message);
@@ -113,7 +114,7 @@ const UsersPage = () => {
         await userService.activateUser(user.id);
         alert('✅ Usuario activado exitosamente');
       }
-      loadUsers(); // Recargar lista
+      await loadUsers(); // Esperar a que recargue la lista
     } catch (error) {
       console.error('❌ Error al cambiar estado del usuario:', error);
       alert('❌ Error al cambiar estado: ' + error.message);
