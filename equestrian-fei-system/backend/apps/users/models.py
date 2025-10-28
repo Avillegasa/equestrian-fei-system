@@ -16,8 +16,9 @@ class User(AbstractUser):
         ('judge', 'Juez'),
         ('viewer', 'Espectador'),
     ]
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Usando AutoField (integer) - Django lo crea automáticamente, no necesita declararse
+    # id se genera automáticamente como integer primary key
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     is_verified = models.BooleanField(default=False)
     phone = models.CharField(max_length=20, blank=True, null=True)

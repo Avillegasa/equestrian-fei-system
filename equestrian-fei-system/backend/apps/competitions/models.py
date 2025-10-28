@@ -21,7 +21,7 @@ class Discipline(models.Model):
         ('para_jumping', 'Para-Salto'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     name = models.CharField(max_length=100, unique=True, verbose_name="Nombre")
     code = models.CharField(max_length=20, unique=True, verbose_name="Código")
     discipline_type = models.CharField(max_length=20, choices=DISCIPLINE_TYPES, verbose_name="Tipo")
@@ -61,7 +61,7 @@ class Category(models.Model):
         ('international', 'Internacional'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     name = models.CharField(max_length=100, verbose_name="Nombre")
     code = models.CharField(max_length=20, unique=True, verbose_name="Código")
     category_type = models.CharField(max_length=20, choices=CATEGORY_TYPES, verbose_name="Tipo")
@@ -96,7 +96,7 @@ class Category(models.Model):
 
 class Venue(models.Model):
     """Lugares/Sedes donde se realizan las competencias"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     name = models.CharField(max_length=200, verbose_name="Nombre")
     address = models.TextField(verbose_name="Dirección")
     city = models.CharField(max_length=100, verbose_name="Ciudad")
@@ -155,7 +155,7 @@ class Competition(models.Model):
         ('friendly', 'Amistoso'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     name = models.CharField(max_length=200, verbose_name="Nombre")
     short_name = models.CharField(max_length=50, blank=True, verbose_name="Nombre corto")
     description = models.TextField(blank=True, verbose_name="Descripción")
@@ -241,7 +241,7 @@ class CompetitionStaff(models.Model):
         ('scorer', 'Anotador'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='staff')
     staff_member = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Miembro del personal")
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, verbose_name="Rol")
@@ -268,7 +268,7 @@ class Horse(models.Model):
         ('gelding', 'Caballo castrado'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     name = models.CharField(max_length=100, verbose_name="Nombre")
     registration_number = models.CharField(max_length=50, unique=True, verbose_name="Número de registro")
     
@@ -317,7 +317,7 @@ class Horse(models.Model):
 
 class Participant(models.Model):
     """Participante en una competencia específica"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='participants')
     rider = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Jinete")
     horse = models.ForeignKey(Horse, on_delete=models.CASCADE, verbose_name="Caballo")
@@ -361,7 +361,7 @@ class CompetitionSchedule(models.Model):
         ('special_event', 'Evento Especial'),
     ]
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # id se genera automáticamente como integer AutoField (primary key)
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='schedule')
     
     # Tiempo y duración

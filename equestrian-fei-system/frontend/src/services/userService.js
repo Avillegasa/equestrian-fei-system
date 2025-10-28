@@ -5,91 +5,20 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 class UserService {
   constructor() {
-    // Detectar si estamos en desarrollo para usar localStorage
-    this.useMockData = import.meta.env.MODE === 'development' ||
-                       window.location.hostname === 'localhost';
-
-    // Inicializar datos de ejemplo en localStorage si no existen
-    if (this.useMockData) {
-      this.initLocalStorage();
-    }
+    // Solo usar localStorage como fallback offline, controlado por variable de entorno
+    this.useLocalStorage = import.meta.env.VITE_USE_LOCAL_STORAGE === 'true' || false;
   }
 
-  /**
-   * Inicializar localStorage con datos de ejemplo
-   */
-  initLocalStorage() {
-    const storageKey = 'fei_users';
-    const existingUsers = localStorage.getItem(storageKey);
-
-    if (!existingUsers) {
-      const defaultUsers = [
-        {
-          id: '1',
-          username: 'admin',
-          email: 'admin@test.com',
-          first_name: 'Admin',
-          last_name: 'User',
-          role: 'admin',
-          is_active: true,
-          is_verified: true,
-          phone: '+34 123 456 789',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          username: 'judge1',
-          email: 'judge1@fei.com',
-          first_name: 'María',
-          last_name: 'González',
-          role: 'judge',
-          is_active: true,
-          is_verified: true,
-          phone: '+34 987 654 321',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          username: 'organizer1',
-          email: 'organizer1@fei.com',
-          first_name: 'Carlos',
-          last_name: 'Rodríguez',
-          role: 'organizer',
-          is_active: true,
-          is_verified: true,
-          phone: '+34 555 123 456',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '4',
-          username: 'rider1',
-          email: 'rider1@example.com',
-          first_name: 'Laura',
-          last_name: 'Martínez',
-          role: 'rider',
-          is_active: true,
-          is_verified: false,
-          phone: '+34 666 777 888',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '5',
-          username: 'viewer1',
-          email: 'viewer1@example.com',
-          first_name: 'Juan',
-          last_name: 'Pérez',
-          role: 'viewer',
-          is_active: true,
-          is_verified: true,
-          phone: '+34 111 222 333',
-          created_at: new Date().toISOString()
-        }
-      ];
-
-      localStorage.setItem(storageKey, JSON.stringify(defaultUsers));
-      console.log('✅ Usuarios de ejemplo inicializados en localStorage');
-    }
-  }
+  // ============================================================================
+  // ELIMINADO: initLocalStorage() con ~70 líneas de usuarios hardcodeados
+  //
+  // Anteriormente este archivo tenía 5 usuarios hardcodeados (admin, judge1,
+  // organizer1, rider1, viewer1) que se cargaban automáticamente en localStorage.
+  //
+  // AHORA: El sistema usa SIEMPRE la API del backend como fuente principal.
+  // Los usuarios se crean en el backend vía scripts de seed o endpoints de registro.
+  // localStorage solo se usa como fallback offline real.
+  // ============================================================================
 
   /**
    * Obtener solo jueces activos (para asignar a competencias)
@@ -99,20 +28,21 @@ class UserService {
       const token = authService.getAccessToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+      console.log('🌐 Cargando jueces desde API...');
       const response = await axios.get(`${API_BASE_URL}/users/judges/`, { headers });
       console.log('✅ Jueces cargados desde API:', response.data);
 
       // DRF puede retornar {results: []} con paginación
       return response.data.results || response.data;
     } catch (error) {
-      console.error('❌ Error al cargar jueces:', error);
+      console.error('❌ Error al cargar jueces desde backend:', error);
 
-      // Fallback a localStorage si useMockData está activado
-      if (this.useMockData) {
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
         const storageKey = 'fei_users';
         const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const judges = users.filter(u => u.role === 'judge' && u.is_active !== false);
-        console.log('⚠️ Usando localStorage como fallback para jueces:', judges.length);
+        console.log('⚠️ Usando localStorage como fallback offline para jueces:', judges.length);
         return judges;
       }
 
@@ -125,8 +55,22 @@ class UserService {
    */
   async getUsers(params = {}) {
     try {
-      // Si estamos en desarrollo, usar localStorage
-      if (this.useMockData) {
+      console.log('🌐 Cargando usuarios desde API...');
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.get(`${API_BASE_URL}/users/users/`, {
+        params,
+        headers
+      });
+
+      console.log('✅ Usuarios cargados desde API:', response.data);
+      return response.data.results || response.data;
+    } catch (error) {
+      console.error('❌ Error al cargar usuarios desde backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
         const storageKey = 'fei_users';
         const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
 
@@ -151,15 +95,10 @@ class UserService {
           );
         }
 
-        console.log('✅ Usuarios cargados desde localStorage:', filteredUsers.length);
+        console.log('⚠️ Usando localStorage como fallback offline:', filteredUsers.length);
         return filteredUsers;
       }
 
-      // Producción: usar API real
-      const response = await axios.get(`${API_BASE_URL}/users/users/`, { params });
-      return response.data.results || response.data;
-    } catch (error) {
-      console.error('❌ Error al cargar usuarios:', error);
       throw error;
     }
   }
@@ -169,7 +108,18 @@ class UserService {
    */
   async getUserById(userId) {
     try {
-      if (this.useMockData) {
+      console.log(`🌐 Cargando usuario ${userId} desde API...`);
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.get(`${API_BASE_URL}/users/users/${userId}/`, { headers });
+      console.log('✅ Usuario cargado desde API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al obtener usuario desde backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
         const storageKey = 'fei_users';
         const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const user = users.find(u => u.id === userId);
@@ -178,13 +128,10 @@ class UserService {
           throw new Error('Usuario no encontrado');
         }
 
+        console.log('⚠️ Usando localStorage como fallback offline');
         return user;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/users/users/${userId}/`);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error al obtener usuario:', error);
       throw error;
     }
   }
@@ -194,7 +141,18 @@ class UserService {
    */
   async createUser(userData) {
     try {
-      if (this.useMockData) {
+      console.log('🌐 Creando usuario en API...');
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.post(`${API_BASE_URL}/users/users/`, userData, { headers });
+      console.log('✅ Usuario creado en API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al crear usuario en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
         const storageKey = 'fei_users';
         const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
 
@@ -229,15 +187,10 @@ class UserService {
         users.push(newUser);
         localStorage.setItem(storageKey, JSON.stringify(users));
 
-        console.log('✅ Usuario creado en localStorage:', newUser);
+        console.log('⚠️ Usuario creado en localStorage como fallback offline:', newUser);
         return newUser;
       }
 
-      // Producción: usar API real
-      const response = await axios.post(`${API_BASE_URL}/users/users/`, userData);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error al crear usuario:', error);
       throw error;
     }
   }
@@ -247,7 +200,18 @@ class UserService {
    */
   async updateUser(userId, userData) {
     try {
-      if (this.useMockData) {
+      console.log(`🌐 Actualizando usuario ${userId} en API...`);
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.patch(`${API_BASE_URL}/users/users/${userId}/`, userData, { headers });
+      console.log('✅ Usuario actualizado en API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al actualizar usuario en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
         const storageKey = 'fei_users';
         const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
 
@@ -267,15 +231,10 @@ class UserService {
 
         localStorage.setItem(storageKey, JSON.stringify(users));
 
-        console.log('✅ Usuario actualizado en localStorage:', users[userIndex]);
+        console.log('⚠️ Usuario actualizado en localStorage como fallback offline:', users[userIndex]);
         return users[userIndex];
       }
 
-      // Producción: usar API real
-      const response = await axios.patch(`${API_BASE_URL}/users/users/${userId}/`, userData);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error al actualizar usuario:', error);
       throw error;
     }
   }
@@ -285,7 +244,18 @@ class UserService {
    */
   async deleteUser(userId) {
     try {
-      if (this.useMockData) {
+      console.log(`🌐 Eliminando usuario ${userId} en API...`);
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      await axios.delete(`${API_BASE_URL}/users/users/${userId}/`, { headers });
+      console.log('✅ Usuario eliminado en API');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error al eliminar usuario en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
         const storageKey = 'fei_users';
         const users = JSON.parse(localStorage.getItem(storageKey) || '[]');
 
@@ -297,15 +267,10 @@ class UserService {
 
         localStorage.setItem(storageKey, JSON.stringify(updatedUsers));
 
-        console.log('✅ Usuario eliminado de localStorage');
+        console.log('⚠️ Usuario eliminado de localStorage como fallback offline');
         return { success: true };
       }
 
-      // Producción: usar API real
-      await axios.delete(`${API_BASE_URL}/users/users/${userId}/`);
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Error al eliminar usuario:', error);
       throw error;
     }
   }
@@ -315,14 +280,22 @@ class UserService {
    */
   async verifyUser(userId) {
     try {
-      if (this.useMockData) {
+      console.log(`🌐 Verificando usuario ${userId} en API...`);
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.post(`${API_BASE_URL}/users/users/${userId}/verify_user/`, {}, { headers });
+      console.log('✅ Usuario verificado en API');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al verificar usuario en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
+        console.log('⚠️ Usando localStorage como fallback offline');
         return await this.updateUser(userId, { is_verified: true });
       }
 
-      const response = await axios.post(`${API_BASE_URL}/users/users/${userId}/verify_user/`);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error al verificar usuario:', error);
       throw error;
     }
   }
@@ -332,14 +305,22 @@ class UserService {
    */
   async deactivateUser(userId) {
     try {
-      if (this.useMockData) {
+      console.log(`🌐 Desactivando usuario ${userId} en API...`);
+      const token = authService.getAccessToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.post(`${API_BASE_URL}/users/users/${userId}/deactivate_user/`, {}, { headers });
+      console.log('✅ Usuario desactivado en API');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error al desactivar usuario en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado
+      if (this.useLocalStorage) {
+        console.log('⚠️ Usando localStorage como fallback offline');
         return await this.updateUser(userId, { is_active: false });
       }
 
-      const response = await axios.post(`${API_BASE_URL}/users/users/${userId}/deactivate_user/`);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error al desactivar usuario:', error);
       throw error;
     }
   }
@@ -349,6 +330,7 @@ class UserService {
    */
   async activateUser(userId) {
     try {
+      console.log(`🌐 Activando usuario ${userId}...`);
       return await this.updateUser(userId, { is_active: true });
     } catch (error) {
       console.error('❌ Error al activar usuario:', error);

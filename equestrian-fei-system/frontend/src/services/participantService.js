@@ -4,25 +4,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 class ParticipantService {
   constructor() {
+    // Solo usar localStorage como fallback offline, controlado por variable de entorno
     this.useLocalStorage = import.meta.env.VITE_USE_LOCAL_STORAGE === 'true' || false;
-    this.initLocalStorage();
   }
 
-  initLocalStorage() {
-    // Inicializar applications (inscripciones de riders)
-    if (!localStorage.getItem('fei_applications')) {
-      localStorage.setItem('fei_applications', JSON.stringify([]));
-    }
-
-    console.log('🔧 participantService localStorage inicializado');
-  }
-
-  /**
-   * Generar ID único para aplicaciones
-   */
-  generateId() {
-    return 'app_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-  }
+  // ============================================================================
+  // ELIMINADO: initLocalStorage() que inicializaba array vacío
+  // ELIMINADO: generateId() para fake IDs - backend genera IDs reales
+  //
+  // AHORA: El sistema usa SIEMPRE la API del backend como fuente principal.
+  // localStorage solo se usa como fallback offline real.
+  // ============================================================================
 
   /**
    * Normalizar datos de snake_case a camelCase
@@ -67,20 +59,21 @@ class ParticipantService {
    */
   async getAllApplications() {
     try {
-      // En desarrollo, usar localStorage
+      console.log('🌐 Cargando aplicaciones desde API...');
+      const response = await axios.get(`${API_BASE_URL}/applications/`);
+      console.log('✅ Aplicaciones cargadas desde API');
+      return response.data.map(app => this.normalizeApplication(app));
+    } catch (error) {
+      console.error('❌ Error al obtener aplicaciones desde backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
+        console.log('⚠️ Usando localStorage como fallback offline');
         return apps.map(app => this.normalizeApplication(app));
       }
 
-      // En producción, llamar al backend
-      const response = await axios.get(`${API_BASE_URL}/applications/`);
-      return response.data.map(app => this.normalizeApplication(app));
-    } catch (error) {
-      console.error('Error al obtener aplicaciones:', error);
-      // Fallback a localStorage si falla el API
-      const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
-      return apps.map(app => this.normalizeApplication(app));
+      throw error;
     }
   }
 
@@ -89,22 +82,22 @@ class ParticipantService {
    */
   async getMyApplications(riderId) {
     try {
-      // En desarrollo, usar localStorage
+      console.log('🌐 Cargando mis aplicaciones desde API...');
+      const response = await axios.get(`${API_BASE_URL}/applications/my-applications/`);
+      console.log('✅ Mis aplicaciones cargadas desde API');
+      return response.data.map(app => this.normalizeApplication(app));
+    } catch (error) {
+      console.error('❌ Error al obtener mis aplicaciones desde backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
         const myApps = apps.filter(app => app.rider_id === riderId || app.riderId === riderId);
+        console.log('⚠️ Usando localStorage como fallback offline');
         return myApps.map(app => this.normalizeApplication(app));
       }
 
-      // En producción, llamar al backend
-      const response = await axios.get(`${API_BASE_URL}/applications/my-applications/`);
-      return response.data.map(app => this.normalizeApplication(app));
-    } catch (error) {
-      console.error('Error al obtener mis aplicaciones:', error);
-      // Fallback a localStorage si falla el API
-      const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
-      const myApps = apps.filter(app => app.rider_id === riderId || app.riderId === riderId);
-      return myApps.map(app => this.normalizeApplication(app));
+      throw error;
     }
   }
 
@@ -113,26 +106,24 @@ class ParticipantService {
    */
   async getApplicationsByCompetition(competitionId) {
     try {
-      // En desarrollo, usar localStorage
+      console.log(`🌐 Cargando aplicaciones de competencia ${competitionId} desde API...`);
+      const response = await axios.get(`${API_BASE_URL}/applications/?competition=${competitionId}`);
+      console.log('✅ Aplicaciones de competencia cargadas desde API');
+      return response.data.map(app => this.normalizeApplication(app));
+    } catch (error) {
+      console.error('❌ Error al obtener aplicaciones de competencia desde backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
         const compApps = apps.filter(app =>
           (app.competition_id || app.competitionId) == competitionId
         );
+        console.log('⚠️ Usando localStorage como fallback offline');
         return compApps.map(app => this.normalizeApplication(app));
       }
 
-      // En producción, llamar al backend
-      const response = await axios.get(`${API_BASE_URL}/applications/?competition=${competitionId}`);
-      return response.data.map(app => this.normalizeApplication(app));
-    } catch (error) {
-      console.error('Error al obtener aplicaciones de competencia:', error);
-      // Fallback a localStorage
-      const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
-      const compApps = apps.filter(app =>
-        (app.competition_id || app.competitionId) == competitionId
-      );
-      return compApps.map(app => this.normalizeApplication(app));
+      throw error;
     }
   }
 
@@ -141,7 +132,16 @@ class ParticipantService {
    */
   async applyToCompetition(competitionId, riderData) {
     try {
-      // En desarrollo, usar localStorage
+      console.log(`🌐 Aplicando a competencia ${competitionId} en API...`);
+      const response = await axios.post(`${API_BASE_URL}/applications/`, {
+        competition_id: competitionId
+      });
+      console.log('✅ Aplicación creada en API:', response.data);
+      return this.normalizeApplication(response.data);
+    } catch (error) {
+      console.error('❌ Error al aplicar a competencia en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
 
@@ -159,8 +159,9 @@ class ParticipantService {
         const competitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
         const competition = competitions.find(c => c.id == competitionId);
 
+        // Generar ID temporal para offline
         const newApp = {
-          id: this.generateId(),
+          id: 'app_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
           competition_id: competitionId,
           competition_name: competition?.name || 'Competencia',
           rider_id: riderData.id,
@@ -176,17 +177,10 @@ class ParticipantService {
         apps.push(newApp);
         localStorage.setItem('fei_applications', JSON.stringify(apps));
 
-        console.log('✅ Aplicación creada:', newApp);
+        console.log('⚠️ Aplicación creada en localStorage como fallback offline:', newApp);
         return this.normalizeApplication(newApp);
       }
 
-      // En producción, llamar al backend
-      const response = await axios.post(`${API_BASE_URL}/applications/`, {
-        competition_id: competitionId
-      });
-      return this.normalizeApplication(response.data);
-    } catch (error) {
-      console.error('Error al aplicar a competencia:', error);
       throw error;
     }
   }
@@ -196,7 +190,14 @@ class ParticipantService {
    */
   async approveApplication(applicationId, reviewerName) {
     try {
-      // En desarrollo, usar localStorage
+      console.log(`🌐 Aprobando aplicación ${applicationId} en API...`);
+      const response = await axios.post(`${API_BASE_URL}/applications/${applicationId}/approve/`);
+      console.log('✅ Aplicación aprobada en API');
+      return this.normalizeApplication(response.data);
+    } catch (error) {
+      console.error('❌ Error al aprobar aplicación en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
         const index = apps.findIndex(app => app.id === applicationId);
@@ -214,15 +215,10 @@ class ParticipantService {
         };
 
         localStorage.setItem('fei_applications', JSON.stringify(apps));
-        console.log('✅ Aplicación aprobada:', apps[index]);
+        console.log('⚠️ Aplicación aprobada en localStorage como fallback offline:', apps[index]);
         return this.normalizeApplication(apps[index]);
       }
 
-      // En producción, llamar al backend
-      const response = await axios.post(`${API_BASE_URL}/applications/${applicationId}/approve/`);
-      return this.normalizeApplication(response.data);
-    } catch (error) {
-      console.error('Error al aprobar aplicación:', error);
       throw error;
     }
   }
@@ -232,7 +228,16 @@ class ParticipantService {
    */
   async rejectApplication(applicationId, reviewerName, reason) {
     try {
-      // En desarrollo, usar localStorage
+      console.log(`🌐 Rechazando aplicación ${applicationId} en API...`);
+      const response = await axios.post(`${API_BASE_URL}/applications/${applicationId}/reject/`, {
+        reason
+      });
+      console.log('✅ Aplicación rechazada en API');
+      return this.normalizeApplication(response.data);
+    } catch (error) {
+      console.error('❌ Error al rechazar aplicación en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
         const index = apps.findIndex(app => app.id === applicationId);
@@ -250,17 +255,10 @@ class ParticipantService {
         };
 
         localStorage.setItem('fei_applications', JSON.stringify(apps));
-        console.log('❌ Aplicación rechazada:', apps[index]);
+        console.log('⚠️ Aplicación rechazada en localStorage como fallback offline:', apps[index]);
         return this.normalizeApplication(apps[index]);
       }
 
-      // En producción, llamar al backend
-      const response = await axios.post(`${API_BASE_URL}/applications/${applicationId}/reject/`, {
-        reason
-      });
-      return this.normalizeApplication(response.data);
-    } catch (error) {
-      console.error('Error al rechazar aplicación:', error);
       throw error;
     }
   }
@@ -270,20 +268,22 @@ class ParticipantService {
    */
   async cancelApplication(applicationId) {
     try {
-      // En desarrollo, usar localStorage
+      console.log(`🌐 Cancelando aplicación ${applicationId} en API...`);
+      await axios.delete(`${API_BASE_URL}/applications/${applicationId}/`);
+      console.log('✅ Aplicación cancelada en API');
+      return true;
+    } catch (error) {
+      console.error('❌ Error al cancelar aplicación en backend:', error);
+
+      // Fallback a localStorage SOLO si está explícitamente configurado o sin conexión
       if (this.useLocalStorage || !navigator.onLine) {
         const apps = JSON.parse(localStorage.getItem('fei_applications') || '[]');
         const filtered = apps.filter(app => app.id !== applicationId);
         localStorage.setItem('fei_applications', JSON.stringify(filtered));
-        console.log('🗑️ Aplicación cancelada');
+        console.log('⚠️ Aplicación cancelada en localStorage como fallback offline');
         return true;
       }
 
-      // En producción, llamar al backend
-      await axios.delete(`${API_BASE_URL}/applications/${applicationId}/`);
-      return true;
-    } catch (error) {
-      console.error('Error al cancelar aplicación:', error);
       throw error;
     }
   }

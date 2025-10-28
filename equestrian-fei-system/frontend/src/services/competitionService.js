@@ -4,155 +4,44 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 class CompetitionService {
   constructor() {
+    // Solo usar localStorage como fallback offline, NO como primario
     this.useLocalStorage = import.meta.env.VITE_USE_LOCAL_STORAGE === 'true' || false;
-    this.initLocalStorage();
   }
 
-  initLocalStorage() {
-    if (!localStorage.getItem('fei_competitions')) {
-      localStorage.setItem('fei_competitions', JSON.stringify([
-        {
-          id: 1,
-          name: 'FEI Dressage Madrid 2024',
-          short_name: 'FDM2024',
-          description: 'Competencia oficial de dressage',
-          competition_type: 'international',
-          start_date: '2025-10-03T09:00:00',
-          end_date: '2025-10-06T18:00:00',
-          registration_start: '2024-12-01T00:00:00',
-          registration_end: '2025-09-25T23:59:59',
-          discipline: 'dressage',
-          venue_name: 'Club Hípico Madrid',
-          venue_city: 'Madrid',
-          venue_country: 'España',
-          max_participants: 50,
-          entry_fee: 150.00,
-          status: 'open_registration',
-          participants: 0,
-          created_at: '2024-11-01T10:00:00Z'
-        }
-      ]));
-    }
-
-    // Mensaje de debug para verificar inicialización
-    const comps = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
-    console.log('🔧 localStorage inicializado con', comps.length, 'competencias');
-
-    if (!localStorage.getItem('fei_categories')) {
-      localStorage.setItem('fei_categories', JSON.stringify([
-        {
-          id: 1,
-          name: 'Juvenil 1.20m',
-          code: 'JUV120',
-          category_type: 'height',
-          level: 'intermediate',
-          min_height_cm: 115,
-          max_height_cm: 125,
-          max_participants: 50,
-          entry_fee: 75.00,
-          is_active: true
-        },
-        {
-          id: 2,
-          name: 'Senior 1.40m',
-          code: 'SEN140',
-          category_type: 'height',
-          level: 'advanced',
-          min_height_cm: 135,
-          max_height_cm: 145,
-          max_participants: 40,
-          entry_fee: 150.00,
-          is_active: true
-        }
-      ]));
-    }
-
-    // Inicializar plantillas de calificación FEI
-    if (!localStorage.getItem('fei_templates')) {
-      localStorage.setItem('fei_templates', JSON.stringify([
-        {
-          id: 'futuros_campeones_a',
-          name: 'FUTUROS CAMPEONES - TABLA A',
-          type: 'system',
-          discipline: 'dressage',
-          description: 'Plantilla oficial FEI para categoría Futuros Campeones - Tabla A',
-          exercises: [
-            { number: 1, description: 'Entrada en paso trabajado. Alto e inmovilidad. Saludo', coefficient: 1, maxScore: 10 },
-            { number: 2, description: 'Paso trabajado', coefficient: 1, maxScore: 10 },
-            { number: 3, description: 'Trote trabajado elevándose al trote', coefficient: 1, maxScore: 10 },
-            { number: 4, description: 'Círculo de 20m al trote trabajado', coefficient: 2, maxScore: 10 },
-            { number: 5, description: 'Transición trote-paso', coefficient: 1, maxScore: 10 },
-            { number: 6, description: 'Paso medio', coefficient: 2, maxScore: 10 },
-            { number: 7, description: 'Transición paso medio-trote', coefficient: 1, maxScore: 10 },
-            { number: 8, description: 'Círculo de 20m al trote trabajado', coefficient: 2, maxScore: 10 },
-            { number: 9, description: 'Galope trabajado', coefficient: 1, maxScore: 10 },
-            { number: 10, description: 'Círculo de 20m al galope trabajado', coefficient: 2, maxScore: 10 },
-            { number: 11, description: 'Transición galope-trote', coefficient: 1, maxScore: 10 },
-            { number: 12, description: 'Cambio de mano en diagonal al trote', coefficient: 1, maxScore: 10 },
-            { number: 13, description: 'Galope trabajado y círculo', coefficient: 2, maxScore: 10 },
-            { number: 14, description: 'Alto, retroceso, saludo', coefficient: 1, maxScore: 10 }
-          ],
-          collectiveMarks: [
-            { aspect: 'Aires (libertad y regularidad)', coefficient: 1, maxScore: 10 },
-            { aspect: 'Impulsión (deseo de avanzar, elasticidad)', coefficient: 2, maxScore: 10 },
-            { aspect: 'Sumisión (atención y confianza)', coefficient: 1, maxScore: 10 },
-            { aspect: 'Posición y asiento del jinete', coefficient: 1, maxScore: 10 },
-            { aspect: 'Corrección y efecto de las ayudas', coefficient: 1, maxScore: 10 }
-          ],
-          maxScore: 160,
-          is_system: true,
-          created_at: '2024-01-01T00:00:00Z'
-        },
-        {
-          id: 'show_jumping_standard',
-          name: 'SALTO ESTÁNDAR FEI',
-          type: 'system',
-          discipline: 'jumping',
-          description: 'Plantilla estándar FEI para pruebas de salto',
-          exercises: [
-            { number: 1, description: 'Falta al salto (derribo)', coefficient: 1, maxScore: 4, penalty: true },
-            { number: 2, description: 'Primera desobediencia', coefficient: 1, maxScore: 4, penalty: true },
-            { number: 3, description: 'Segunda desobediencia', coefficient: 1, maxScore: 0, elimination: true },
-            { number: 4, description: 'Caída del jinete o caballo', coefficient: 1, maxScore: 0, elimination: true }
-          ],
-          collectiveMarks: [
-            { aspect: 'Tiempo (segundos)', coefficient: 1, maxScore: 0, timed: true },
-            { aspect: 'Estilo y técnica', coefficient: 1, maxScore: 10 }
-          ],
-          maxScore: 0,
-          scoring_type: 'penalties',
-          is_system: true,
-          created_at: '2024-01-01T00:00:00Z'
-        }
-      ]));
-      console.log('📋 Plantillas FEI inicializadas');
-    }
-  }
+  // ============================================================================
+  // ELIMINADO: initLocalStorage() con 120+ líneas de datos hardcodeados
+  //
+  // Anteriormente este archivo tenía competencias, categorías y plantillas FEI
+  // hardcodeadas que se cargaban automáticamente en localStorage.
+  //
+  // AHORA: El sistema usa SIEMPRE la API del backend como fuente principal.
+  // localStorage solo se usa como fallback offline real.
+  // ============================================================================
 
   async makeRequest(method, url, data = null) {
-    // SIEMPRE usar localStorage en desarrollo para evitar conflictos con backend incompleto
-    const isDevelopment = import.meta.env.MODE === 'development' ||
-                         window.location.hostname === 'localhost' ||
-                         window.location.hostname === '127.0.0.1';
-
-    if (this.useLocalStorage || isDevelopment) {
-      console.log('💾 Usando localStorage (modo desarrollo)');
+    // Solo usar localStorage si está explícitamente habilitado por variable de entorno
+    // o como fallback cuando el backend no esté disponible
+    if (this.useLocalStorage) {
+      console.log('💾 Usando localStorage (configurado explícitamente)');
       return this.handleLocalStorageRequest(method, url, data);
     }
 
+    // SIEMPRE intentar el backend primero
     try {
+      console.log(`🌐 Llamando al backend: ${method} ${url}`);
       const response = await axios({ method, url, data });
 
       // Verificar si el backend retornó rutas en lugar de datos
       if (response.data && typeof response.data === 'object' && response.data.competitions) {
-        console.warn('⚠️ Backend retornó rutas API, usando localStorage en su lugar');
+        console.warn('⚠️ Backend retornó rutas API en lugar de datos, usando localStorage como fallback');
         return this.handleLocalStorageRequest(method, url, data);
       }
 
+      console.log('✅ Respuesta del backend recibida correctamente');
       return response.data;
     } catch (error) {
-      // Fallback a localStorage si el backend falla
-      console.warn('Backend no disponible, usando localStorage:', error.message);
+      // Fallback a localStorage SOLO si el backend falla (verdadero modo offline)
+      console.warn('⚠️ Backend no disponible, usando localStorage como fallback offline:', error.message);
       return this.handleLocalStorageRequest(method, url, data);
     }
   }
