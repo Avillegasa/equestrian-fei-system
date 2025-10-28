@@ -57,10 +57,24 @@ class ScoringService {
   // =============== SCORECARDS ===============
   async getScoreCards(params = {}) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/scorecards/`, { params });
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/scoring/scorecards/`, {
+        params,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error obteniendo scorecards:', error);
+
+      // Fallback a localStorage
+      const competitionId = params.competition;
+      if (competitionId) {
+        const scoresKey = `fei_scores_${competitionId}`;
+        return JSON.parse(localStorage.getItem(scoresKey) || '[]');
+      }
+
       throw error;
     }
   }

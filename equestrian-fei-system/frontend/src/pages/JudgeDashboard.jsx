@@ -2,86 +2,79 @@ import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import useCompetitionStore from '../store/competitionStore';
+import competitionService from '../services/competitionService';
 
 const JudgeDashboard = () => {
   const { user, logout } = useAuth();
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [confirmedAssignments, setConfirmedAssignments] = useState([]);
+  const [assignedCompetitionsData, setAssignedCompetitionsData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Conectar al store de competencias
-  const {
-    competitions,
-    loading,
-    error,
-    loadCompetitions
-  } = useCompetitionStore();
-
-  // Cargar competencias al montar
+  // Cargar competencias asignadas al juez desde el API
   useEffect(() => {
-    loadCompetitions();
-  }, []);
+    if (!user) return;
 
-  // Cargar asignaciones de personal desde localStorage
-  useEffect(() => {
-    if (!user || competitions.length === 0) return;
+    const loadAssignedCompetitions = async () => {
+      setLoading(true);
+      try {
+        console.log('🔍 Cargando competencias asignadas al juez desde API...');
 
-    console.log('🔍 Buscando asignaciones para juez:', user.email, 'ID:', user.id);
+        // Llamar al API para obtener competencias asignadas
+        const assigned = await competitionService.getMyAssignedCompetitions();
 
-    const pending = [];
-    const confirmed = [];
+        console.log('✅ Competencias asignadas obtenidas:', assigned.length);
+        setAssignedCompetitionsData(assigned);
 
-    competitions.forEach(comp => {
-      const storageKey = `fei_staff_${comp.id}`;
-      const savedStaff = localStorage.getItem(storageKey);
+        // Extraer asignaciones pendientes y confirmadas
+        const pending = [];
+        const confirmed = [];
 
-      if (savedStaff) {
-        try {
-          const staff = JSON.parse(savedStaff);
-          console.log(`🔍 Competencia "${comp.name}" - Personal encontrado:`, staff.length);
+        assigned.forEach(comp => {
+          // Obtener staff assignments del localStorage (fallback)
+          const storageKey = `fei_staff_${comp.id}`;
+          const savedStaff = localStorage.getItem(storageKey);
 
-          // Mostrar todos los staff members para debug
-          staff.forEach(s => {
-            console.log(`  - ${s.staff_member.first_name} ${s.staff_member.last_name} (${s.role})`,
-              'Email:', s.staff_member.email, 'ID:', s.staff_member.id);
-          });
+          if (savedStaff) {
+            try {
+              const staff = JSON.parse(savedStaff);
+              const myAssignment = staff.find(s => {
+                const emailMatch = s.staff_member?.email?.toLowerCase() === user.email?.toLowerCase();
+                const idMatch = s.staff_member?.id === user.id;
+                return emailMatch || idMatch;
+              });
 
-          // Buscar si el usuario actual está asignado (comparación más flexible)
-          const myAssignment = staff.find(s => {
-            const emailMatch = s.staff_member.email?.toLowerCase() === user.email?.toLowerCase();
-            const idMatch = s.staff_member.id === user.id;
-            const firstNameMatch = s.staff_member.first_name?.toLowerCase() === user.first_name?.toLowerCase();
-            const lastNameMatch = s.staff_member.last_name?.toLowerCase() === user.last_name?.toLowerCase();
+              if (myAssignment) {
+                const assignmentData = {
+                  ...myAssignment,
+                  competition: comp
+                };
 
-            return emailMatch || idMatch || (firstNameMatch && lastNameMatch);
-          });
-
-          if (myAssignment) {
-            console.log('✅ ¡Asignación encontrada en competencia:', comp.name);
-            const assignmentData = {
-              ...myAssignment,
-              competition: comp
-            };
-
-            if (myAssignment.is_confirmed) {
-              confirmed.push(assignmentData);
-            } else {
-              pending.push(assignmentData);
+                if (myAssignment.is_confirmed) {
+                  confirmed.push(assignmentData);
+                } else {
+                  pending.push(assignmentData);
+                }
+              }
+            } catch (error) {
+              console.error('Error procesando staff de localStorage:', error);
             }
-          } else {
-            console.log('❌ No encontrado en esta competencia');
           }
-        } catch (error) {
-          console.error('Error al cargar staff:', error);
-        }
+        });
+
+        setPendingAssignments(pending);
+        setConfirmedAssignments(confirmed);
+
+      } catch (error) {
+        console.error('❌ Error cargando competencias asignadas:', error);
+        // Fallback a localStorage ya implementado en competitionService
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    console.log('📋 Asignaciones pendientes:', pending.length);
-    console.log('✅ Asignaciones confirmadas:', confirmed.length);
-
-    setPendingAssignments(pending);
-    setConfirmedAssignments(confirmed);
-  }, [user, competitions]);
+    loadAssignedCompetitions();
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -149,43 +142,39 @@ const JudgeDashboard = () => {
     }
   };
 
-  // Filtrar competencias donde podría ser juez asignado
-  // TODO: Cuando tengamos el endpoint my_assigned, usarlo
+  // Mapear competencias asignadas desde el API
   const assignedCompetitions = useMemo(() => {
-    return competitions
-      .filter(c => c.status !== 'draft')
-      .slice(0, 3)
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        date: c.start_date,
-        location: `${c.venue_city || 'Ciudad'}, ${c.venue_country || 'País'}`,
-        discipline: c.discipline || 'Dressage',
-        participants: c.participant_count || 0,
-        status: c.status === 'completed' ? 'completed' :
-                c.status === 'in_progress' ? 'pending_evaluation' : 'upcoming',
-        myRole: 'Juez Asignado'
-      }));
-  }, [competitions]);
+    return assignedCompetitionsData.map(c => ({
+      id: c.id,
+      name: c.name,
+      date: c.start_date,
+      location: `${c.venue_city || 'Ciudad'}, ${c.venue_country || 'País'}`,
+      discipline: c.discipline || 'Dressage',
+      participants: c.participant_count || 0,
+      status: c.status === 'completed' ? 'completed' :
+              c.status === 'in_progress' ? 'pending_evaluation' : 'upcoming',
+      myRole: 'Juez Asignado'
+    }));
+  }, [assignedCompetitionsData]);
 
-  // Calcular estadísticas reales
+  // Calcular estadísticas reales desde competencias asignadas
   const stats = useMemo(() => {
-    const activeCompetitions = competitions.filter(c =>
+    const activeCompetitions = assignedCompetitionsData.filter(c =>
       ['open_registration', 'in_progress', 'registration_closed'].includes(c.status)
     );
 
     return {
       assignedCompetitions: assignedCompetitions.length,
-      completedEvaluations: competitions.filter(c => c.status === 'completed').length,
+      completedEvaluations: assignedCompetitionsData.filter(c => c.status === 'completed').length,
       pendingEvaluations: activeCompetitions.filter(c => c.status === 'in_progress').length,
-      totalParticipantsJudged: competitions.reduce((sum, c) => sum + (c.participant_count || 0), 0),
-      upcomingJudging: competitions.filter(c =>
+      totalParticipantsJudged: assignedCompetitionsData.reduce((sum, c) => sum + (c.participant_count || 0), 0),
+      upcomingJudging: assignedCompetitionsData.filter(c =>
         ['open_registration', 'published'].includes(c.status) &&
         new Date(c.start_date) > new Date()
       ).length,
       averageRating: 4.7 // TODO: Calcular desde evaluaciones reales
     };
-  }, [competitions, assignedCompetitions]);
+  }, [assignedCompetitionsData, assignedCompetitions]);
 
   // Evaluaciones pendientes (temporal - conectar a scoring después)
   const pendingEvaluations = useMemo(() => {
@@ -219,7 +208,7 @@ const JudgeDashboard = () => {
   };
 
   // Mostrar loading
-  if (loading && competitions.length === 0) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

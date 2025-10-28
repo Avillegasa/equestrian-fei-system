@@ -1013,6 +1013,133 @@ class CompetitionService {
       errors
     };
   }
+
+  // Obtener competencias asignadas al juez actual
+  async getMyAssignedCompetitions() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/competitions/my_assigned/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error loading assigned competitions from API:', error);
+
+      // Fallback a localStorage
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const allCompetitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
+
+      // Filtrar competencias donde el usuario está asignado como juez
+      const assignedCompetitions = allCompetitions.filter(comp => {
+        const staffKey = `fei_staff_${comp.id}`;
+        const staff = JSON.parse(localStorage.getItem(staffKey) || '[]');
+        return staff.some(s => s.user?.id === user?.id && (s.role === 'judge' || s.role === 'chief_judge'));
+      });
+
+      // Enriquecer con datos de participantes y staff
+      return assignedCompetitions.map(comp => {
+        const staffKey = `fei_staff_${comp.id}`;
+        const staff = JSON.parse(localStorage.getItem(staffKey) || '[]');
+        const staffAssignment = staff.find(s => s.user?.id === user?.id);
+
+        const participantsKey = `fei_participants_${comp.id}`;
+        const participants = JSON.parse(localStorage.getItem(participantsKey) || '[]');
+
+        return {
+          ...comp,
+          staff_assignment: staffAssignment,
+          participants: participants,
+          participant_count: participants.length
+        };
+      });
+    }
+  }
+
+  // Obtener participantes de una competencia
+  async getCompetitionParticipants(competitionId) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/competitions/${competitionId}/participants/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error loading participants from API:', error);
+
+      // Fallback a localStorage
+      const participantsKey = `fei_participants_${competitionId}`;
+      return JSON.parse(localStorage.getItem(participantsKey) || '[]');
+    }
+  }
+
+  // Confirmar asignación de staff (juez acepta/rechaza asignación)
+  async confirmStaffAssignment(staffId, confirmed = true) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.patch(
+        `${API_BASE_URL}/competition-staff/${staffId}/`,
+        { is_confirmed: confirmed },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error confirming staff assignment:', error);
+
+      // Fallback a localStorage
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const allCompetitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
+
+      // Buscar la competencia y actualizar el staff
+      for (const comp of allCompetitions) {
+        const staffKey = `fei_staff_${comp.id}`;
+        const staff = JSON.parse(localStorage.getItem(staffKey) || '[]');
+
+        const staffIndex = staff.findIndex(s => s.id === staffId || (s.user?.id === user?.id && s.role === 'judge'));
+
+        if (staffIndex !== -1) {
+          staff[staffIndex].is_confirmed = confirmed;
+          localStorage.setItem(staffKey, JSON.stringify(staff));
+          return staff[staffIndex];
+        }
+      }
+
+      throw new Error('Staff assignment not found');
+    }
+  }
+
+  // Obtener detalles completos de una competencia
+  async getCompetitionById(competitionId) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/competitions/${competitionId}/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error loading competition from API:', error);
+
+      // Fallback a localStorage
+      const allCompetitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
+      const competition = allCompetitions.find(c => c.id == competitionId);
+
+      if (!competition) {
+        throw new Error('Competition not found');
+      }
+
+      return competition;
+    }
+  }
 }
 
 // Crear instancia singleton

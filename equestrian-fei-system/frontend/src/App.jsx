@@ -19,6 +19,7 @@ import ReportsPage from './pages/ReportsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import JudgeDashboard from './pages/JudgeDashboard';
+import JudgeCompetitionsPage from './pages/JudgeCompetitionsPage';
 import RiderDashboard from './pages/RiderDashboard';
 import ViewerDashboard from './pages/ViewerDashboard';
 
@@ -178,7 +179,7 @@ function App() {
             path="/judge/competitions"
             element={
               <JudgeRoute>
-                <CompetitionsPage />
+                <JudgeCompetitionsPage />
               </JudgeRoute>
             }
           />
