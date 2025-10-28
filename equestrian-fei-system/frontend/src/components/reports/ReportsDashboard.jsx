@@ -28,7 +28,9 @@ const ReportsDashboard = () => {
   const fetchAvailableReports = async () => {
     try {
       const response = await axios.get('/api/reports/available_reports/');
-      setAvailableReports(response.data.available_reports || []);
+      const reports = response.data.available_reports;
+      // Ensure we always set an array
+      setAvailableReports(Array.isArray(reports) ? reports : []);
     } catch (error) {
       console.error('Error fetching available reports:', error);
       setAvailableReports([]); // Ensure state remains an array on error
@@ -38,7 +40,9 @@ const ReportsDashboard = () => {
   const fetchCompetitions = async () => {
     try {
       const response = await axios.get('/api/competitions/competitions/');
-      setCompetitions(response.data.results || response.data || []);
+      const comps = response.data.results || response.data;
+      // Ensure we always set an array
+      setCompetitions(Array.isArray(comps) ? comps : []);
     } catch (error) {
       console.error('Error fetching competitions:', error);
       setCompetitions([]); // Ensure state remains an array on error
