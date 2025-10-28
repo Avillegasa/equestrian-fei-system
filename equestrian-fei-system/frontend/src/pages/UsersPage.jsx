@@ -104,23 +104,6 @@ const UsersPage = () => {
     }
   };
 
-  // Handler para cambiar estado activo/inactivo
-  const handleToggleStatus = async (user) => {
-    try {
-      if (user.is_active) {
-        await userService.deactivateUser(user.id);
-        alert('✅ Usuario desactivado exitosamente');
-      } else {
-        await userService.activateUser(user.id);
-        alert('✅ Usuario activado exitosamente');
-      }
-      await loadUsers(); // Esperar a que recargue la lista
-    } catch (error) {
-      console.error('❌ Error al cambiar estado del usuario:', error);
-      alert('❌ Error al cambiar estado: ' + error.message);
-    }
-  };
-
   // Handler para exportar lista de usuarios a Excel
   const handleExportUsers = () => {
     try {
@@ -419,11 +402,6 @@ const UsersPage = () => {
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
                               {getRoleDisplay(user.role)}
                             </span>
-                            {!user.is_active && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Inactivo
-                              </span>
-                            )}
                             {!user.is_verified && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                 Sin verificar
@@ -455,17 +433,6 @@ const UsersPage = () => {
                             ✓ Verificar
                           </button>
                         )}
-                        <button
-                          onClick={() => handleToggleStatus(user)}
-                          className={`text-sm font-medium px-3 py-1 rounded-lg transition-colors duration-200 ${
-                            user.is_active
-                              ? 'text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100'
-                              : 'text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100'
-                          }`}
-                          title={user.is_active ? 'Desactivar usuario' : 'Activar usuario'}
-                        >
-                          {user.is_active ? '⏸ Desactivar' : '▶ Activar'}
-                        </button>
                         <button
                           onClick={() => handleEditUser(user)}
                           className="text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200"
