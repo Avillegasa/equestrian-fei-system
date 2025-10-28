@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
 const UserProfile = () => {
-  const { user, updateProfile, changePassword, isLoading, error, clearError } = useAuth();
+  const { user, updateProfile, changePassword, logout, isLoading, error, clearError } = useAuth();
   
   const [activeTab, setActiveTab] = useState('profile');
   const [formData, setFormData] = useState({
@@ -163,12 +164,28 @@ const UserProfile = () => {
 
   const getRoleDisplay = (role) => {
     const roles = {
-      admin: 'Administrador',
+      admin: 'Administrador FEI',
       organizer: 'Organizador',
-      judge: 'Juez',
+      judge: 'Juez FEI',
+      rider: 'Jinete',
       viewer: 'Espectador'
     };
-    return roles[role] || role;
+    return roles[role] || 'Usuario';
+  };
+
+  const getDashboardPath = (role) => {
+    const paths = {
+      admin: '/admin',
+      organizer: '/organizer',
+      judge: '/judge',
+      rider: '/rider',
+      viewer: '/viewer'
+    };
+    return paths[role] || '/dashboard';
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   if (!user) {
@@ -180,10 +197,60 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="bg-white shadow rounded-lg mb-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Professional Header with Navigation */}
+      <header className="bg-white shadow-lg border-b-4 border-green-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            {/* LEFT SIDE - Navigation */}
+            <div className="flex items-center space-x-4">
+              <Link
+                to={getDashboardPath(user?.role)}
+                className="flex items-center space-x-2 text-green-600 hover:text-green-700 transition-colors duration-200 bg-green-50 px-3 py-2 rounded-lg font-medium"
+              >
+                <span>←</span>
+                <span>Volver al Dashboard</span>
+              </Link>
+
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xl">👤</span>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
+                  <p className="text-sm text-gray-600">Configuración de Usuario</p>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT SIDE - User Info & Logout */}
+            <div className="flex items-center space-x-6">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.first_name} {user?.last_name}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {getRoleDisplay(user?.role)}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-2"
+              >
+                <span>🚪</span>
+                <span>Cerrar Sesión</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="max-w-3xl mx-auto">
+            {/* User Info Card */}
+            <div className="bg-white shadow rounded-lg mb-8">
           <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center space-x-5">
               <div className="flex-shrink-0">
@@ -487,7 +554,9 @@ const UserProfile = () => {
             </dl>
           </div>
         </div>
-      </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
