@@ -446,28 +446,28 @@ class CompetitionService {
 
   // =============== COMPETENCIAS ===============
   async getCompetitions(params = {}) {
-    return this.makeRequest('get', `${API_BASE_URL}/competitions/`);
+    return this.makeRequest('get', `${API_BASE_URL}/competitions/competitions/`);
   }
 
   async getCompetitionById(id) {
-    return this.makeRequest('get', `${API_BASE_URL}/competitions/${id}/`);
+    return this.makeRequest('get', `${API_BASE_URL}/competitions/competitions/${id}/`);
   }
 
   async createCompetition(competitionData) {
-    return this.makeRequest('post', `${API_BASE_URL}/competitions/`, competitionData);
+    return this.makeRequest('post', `${API_BASE_URL}/competitions/competitions/`, competitionData);
   }
 
   async updateCompetition(id, competitionData) {
     console.log('🔧 updateCompetition llamado con ID:', id);
-    console.log('🔧 URL:', `${API_BASE_URL}/competitions/${id}/`);
+    console.log('🔧 URL:', `${API_BASE_URL}/competitions/competitions/${id}/`);
     console.log('🔧 Datos:', competitionData);
-    return this.makeRequest('put', `${API_BASE_URL}/competitions/${id}/`, competitionData);
+    return this.makeRequest('put', `${API_BASE_URL}/competitions/competitions/${id}/`, competitionData);
   }
 
   async deleteCompetition(id) {
     console.log('🔧 deleteCompetition llamado con ID:', id);
-    console.log('🔧 URL:', `${API_BASE_URL}/competitions/${id}/`);
-    const result = await this.makeRequest('delete', `${API_BASE_URL}/competitions/${id}/`);
+    console.log('🔧 URL:', `${API_BASE_URL}/competitions/competitions/${id}/`);
+    const result = await this.makeRequest('delete', `${API_BASE_URL}/competitions/competitions/${id}/`);
     console.log('🔧 Resultado de makeRequest DELETE:', result);
     return result;
   }
@@ -475,7 +475,7 @@ class CompetitionService {
   // =============== ACCIONES ESPECÍFICAS DE COMPETENCIAS ===============
   async publishCompetition(id) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/competitions/${id}/publish/`);
+      const response = await axios.post(`${API_BASE_URL}/competitions/competitions/${id}/publish/`);
       return response.data;
     } catch (error) {
       console.error('Error publicando competencia:', error);
@@ -485,7 +485,7 @@ class CompetitionService {
 
   async openRegistration(id) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/competitions/${id}/open_registration/`);
+      const response = await axios.post(`${API_BASE_URL}/competitions/competitions/${id}/open_registration/`);
       return response.data;
     } catch (error) {
       console.error('Error abriendo inscripciones:', error);
@@ -495,7 +495,7 @@ class CompetitionService {
 
   async closeRegistration(id) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/competitions/${id}/close_registration/`);
+      const response = await axios.post(`${API_BASE_URL}/competitions/competitions/${id}/close_registration/`);
       return response.data;
     } catch (error) {
       console.error('Error cerrando inscripciones:', error);
@@ -505,7 +505,7 @@ class CompetitionService {
 
   async getCompetitionParticipants(id) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/${id}/participants/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/${id}/participants/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo participantes:', error);
@@ -515,7 +515,7 @@ class CompetitionService {
 
   async getCompetitionStatistics(id) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/${id}/statistics/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/${id}/statistics/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo estadísticas:', error);
@@ -526,7 +526,7 @@ class CompetitionService {
   // =============== COMPETENCIAS ESPECÍFICAS ===============
   async getMyCompetitions() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/my_competitions/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/my_competitions/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo mis competencias:', error);
@@ -536,7 +536,7 @@ class CompetitionService {
 
   async getUpcomingCompetitions() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/upcoming/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/upcoming/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo competencias próximas:', error);
@@ -546,7 +546,7 @@ class CompetitionService {
 
   async getCurrentCompetitions() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/current/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/current/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo competencias actuales:', error);
@@ -556,7 +556,7 @@ class CompetitionService {
 
   async getMyAssignedCompetitions() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/my_assigned/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/my_assigned/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo competencias asignadas:', error);
@@ -759,7 +759,7 @@ class CompetitionService {
   // =============== UTILIDADES ===============
   async searchCompetitions(query) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/`, {
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/`, {
         params: { search: query }
       });
       return response.data;
@@ -771,7 +771,7 @@ class CompetitionService {
 
   async getCompetitionsByStatus(status) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/`, {
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/`, {
         params: { status }
       });
       return response.data;
@@ -783,7 +783,7 @@ class CompetitionService {
 
   async getCompetitionsByType(type) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/competitions/`, {
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/`, {
         params: { competition_type: type }
       });
       return response.data;
@@ -907,7 +907,7 @@ class CompetitionService {
   async getMyAssignedCompetitions() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/competitions/my_assigned/`, {
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/my_assigned/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -950,7 +950,7 @@ class CompetitionService {
   async getCompetitionParticipants(competitionId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/competitions/${competitionId}/participants/`, {
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/${competitionId}/participants/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1009,7 +1009,7 @@ class CompetitionService {
   async getCompetitionById(competitionId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/competitions/${competitionId}/`, {
+      const response = await axios.get(`${API_BASE_URL}/competitions/competitions/${competitionId}/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
