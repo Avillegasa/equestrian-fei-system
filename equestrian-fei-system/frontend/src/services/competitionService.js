@@ -316,12 +316,12 @@ class CompetitionService {
 
   // =============== CATEGORÍAS ===============
   async getCategories() {
-    return this.makeRequest('get', `${API_BASE_URL}/categories/`);
+    return this.makeRequest('get', `${API_BASE_URL}/competitions/categories/`);
   }
 
   async getCategoriesByType() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/categories/by_type/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/categories/by_type/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo categorías por tipo:', error);
@@ -331,7 +331,7 @@ class CompetitionService {
 
   async getCategoryById(id) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/categories/${id}/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/categories/${id}/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo categoría:', error);
@@ -340,15 +340,15 @@ class CompetitionService {
   }
 
   async createCategory(categoryData) {
-    return this.makeRequest('post', `${API_BASE_URL}/categories/`, categoryData);
+    return this.makeRequest('post', `${API_BASE_URL}/competitions/categories/`, categoryData);
   }
 
   async updateCategory(id, categoryData) {
-    return this.makeRequest('put', `${API_BASE_URL}/categories/${id}`, categoryData);
+    return this.makeRequest('put', `${API_BASE_URL}/competitions/categories/${id}`, categoryData);
   }
 
   async deleteCategory(id) {
-    return this.makeRequest('delete', `${API_BASE_URL}/categories/${id}`);
+    return this.makeRequest('delete', `${API_BASE_URL}/competitions/categories/${id}`);
   }
 
   // =============== PLANTILLAS DE CALIFICACIÓN ===============
