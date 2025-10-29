@@ -174,13 +174,13 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Usar diferentes serializers según la acción"""
         if self.action == 'list':
-            # Usar serializer simple para evitar problemas con choices
-            return SimpleCompetitionSerializer
+            # Usar serializer con contadores para la lista
+            return CompetitionListSerializer
         elif self.action == 'create':
             return CompetitionCreateSerializer
         else:
-            # Para retrieve también usar simple por ahora
-            return SimpleCompetitionSerializer
+            # Para retrieve usar serializer detallado
+            return CompetitionDetailSerializer
 
     def perform_create(self, serializer):
         """Crear competencia con el usuario actual como organizador"""

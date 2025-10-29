@@ -196,10 +196,11 @@ class CompetitionListSerializer(serializers.ModelSerializer):
     status_display = serializers.SerializerMethodField()
     competition_type_display = serializers.SerializerMethodField()
     participant_count = serializers.SerializerMethodField()
+    staff_count = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
     days_until_start = serializers.SerializerMethodField()
     duration_days = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Competition
         fields = [
@@ -208,18 +209,22 @@ class CompetitionListSerializer(serializers.ModelSerializer):
             'start_date', 'end_date', 'registration_start', 'registration_end',
             'status', 'status_display', 'competition_type', 'competition_type_display',
             'max_participants', 'entry_fee', 'is_championship',
-            'participant_count', 'is_registration_open', 'days_until_start', 'duration_days',
+            'participant_count', 'staff_count', 'is_registration_open', 'days_until_start', 'duration_days',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'organizer_name', 'venue_name', 'venue_city', 'status_display',
-            'competition_type_display', 'participant_count', 'is_registration_open',
+            'competition_type_display', 'participant_count', 'staff_count', 'is_registration_open',
             'days_until_start', 'duration_days', 'created_at', 'updated_at'
         ]
-    
+
     def get_participant_count(self, obj):
         """Obtener número de participantes confirmados"""
         return obj.participants.filter(is_confirmed=True).count()
+
+    def get_staff_count(self, obj):
+        """Obtener número de staff asignados"""
+        return obj.staff.count()
     
     def get_status_display(self, obj):
         """Obtener display del status"""
