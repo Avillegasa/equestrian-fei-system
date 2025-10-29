@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import scheduleService from '../services/scheduleService';
+import useCompetitionStore from '../store/competitionStore';
 import CreateScheduleModal from '../components/CreateScheduleModal';
 
 const CompetitionSchedulePage = () => {
@@ -17,145 +19,89 @@ const CompetitionSchedulePage = () => {
   const [showPublishAllConfirm, setShowPublishAllConfirm] = useState(false);
   const [unpublishedCount, setUnpublishedCount] = useState(0);
 
+  const { loadCompetitionById } = useCompetitionStore();
+
   const handleLogout = async () => {
     await logout();
   };
 
-  // Cargar datos desde localStorage por competencia
+  // Cargar competencia desde el store
   useEffect(() => {
+    if (competitionId) {
+      console.log('📋 Cargando competencia:', competitionId);
+      loadCompetitionById(competitionId).then(comp => {
+        if (comp) {
+          setCompetition({
+            id: comp.id,
+            name: comp.name,
+            discipline: comp.discipline,
+            location: comp.location || `${comp.venue_city}, ${comp.venue_country}`,
+            startDate: comp.start_date || comp.startDate,
+            endDate: comp.end_date || comp.endDate,
+            status: comp.status
+          });
+        }
+      });
+    }
+  }, [competitionId, loadCompetitionById]);
+
+  // Cargar programación desde API usando scheduleService
+  const loadSchedule = async () => {
     if (!competitionId) return;
 
     setLoading(true);
-
-    // Cargar competencia desde localStorage
-    const competitionsData = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
-    const comp = competitionsData.find(c => c.id == competitionId);
-
-    if (comp) {
-      setCompetition({
-        id: comp.id,
-        name: comp.name,
-        discipline: comp.discipline,
-        location: comp.location || `${comp.venue_city}, ${comp.venue_country}`,
-        startDate: comp.start_date || comp.startDate,
-        endDate: comp.end_date || comp.endDate,
-        status: comp.status
-      });
+    try {
+      console.log('📅 Cargando programación desde API');
+      const scheduleData = await scheduleService.getCompetitionSchedule(competitionId);
+      console.log('✅ Programación cargada desde API:', scheduleData.length, 'eventos');
+      setSchedule(scheduleData);
+      setUnpublishedCount(scheduleData.filter(e => !e.is_published).length);
+    } catch (error) {
+      console.error('❌ Error al cargar programación:', error);
+      setSchedule([]);
+    } finally {
+      setLoading(false);
     }
-
-    // Cargar programación específica de esta competencia
-    const scheduleKey = `fei_schedule_${competitionId}`;
-    const storedSchedule = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
-
-    // Si no hay programación guardada, inicializar con datos de ejemplo
-    if (storedSchedule.length === 0 && comp) {
-      const defaultSchedule = [
-        {
-          id: 1,
-          competition_id: competitionId,
-          title: 'Reconocimiento de Pistas',
-          description: 'Reconocimiento oficial del recorrido',
-          schedule_type: 'special_event',
-          start_time: `${comp.start_date || '2025-10-03'}T08:00:00`,
-          end_time: `${comp.start_date || '2025-10-03'}T08:30:00`,
-          discipline: comp.discipline,
-          category: null,
-          location: 'Arena Principal',
-          is_published: false
-        },
-        {
-          id: 2,
-          competition_id: competitionId,
-          title: 'Ceremonia de Apertura',
-          description: 'Ceremonia oficial de apertura de la competencia',
-          schedule_type: 'competition_start',
-          start_time: `${comp.start_date || '2025-10-03'}T09:00:00`,
-          end_time: `${comp.start_date || '2025-10-03'}T09:30:00`,
-          discipline: comp.discipline,
-          category: null,
-          location: 'Arena Principal',
-          is_published: false
-        }
-      ];
-      localStorage.setItem(scheduleKey, JSON.stringify(defaultSchedule));
-      setSchedule(defaultSchedule);
-    } else {
-      setSchedule(storedSchedule);
-    }
-
-    setLoading(false);
-  }, [competitionId]);
-
-  const handleCreateSchedule = (scheduleData) => {
-    // Generar un ID único
-    const maxId = schedule.length > 0 ? Math.max(...schedule.map(s => s.id || 0)) : 0;
-
-    const newSchedule = {
-      id: maxId + 1,
-      competition_id: competitionId,
-      title: scheduleData.title,
-      description: scheduleData.description,
-      schedule_type: scheduleData.schedule_type,
-      start_time: scheduleData.start_time,
-      end_time: scheduleData.end_time,
-      discipline: scheduleData.discipline || null,
-      category: scheduleData.category || null,
-      location: scheduleData.location,
-      is_published: false
-    };
-
-    // Agregar el nuevo evento y ordenar por fecha
-    const updatedSchedule = [...schedule, newSchedule].sort((a, b) =>
-      new Date(a.start_time) - new Date(b.start_time)
-    );
-
-    // Guardar en localStorage
-    const scheduleKey = `fei_schedule_${competitionId}`;
-    localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
-
-    // Actualizar estado
-    setSchedule(updatedSchedule);
-
-    // Mostrar mensaje de éxito
-    alert('✅ Evento programado exitosamente!');
   };
 
-  const handleUpdateSchedule = (scheduleData) => {
-    console.log('📝 Actualizando evento ID:', editingEventId);
-    console.log('📦 Nuevos datos:', scheduleData);
+  useEffect(() => {
+    loadSchedule();
+  }, [competitionId]);
 
-    // Actualizar el evento manteniendo su ID
-    const updatedSchedule = schedule.map(s => {
-      if (s.id === editingEventId) {
-        return {
-          ...s,
-          title: scheduleData.title,
-          description: scheduleData.description,
-          schedule_type: scheduleData.schedule_type,
-          start_time: scheduleData.start_time,
-          end_time: scheduleData.end_time,
-          discipline: scheduleData.discipline || null,
-          category: scheduleData.category || null,
-          location: scheduleData.location
-        };
-      }
-      return s;
-    }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  const handleCreateSchedule = async (scheduleData) => {
+    try {
+      console.log('➕ Creando evento en programación');
+      await scheduleService.createScheduleEvent(competitionId, scheduleData);
 
-    // Guardar en localStorage
-    const scheduleKey = `fei_schedule_${competitionId}`;
-    localStorage.setItem(scheduleKey, JSON.stringify(updatedSchedule));
-    console.log('💾 Guardado en localStorage:', scheduleKey);
+      // Recargar programación
+      await loadSchedule();
 
-    // Actualizar estado
-    setSchedule(updatedSchedule);
+      // Mostrar mensaje de éxito
+      alert('✅ Evento programado exitosamente!');
+    } catch (error) {
+      console.error('❌ Error al crear evento:', error);
+      alert('Error al programar evento. Verifica la consola para más detalles.');
+    }
+  };
 
-    // Cerrar modal y limpiar estado de edición
-    setShowEditModal(false);
-    setEditingEventId(null);
+  const handleUpdateSchedule = async (scheduleData) => {
+    try {
+      console.log('📝 Actualizando evento ID:', editingEventId);
+      await scheduleService.updateScheduleEvent(editingEventId, scheduleData);
 
-    // Mostrar mensaje de éxito
-    alert('✅ Evento actualizado exitosamente!');
+      // Recargar programación
+      await loadSchedule();
+
+      // Cerrar modal y limpiar estado de edición
+      setShowEditModal(false);
+      setEditingEventId(null);
+
+      // Mostrar mensaje de éxito
+      alert('✅ Evento actualizado exitosamente!');
+    } catch (error) {
+      console.error('❌ Error al actualizar evento:', error);
+      alert('Error al actualizar evento. Verifica la consola para más detalles.');
+    }
   };
 
   // Funciones auxiliares (deben estar antes de los handlers que las usan)

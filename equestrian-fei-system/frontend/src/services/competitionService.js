@@ -646,7 +646,7 @@ class CompetitionService {
   // =============== PARTICIPANTES ===============
   async getParticipants(params = {}) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/participants/`, { params });
+      const response = await axios.get(`${API_BASE_URL}/competitions/participants/`, { params });
       return response.data;
     } catch (error) {
       console.warn('Backend no disponible, usando localStorage para participantes');
@@ -666,7 +666,7 @@ class CompetitionService {
 
   async getParticipantById(id) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/participants/${id}/`);
+      const response = await axios.get(`${API_BASE_URL}/competitions/participants/${id}/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo participante:', error);
@@ -676,7 +676,7 @@ class CompetitionService {
 
   async registerParticipant(participantData) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/participants/`, participantData);
+      const response = await axios.post(`${API_BASE_URL}/competitions/participants/`, participantData);
       return response.data;
     } catch (error) {
       console.warn('Backend no disponible, usando localStorage para participantes');
@@ -704,7 +704,7 @@ class CompetitionService {
 
   async updateParticipant(id, participantData) {
     try {
-      const response = await axios.put(`${API_BASE_URL}/participants/${id}/`, participantData);
+      const response = await axios.put(`${API_BASE_URL}/competitions/participants/${id}/`, participantData);
       return response.data;
     } catch (error) {
       console.error('Error actualizando participante:', error);
@@ -714,7 +714,7 @@ class CompetitionService {
 
   async deleteParticipant(id) {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/participants/${id}/`);
+      const response = await axios.delete(`${API_BASE_URL}/competitions/participants/${id}/`);
       return response.data;
     } catch (error) {
       console.warn('Backend no disponible, usando localStorage para eliminar participante');
@@ -741,7 +741,7 @@ class CompetitionService {
 
   async confirmParticipant(id) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/participants/${id}/confirm/`);
+      const response = await axios.post(`${API_BASE_URL}/competitions/participants/${id}/confirm/`);
       return response.data;
     } catch (error) {
       console.error('Error confirmando participante:', error);
@@ -751,7 +751,7 @@ class CompetitionService {
 
   async markParticipantPaid(id) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/participants/${id}/mark_paid/`);
+      const response = await axios.post(`${API_BASE_URL}/competitions/participants/${id}/mark_paid/`);
       return response.data;
     } catch (error) {
       console.error('Error marcando participante como pagado:', error);
@@ -973,7 +973,7 @@ class CompetitionService {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.patch(
-        `${API_BASE_URL}/competition-staff/${staffId}/`,
+        `${API_BASE_URL}/competitions/staff/${staffId}/`,
         { is_confirmed: confirmed },
         {
           headers: {

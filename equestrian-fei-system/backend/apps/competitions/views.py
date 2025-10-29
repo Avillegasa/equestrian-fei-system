@@ -584,3 +584,108 @@ class ParticipantViewSet(viewsets.ModelViewSet):
         participant.save()
 
         return Response({'message': 'Pago registrado exitosamente'})
+
+
+class CompetitionScheduleViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar la programación de eventos de competencias.
+    """
+    serializer_class = CompetitionScheduleSerializer
+    permission_classes = [permissions.IsAuthenticated, CanManageCompetitionSchedule]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['title', 'description']
+    ordering_fields = ['start_time', 'end_time', 'created_at']
+    ordering = ['start_time']
+
+    def get_queryset(self):
+        """
+        Filtra eventos de programación según el rol del usuario y filtros de competencia.
+        """
+        user = self.request.user
+        queryset = CompetitionSchedule.objects.select_related('competition').all()
+
+        # Filtrar por competencia si se proporciona
+        competition_id = self.request.query_params.get('competition', None)
+        if competition_id:
+            queryset = queryset.filter(competition_id=competition_id)
+
+        # Filtros de permisos según rol
+        if user.role == 'admin':
+            # Admin puede ver todos los eventos
+            pass
+        elif user.role == 'organizer':
+            # Organizer puede ver eventos de sus competencias
+            queryset = queryset.filter(competition__organizer=user)
+        elif user.role == 'judge':
+            # Jueces pueden ver eventos de competencias donde están asignados
+            queryset = queryset.filter(
+                competition__staff__staff_member=user
+            ).distinct()
+        else:
+            # Viewers pueden ver eventos de competencias públicas
+            queryset = queryset.filter(competition__is_public=True)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        """
+        Registra la creación de un evento en el log de auditoría.
+        """
+        schedule_event = serializer.save()
+        AuditMiddleware.log_action(
+            self.request,
+            'CREATE',
+            'CompetitionSchedule',
+            schedule_event.id,
+            f'Evento "{schedule_event.title}" creado para competencia {schedule_event.competition.name}'
+        )
+
+    def perform_update(self, serializer):
+        """
+        Registra la actualización de un evento en el log de auditoría.
+        """
+        schedule_event = serializer.save()
+        AuditMiddleware.log_action(
+            self.request,
+            'UPDATE',
+            'CompetitionSchedule',
+            schedule_event.id,
+            f'Evento "{schedule_event.title}" actualizado'
+        )
+
+    def perform_destroy(self, instance):
+        """
+        Registra la eliminación de un evento en el log de auditoría.
+        """
+        AuditMiddleware.log_action(
+            self.request,
+            'DELETE',
+            'CompetitionSchedule',
+            instance.id,
+            f'Evento "{instance.title}" eliminado'
+        )
+        instance.delete()
+
+    @action(detail=False, methods=['get'])
+    def by_date(self, request):
+        """
+        Obtiene eventos programados filtrados por fecha.
+        Parámetros: start_date, end_date, competition
+        """
+        start_date = request.query_params.get('start_date', None)
+        end_date = request.query_params.get('end_date', None)
+        competition_id = request.query_params.get('competition', None)
+
+        queryset = self.get_queryset()
+
+        if competition_id:
+            queryset = queryset.filter(competition_id=competition_id)
+
+        if start_date:
+            queryset = queryset.filter(start_time__gte=start_date)
+
+        if end_date:
+            queryset = queryset.filter(end_time__lte=end_date)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
