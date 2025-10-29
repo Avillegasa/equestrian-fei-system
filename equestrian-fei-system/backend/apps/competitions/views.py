@@ -22,7 +22,7 @@ from .serializers import (
 from .permissions import (
     IsOrganizerOrReadOnly, CanManageCompetitionStaff, CanRegisterParticipant,
     CanManageHorses, CanManageVenues, CanManageCompetitionSchedule,
-    CanViewCompetitionDetails, CompetitionPermissionChecker
+    CanViewCompetitionDetails, CompetitionPermissionChecker, IsOrganizerOrAdmin
 )
 from apps.users.middleware import AuditMiddleware
 
@@ -31,19 +31,20 @@ class DisciplineViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar disciplinas"""
     queryset = Discipline.objects.filter(is_active=True)
     serializer_class = DisciplineSerializer
-    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['name', 'code', 'created_at']
     ordering = ['name']
 
     def get_permissions(self):
-        """Permisos específicos por acción"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        """Permisos dinámicos: lectura pública, escritura solo para admin"""
+        if self.action in ['list', 'retrieve', 'active']:
+            permission_classes = [permissions.AllowAny]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
             permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
         else:
             permission_classes = [permissions.IsAuthenticated]
-        
+
         return [permission() for permission in permission_classes]
 
     @action(detail=False, methods=['get'])
@@ -58,19 +59,20 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar categorías"""
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [CategoryFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'code', 'description']
     ordering_fields = ['name', 'category_type', 'level', 'created_at']
     ordering = ['category_type', 'level', 'name']
 
     def get_permissions(self):
-        """Permisos específicos por acción"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+        """Permisos dinámicos: lectura pública, escritura solo para organizadores/admin"""
+        if self.action in ['list', 'retrieve', 'by_type']:
+            permission_classes = [permissions.AllowAny]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [permissions.IsAuthenticated, IsOrganizerOrAdmin]
         else:
             permission_classes = [permissions.IsAuthenticated]
-        
+
         return [permission() for permission in permission_classes]
 
     @action(detail=False, methods=['get'])
@@ -91,11 +93,21 @@ class VenueViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar sedes"""
     queryset = Venue.objects.filter(is_active=True)
     serializer_class = VenueSerializer
-    permission_classes = [CanManageVenues]
     filter_backends = [VenueFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'city', 'country', 'address']
     ordering_fields = ['name', 'city', 'country', 'created_at']
     ordering = ['country', 'city', 'name']
+
+    def get_permissions(self):
+        """Permisos dinámicos: lectura pública, escritura solo para organizadores/admin"""
+        if self.action in ['list', 'retrieve', 'by_country']:
+            permission_classes = [permissions.AllowAny]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [permissions.IsAuthenticated, IsOrganizerOrAdmin]
+        else:
+            permission_classes = [permissions.IsAuthenticated]
+
+        return [permission() for permission in permission_classes]
 
     @action(detail=False, methods=['get'])
     def by_country(self, request):
@@ -113,17 +125,30 @@ class VenueViewSet(viewsets.ModelViewSet):
 
 class CompetitionViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar competencias"""
-    permission_classes = [IsOrganizerOrReadOnly]
     filter_backends = [CompetitionFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['name', 'short_name', 'description', 'venue__name', 'venue__city']
     ordering_fields = ['name', 'start_date', 'created_at', 'status']
     ordering = ['-start_date']
 
+    def get_permissions(self):
+        """Permisos dinámicos: lectura pública, escritura solo para organizadores/admin"""
+        if self.action in ['list', 'retrieve', 'participants', 'my_assigned']:
+            permission_classes = [permissions.AllowAny]
+        else:
+            permission_classes = [permissions.IsAuthenticated, IsOrganizerOrAdmin]
+        return [permission() for permission in permission_classes]
+
     def get_queryset(self):
         """Filtrar competencias según permisos del usuario"""
         user = self.request.user
+
+        # Usuarios no autenticados solo ven competencias públicas completadas
         if not user.is_authenticated:
-            return Competition.objects.none()
+            return Competition.objects.filter(
+                status__in=['published', 'open_registration', 'registration_closed', 'in_progress', 'completed']
+            ).select_related('organizer', 'venue').prefetch_related(
+                'disciplines', 'categories', 'participants', 'staff'
+            )
 
         # Admin ve todas
         if user.role == 'admin':
@@ -159,9 +184,15 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Crear competencia con el usuario actual como organizador"""
+        # Verificar que el usuario sea organizador o admin
+        user = self.request.user
+        if user.role not in ['organizer', 'admin']:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Solo organizadores y administradores pueden crear competencias")
+
         # El organizador se asigna en el serializer usando el context
         competition = serializer.save()
-        
+
         # Auditar la creación
         AuditMiddleware.log_action(
             self.request.user,
@@ -173,17 +204,24 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         """Actualizar competencia con auditoría"""
+        user = self.request.user
         old_instance = self.get_object()
-        competition = serializer.save()
-        
-        # Auditar la actualización
-        AuditMiddleware.log_action(
-            self.request.user,
-            'update',
-            'Competition',
-            str(competition.id),
-            f"Competencia '{competition.name}' actualizada"
-        )
+
+        # Verificar permisos: organizador de la competencia o admin
+        if user.role == 'admin' or old_instance.organizer == user:
+            competition = serializer.save()
+
+            # Auditar la actualización
+            AuditMiddleware.log_action(
+                self.request.user,
+                'update',
+                'Competition',
+                str(competition.id),
+                f"Competencia '{competition.name}' actualizada"
+            )
+        else:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Solo el organizador de la competencia o un administrador puede editarla")
 
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):

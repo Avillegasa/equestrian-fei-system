@@ -164,6 +164,32 @@ class CanManageCompetitionSchedule(permissions.BasePermission):
         )
 
 
+class IsAdminOrOrganizer(permissions.BasePermission):
+    """
+    Permiso para verificar que el usuario es admin u organizador
+    """
+
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role in ['admin', 'organizer']
+        )
+
+
+class IsOrganizerOrAdmin(permissions.BasePermission):
+    """
+    Permiso para verificar que el usuario es organizador o admin (alias de IsAdminOrOrganizer)
+    """
+
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role in ['organizer', 'admin']
+        )
+
+
 class IsJudgeOrAdmin(permissions.BasePermission):
     """
     Permiso para verificar que el usuario es juez o admin
@@ -171,7 +197,7 @@ class IsJudgeOrAdmin(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return (
-            request.user and 
+            request.user and
             request.user.is_authenticated and
             request.user.role in ['judge', 'admin']
         )
