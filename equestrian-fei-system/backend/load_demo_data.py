@@ -617,6 +617,7 @@ def create_competition_rankings(competition):
                     ranking=ranking,
                     participant=data['participant'],
                     position=position,
+                    total_score=data['score'],
                     final_score=data['score'],
                     technical_score=data['score'],
                     rounds_completed=1,
