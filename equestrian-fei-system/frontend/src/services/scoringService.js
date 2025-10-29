@@ -369,7 +369,8 @@ class ScoringService {
 
   async getLiveRankings(competitionId) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/rankings/live/`, {
+      // CORRECCIÓN: URL correcta para rankings
+      const response = await axios.get(`${API_BASE_URL}/scoring/rankings/`, {
         params: { competition: competitionId }
       });
       return response.data;

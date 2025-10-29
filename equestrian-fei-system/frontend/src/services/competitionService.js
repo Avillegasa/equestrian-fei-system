@@ -72,7 +72,10 @@ class CompetitionService {
       // Añadir campos derivados para compatibilidad con CompetitionsPage
       location: competition.location || `${competition.venue_city}, ${competition.venue_country}`,
       organizer: competition.organizer || competition.venue_name || 'N/A',
-      participants: competition.participants || 0,
+      // CORRECCIÓN: Preservar participant_count del backend y usar como participants
+      participants: competition.participant_count || competition.participants || 0,
+      participant_count: competition.participant_count || 0,
+      staff_count: competition.staff_count || 0,
       maxParticipants: competition.max_participants || competition.maxParticipants || 0,
       startDate: competition.start_date ? new Date(competition.start_date).toLocaleDateString() : 'N/A',
       endDate: competition.end_date ? new Date(competition.end_date).toLocaleDateString() : 'N/A',

@@ -401,7 +401,7 @@ const CompetitionsPage = () => {
                     <div className="flex items-center space-x-6">
                       <div className="text-right">
                         <div className="text-lg font-bold text-gray-900">
-                          {competition.participants}/{competition.maxParticipants}
+                          {competition.participant_count || competition.participants || 0}/{competition.max_participants || competition.maxParticipants || 0}
                         </div>
                         <div className="text-xs text-gray-500">
                           Participantes
