@@ -24,7 +24,7 @@ from .permissions import (
     CanManageHorses, CanManageVenues, CanManageCompetitionSchedule,
     CanViewCompetitionDetails, CompetitionPermissionChecker, IsOrganizerOrAdmin
 )
-from apps.users.middleware import AuditMiddleware
+from apps.users.middleware import create_audit_log
 
 
 class DisciplineViewSet(viewsets.ModelViewSet):
@@ -194,12 +194,13 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         competition = serializer.save()
 
         # Auditar la creación
-        AuditMiddleware.log_action(
-            self.request.user,
-            'create',
-            'Competition',
-            str(competition.id),
-            f"Competencia '{competition.name}' creada"
+        create_audit_log(
+            user=self.request.user,
+            action='create',
+            model_name='Competition',
+            object_id=str(competition.id),
+            changes={'message': f"Competencia '{competition.name}' creada"},
+            request=self.request
         )
 
     def perform_update(self, serializer):
@@ -212,12 +213,13 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             competition = serializer.save()
 
             # Auditar la actualización
-            AuditMiddleware.log_action(
-                self.request.user,
-                'update',
-                'Competition',
-                str(competition.id),
-                f"Competencia '{competition.name}' actualizada"
+            create_audit_log(
+                user=self.request.user,
+                action='update',
+                model_name='Competition',
+                object_id=str(competition.id),
+                changes={'message': f"Competencia '{competition.name}' actualizada"},
+                request=self.request
             )
         else:
             from rest_framework.exceptions import PermissionDenied
@@ -238,12 +240,13 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         competition.save()
 
         # Auditar la publicación
-        AuditMiddleware.log_action(
-            request.user,
-            'publish',
-            'Competition',
-            str(competition.id),
-            f"Competencia '{competition.name}' publicada"
+        create_audit_log(
+            user=request.user,
+            action='publish',
+            model_name='Competition',
+            object_id=str(competition.id),
+            changes={'message': f"Competencia '{competition.name}' publicada"},
+            request=request
         )
 
         return Response({'message': 'Competencia publicada exitosamente'})
@@ -486,12 +489,13 @@ class CompetitionStaffViewSet(viewsets.ModelViewSet):
         staff = serializer.save()
 
         # Auditar la creación
-        AuditMiddleware.log_action(
-            self.request.user,
-            'create',
-            'CompetitionStaff',
-            str(staff.id),
-            f"Personal '{staff.staff_member.get_full_name()}' asignado a competencia '{staff.competition.name}' como {staff.get_role_display()}"
+        create_audit_log(
+            user=self.request.user,
+            action='create',
+            model_name='CompetitionStaff',
+            object_id=str(staff.id),
+            changes={'message': f"Personal '{staff.staff_member.get_full_name()}' asignado a competencia '{staff.competition.name}' como {staff.get_role_display()}"},
+            request=self.request
         )
 
     @action(detail=True, methods=['post'])
@@ -634,12 +638,13 @@ class CompetitionScheduleViewSet(viewsets.ModelViewSet):
         Registra la creación de un evento en el log de auditoría.
         """
         schedule_event = serializer.save()
-        AuditMiddleware.log_action(
-            self.request,
-            'CREATE',
-            'CompetitionSchedule',
-            schedule_event.id,
-            f'Evento "{schedule_event.title}" creado para competencia {schedule_event.competition.name}'
+        create_audit_log(
+            user=self.request.user,
+            action='create',
+            model_name='CompetitionSchedule',
+            object_id=str(schedule_event.id),
+            changes={'message': f'Evento "{schedule_event.title}" creado para competencia {schedule_event.competition.name}'},
+            request=self.request
         )
 
     def perform_update(self, serializer):
@@ -647,24 +652,26 @@ class CompetitionScheduleViewSet(viewsets.ModelViewSet):
         Registra la actualización de un evento en el log de auditoría.
         """
         schedule_event = serializer.save()
-        AuditMiddleware.log_action(
-            self.request,
-            'UPDATE',
-            'CompetitionSchedule',
-            schedule_event.id,
-            f'Evento "{schedule_event.title}" actualizado'
+        create_audit_log(
+            user=self.request.user,
+            action='update',
+            model_name='CompetitionSchedule',
+            object_id=str(schedule_event.id),
+            changes={'message': f'Evento "{schedule_event.title}" actualizado'},
+            request=self.request
         )
 
     def perform_destroy(self, instance):
         """
         Registra la eliminación de un evento en el log de auditoría.
         """
-        AuditMiddleware.log_action(
-            self.request,
-            'DELETE',
-            'CompetitionSchedule',
-            instance.id,
-            f'Evento "{instance.title}" eliminado'
+        create_audit_log(
+            user=self.request.user,
+            action='delete',
+            model_name='CompetitionSchedule',
+            object_id=str(instance.id),
+            changes={'message': f'Evento "{instance.title}" eliminado'},
+            request=self.request
         )
         instance.delete()
 
