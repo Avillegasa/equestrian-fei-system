@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import competitionService from '../services/competitionService';
+import staffService from '../services/staffService';
 
 const JudgeCompetitionsPage = () => {
   const { user, logout } = useAuth();
@@ -28,45 +29,16 @@ const JudgeCompetitionsPage = () => {
     setError('');
 
     try {
-      // Intentar cargar desde API
+      // API ahora retorna datos COMPLETOS, no necesitamos enrichment
       const assigned = await competitionService.getMyAssignedCompetitions();
+
+      console.log('✅ Competencias cargadas desde API:', assigned);
+
       setCompetitions(assigned);
     } catch (err) {
-      console.error('Error loading assigned competitions:', err);
-
-      // Fallback a localStorage
-      try {
-        const allCompetitions = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
-
-        // Filtrar competencias donde el usuario está asignado como juez
-        const assignedCompetitions = allCompetitions.filter(comp => {
-          const staffKey = `fei_staff_${comp.id}`;
-          const staff = JSON.parse(localStorage.getItem(staffKey) || '[]');
-          return staff.some(s => s.user?.id === user?.id && s.role === 'judge');
-        });
-
-        // Enriquecer con datos de participantes y staff
-        const enriched = assignedCompetitions.map(comp => {
-          const staffKey = `fei_staff_${comp.id}`;
-          const staff = JSON.parse(localStorage.getItem(staffKey) || '[]');
-          const staffAssignment = staff.find(s => s.user?.id === user?.id);
-
-          const participantsKey = `fei_participants_${comp.id}`;
-          const participants = JSON.parse(localStorage.getItem(participantsKey) || '[]');
-
-          return {
-            ...comp,
-            staff_assignment: staffAssignment,
-            participants: participants,
-            participant_count: participants.length
-          };
-        });
-
-        setCompetitions(enriched);
-      } catch (localErr) {
-        console.error('Error loading from localStorage:', localErr);
-        setError('No se pudieron cargar las competencias asignadas');
-      }
+      console.error('❌ Error cargando competencias:', err);
+      setError('No se pudieron cargar las competencias asignadas. Por favor recarga la página.');
+      setCompetitions([]);
     } finally {
       setLoading(false);
     }
@@ -114,41 +86,88 @@ const JudgeCompetitionsPage = () => {
     await logout();
   };
 
+  const handleConfirmAssignment = async (competition) => {
+    if (!competition.staff_assignment?.id) {
+      alert('❌ Error: No se encontró la asignación');
+      return;
+    }
+
+    const confirmMsg = `¿Confirmar tu asignación como ${competition.staff_assignment.role} para "${competition.name}"?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setLoading(true);
+
+      // Llamar API real
+      await staffService.confirmAssignment(competition.staff_assignment.id);
+
+      alert('✅ Asignación confirmada exitosamente');
+
+      // Recargar competencias desde API
+      await loadAssignedCompetitions();
+    } catch (error) {
+      console.error('❌ Error confirmando asignación:', error);
+      alert('Error al confirmar la asignación. Por favor intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectAssignment = async (competition) => {
+    if (!competition.staff_assignment?.id) {
+      alert('❌ Error: No se encontró la asignación');
+      return;
+    }
+
+    const confirmMsg = `¿Estás seguro que deseas RECHAZAR la asignación para "${competition.name}"?\n\n⚠️ Esta acción no se puede deshacer.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setLoading(true);
+
+      // Llamar API real
+      await staffService.rejectAssignment(competition.staff_assignment.id);
+
+      alert('❌ Asignación rechazada');
+
+      // Recargar competencias desde API
+      await loadAssignedCompetitions();
+    } catch (error) {
+      console.error('❌ Error rechazando asignación:', error);
+      alert('Error al rechazar la asignación. Por favor intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusBadge = (competition) => {
+    // PRIORIDAD 1: Asignación pendiente (con animación pulse)
     if (!competition.staff_assignment?.is_confirmed) {
       return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border-2 border-yellow-400 animate-pulse">
           ⏳ Pendiente de Confirmación
         </span>
       );
     }
 
-    switch (competition.status) {
-      case 'in_progress':
-        return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-            🔴 En Progreso
-          </span>
-        );
-      case 'completed':
-        return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-            ✅ Completada
-          </span>
-        );
-      case 'open_registration':
-        return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-            📝 Inscripción Abierta
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800">
-            ✅ Confirmada
-          </span>
-        );
-    }
+    // PRIORIDAD 2: Estado de competencia
+    const statusMap = {
+      'draft': { icon: '📝', text: 'Borrador', classes: 'bg-gray-100 text-gray-800' },
+      'published': { icon: '📢', text: 'Publicada', classes: 'bg-blue-100 text-blue-800' },
+      'open_registration': { icon: '✅', text: 'Inscripciones Abiertas', classes: 'bg-green-100 text-green-800' },
+      'in_progress': { icon: '🏇', text: 'En Progreso', classes: 'bg-orange-100 text-orange-800' },
+      'completed': { icon: '🏁', text: 'Completada', classes: 'bg-purple-100 text-purple-800' },
+      'cancelled': { icon: '❌', text: 'Cancelada', classes: 'bg-red-100 text-red-800' },
+    };
+
+    const status = statusMap[competition.status] || statusMap['published'];
+
+    return (
+      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${status.classes}`}>
+        <span className="mr-1">{status.icon}</span>
+        {status.text}
+      </span>
+    );
   };
 
   const getDisciplineIcon = (discipline) => {
@@ -310,6 +329,41 @@ const JudgeCompetitionsPage = () => {
             </div>
           </div>
 
+          {/* Alerta de asignaciones pendientes */}
+          {filteredCompetitions.filter(c => !c.staff_assignment?.is_confirmed).length > 0 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8 shadow-lg">
+              <div className="flex items-start">
+                <span className="text-3xl mr-4">⏳</span>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-yellow-900 mb-1">
+                    Asignaciones Pendientes de Confirmación
+                  </h3>
+                  <p className="text-sm text-yellow-700 mb-3">
+                    Tienes {filteredCompetitions.filter(c => !c.staff_assignment?.is_confirmed).length} asignación(es)
+                    que requieren tu aceptación. Por favor revisa y confirma para poder calificar participantes.
+                  </p>
+                  <button
+                    onClick={() => {
+                      const firstPending = filteredCompetitions.find(c => !c.staff_assignment?.is_confirmed);
+                      if (firstPending) {
+                        const cardElement = document.getElementById(`competition-card-${firstPending.id}`);
+                        if (cardElement) {
+                          cardElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                          });
+                        }
+                      }
+                    }}
+                    className="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline hover:no-underline transition-all"
+                  >
+                    Ver primera asignación pendiente →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Filters */}
           <div className="bg-white shadow-lg rounded-xl p-6 mb-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -411,6 +465,7 @@ const JudgeCompetitionsPage = () => {
               {filteredCompetitions.map((competition) => (
                 <div
                   key={competition.id}
+                  id={`competition-card-${competition.id}`}
                   className="bg-white shadow-lg rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
                 >
                   {/* Card Header */}
@@ -489,10 +544,33 @@ const JudgeCompetitionsPage = () => {
                       )}
 
                       {!competition.staff_assignment?.is_confirmed && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                          <p className="text-xs text-yellow-800 text-center">
-                            ⚠️ Debes confirmar tu asignación desde el dashboard para calificar
-                          </p>
+                        <div className="space-y-3">
+                          {/* Mensaje de estado */}
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-xs text-yellow-800 text-center font-medium">
+                              ⏳ Esta asignación requiere tu confirmación
+                            </p>
+                          </div>
+
+                          {/* Botones de acción */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handleRejectAssignment(competition)}
+                              disabled={loading}
+                              className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-1"
+                            >
+                              <span>❌</span>
+                              <span>Rechazar</span>
+                            </button>
+                            <button
+                              onClick={() => handleConfirmAssignment(competition)}
+                              disabled={loading}
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-1"
+                            >
+                              <span>✅</span>
+                              <span>Aceptar</span>
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

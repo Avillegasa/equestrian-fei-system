@@ -299,35 +299,59 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def my_assigned(self, request):
-        """Obtener competencias donde el usuario es juez asignado"""
+        """
+        Obtener competencias donde el usuario está asignado como juez/chief_judge
+        con datos COMPLETOS incluyendo staff_assignment
+        """
+        from django.db.models import Count
+        from .serializers import JudgeAssignedCompetitionSerializer
+
         user = request.user
 
         if not user.is_authenticated:
             return Response([], status=status.HTTP_200_OK)
 
-        # Admin puede ver todas
-        if user.role == 'admin':
-            competitions = Competition.objects.all()
-        # Jueces ven competencias donde están asignados
-        elif user.role == 'judge':
-            staff_assignments = CompetitionStaff.objects.filter(
-                staff_member=user,
-                role__in=['judge', 'chief_judge'],
-                is_confirmed=True
+        # Obtener asignaciones de staff del usuario (tanto confirmadas como pendientes)
+        staff_assignments = CompetitionStaff.objects.filter(
+            staff_member=user,
+            role__in=['judge', 'chief_judge']
+        ).select_related(
+            'competition',
+            'competition__venue',
+            'competition__organizer'
+        ).prefetch_related(
+            'competition__disciplines',
+            'competition__categories'
+        ).order_by('-competition__start_date')
+
+        # Construir respuesta con datos completos
+        result = []
+        for assignment in staff_assignments:
+            competition = assignment.competition
+
+            # Anotar counts dinámicamente
+            competition_with_counts = Competition.objects.filter(id=competition.id).annotate(
+                participant_count=Count('participants', distinct=True),
+                staff_count=Count('staff', distinct=True)
+            ).first()
+
+            # Serializar competencia con contexto de staff_assignment
+            staff_assignment_data = {
+                'id': assignment.id,
+                'role': assignment.role,
+                'is_confirmed': assignment.is_confirmed,
+                'assigned_date': assignment.assigned_date.isoformat() if assignment.assigned_date else None,
+                'notes': assignment.notes or '',
+            }
+
+            serializer = JudgeAssignedCompetitionSerializer(
+                competition_with_counts,
+                context={'request': request, 'staff_assignment': staff_assignment_data}
             )
-            competition_ids = staff_assignments.values_list('competition_id', flat=True)
-            competitions = Competition.objects.filter(id__in=competition_ids)
-        else:
-            # Otros roles no tienen competencias asignadas
-            competitions = Competition.objects.none()
 
-        # Usar el serializer simple
-        competitions = competitions.select_related('organizer', 'venue').prefetch_related(
-            'disciplines', 'categories', 'participants', 'staff'
-        ).order_by('-start_date')
+            result.append(serializer.data)
 
-        serializer = SimpleCompetitionSerializer(competitions, many=True, context={'request': request})
-        return Response(serializer.data)
+        return Response(result)
 
     @action(detail=True, methods=['get'])
     def participants(self, request, pk=None):

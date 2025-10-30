@@ -474,5 +474,61 @@ class CompetitionCreateSerializer(serializers.ModelSerializer):
         # Agregar relaciones ManyToMany
         competition.disciplines.set(disciplines)
         competition.categories.set(categories)
-        
+
         return competition
+
+
+class JudgeAssignedCompetitionSerializer(serializers.ModelSerializer):
+    """Serializer completo para competencias asignadas a jueces con todos los datos necesarios"""
+
+    # Venue data
+    venue_name = serializers.CharField(source='venue.name', read_only=True, allow_null=True)
+    venue_city = serializers.CharField(source='venue.city', read_only=True, allow_null=True)
+    venue_country = serializers.CharField(source='venue.country', read_only=True, allow_null=True)
+
+    # Organizer data
+    organizer_name = serializers.SerializerMethodField()
+
+    # M2M fields
+    disciplines = DisciplineSerializer(many=True, read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)
+
+    # Counts (annotated in view)
+    participant_count = serializers.IntegerField(read_only=True, default=0)
+    staff_count = serializers.IntegerField(read_only=True, default=0)
+
+    # Display fields
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    competition_type_display = serializers.CharField(source='get_competition_type_display', read_only=True)
+
+    # Staff assignment (will be added in view context)
+    staff_assignment = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Competition
+        fields = [
+            'id', 'name', 'short_name', 'description',
+            'start_date', 'end_date',
+            'status', 'status_display',
+            'competition_type', 'competition_type_display',
+            'venue', 'venue_name', 'venue_city', 'venue_country',
+            'organizer', 'organizer_name',
+            'disciplines', 'categories',
+            'participant_count', 'staff_count',
+            'max_participants', 'entry_fee',
+            'staff_assignment',
+        ]
+
+    def get_organizer_name(self, obj):
+        """Obtener nombre completo del organizador"""
+        if obj.organizer:
+            return f"{obj.organizer.first_name} {obj.organizer.last_name}".strip()
+        return ""
+
+    def get_staff_assignment(self, obj):
+        """
+        Obtener la asignación de staff del juez actual
+        Este campo debe ser configurado en el contexto del serializer
+        """
+        # El view debe pasar 'staff_assignment' en el contexto
+        return self.context.get('staff_assignment', None)
