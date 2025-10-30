@@ -150,20 +150,25 @@ class CanManageVenues(permissions.BasePermission):
 class CanManageCompetitionSchedule(permissions.BasePermission):
     """
     Permiso para gestionar horarios de competencias
+    Jueces pueden LEER (GET), solo admin/organizer pueden escribir
     """
 
     def has_permission(self, request, view):
-        return (
-            request.user and 
-            request.user.is_authenticated and
-            request.user.role in ['organizer', 'admin']
-        )
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Jueces pueden leer (métodos seguros: GET, HEAD, OPTIONS)
+        if request.method in permissions.SAFE_METHODS and request.user.role == 'judge':
+            return True
+
+        # Solo organizers/admin pueden crear/editar/eliminar
+        return request.user.role in ['organizer', 'admin']
 
     def has_object_permission(self, request, view, obj):
         # Verificar que el usuario pueda gestionar la competencia
         competition = obj.competition if hasattr(obj, 'competition') else obj
         return (
-            request.user and 
+            request.user and
             request.user.is_authenticated and
             (competition.organizer == request.user or request.user.role == 'admin')
         )

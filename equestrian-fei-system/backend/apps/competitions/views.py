@@ -652,8 +652,10 @@ class CompetitionScheduleViewSet(viewsets.ModelViewSet):
                 competition__staff__staff_member=user
             ).distinct()
         else:
-            # Viewers pueden ver eventos de competencias públicas
-            queryset = queryset.filter(competition__is_public=True)
+            # Viewers pueden ver eventos de competencias publicadas
+            queryset = queryset.filter(
+                competition__status__in=['published', 'open_registration', 'registration_closed', 'in_progress', 'completed']
+            )
 
         return queryset
 
