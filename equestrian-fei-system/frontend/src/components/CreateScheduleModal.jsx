@@ -144,7 +144,21 @@ const CreateScheduleModal = ({
       return;
     }
 
-    onSubmit(formData);
+    // Preparar datos para enviar
+    const dataToSubmit = { ...formData };
+
+    // Si el evento NO necesita disciplina/categoría, enviar null en lugar de strings
+    const eventTypesWithoutDiscipline = ['break', 'lunch', 'awards', 'special_event'];
+    if (eventTypesWithoutDiscipline.includes(formData.schedule_type)) {
+      dataToSubmit.discipline = null;
+      dataToSubmit.category = null;
+    } else if (formData.schedule_type === 'discipline_start') {
+      // discipline_start solo necesita disciplina, no categoría
+      dataToSubmit.category = null;
+    }
+    // Para 'category_start' y 'competition_start', mantener los valores
+
+    onSubmit(dataToSubmit);
     // Reset form
     setFormData({
       title: '',

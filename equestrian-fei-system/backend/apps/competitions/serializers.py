@@ -117,7 +117,19 @@ class CompetitionScheduleSerializer(serializers.ModelSerializer):
     discipline_name = serializers.CharField(source='discipline.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     schedule_type_display = serializers.CharField(source='get_schedule_type_display', read_only=True)
-    
+
+    # Hacer discipline y category explícitamente opcionales (permiten null)
+    discipline = serializers.PrimaryKeyRelatedField(
+        queryset=Discipline.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = CompetitionSchedule
         fields = [
