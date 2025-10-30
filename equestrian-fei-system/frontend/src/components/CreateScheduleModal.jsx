@@ -147,6 +147,18 @@ const CreateScheduleModal = ({
     // Preparar datos para enviar
     const dataToSubmit = { ...formData };
 
+    // Convertir fechas de hora local a UTC para el backend
+    // El input datetime-local da valores como "2025-10-30T07:58" (sin timezone)
+    // Los convertimos a ISO UTC: "2025-10-30T11:58:00Z" (sumando offset de timezone)
+    if (formData.start_time) {
+      const localDate = new Date(formData.start_time);
+      dataToSubmit.start_time = localDate.toISOString(); // Convierte a UTC automáticamente
+    }
+    if (formData.end_time) {
+      const localDate = new Date(formData.end_time);
+      dataToSubmit.end_time = localDate.toISOString(); // Convierte a UTC automáticamente
+    }
+
     // Si el evento NO necesita disciplina/categoría, enviar null en lugar de strings
     const eventTypesWithoutDiscipline = ['break', 'lunch', 'awards', 'special_event'];
     if (eventTypesWithoutDiscipline.includes(formData.schedule_type)) {
