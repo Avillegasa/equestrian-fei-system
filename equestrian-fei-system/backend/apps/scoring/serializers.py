@@ -170,34 +170,29 @@ class ScoreCardCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScoreCard
         fields = [
-            'competition', 'participant', 'judge', 'status',
-            'notes'
+            'participant', 'judge', 'status', 'notes'
         ]
-    
+
     def validate(self, data):
         """Validar que no exista ya un scorecard para este participante y juez"""
-        competition = data['competition']
         participant = data['participant']
         judge = data.get('judge')
-        
-        # Verificar que el participante esté inscrito en la competencia
-        if participant.competition != competition:
-            raise serializers.ValidationError(
-                "El participante no está inscrito en esta competencia"
-            )
-        
-        # Verificar que no exista ya un scorecard
+
+        # Inferir competition desde participant (ScoreCard no tiene campo competition)
+        competition = participant.competition
+
+        # Verificar que no exista ya un scorecard para este participante y juez
         existing = ScoreCard.objects.filter(
-            competition=competition,
+            participant__competition=competition,
             participant=participant,
             judge=judge
         ).first()
-        
+
         if existing:
             raise serializers.ValidationError(
                 "Ya existe un scorecard para este participante y juez"
             )
-        
+
         return data
 
 

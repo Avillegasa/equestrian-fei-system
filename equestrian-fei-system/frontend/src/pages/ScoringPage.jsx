@@ -76,7 +76,6 @@ const ScoringPage = () => {
         scorecard = await scoringService.createScoreCard({
           participant: participant.id,
           judge: user.id,
-          competition: competitionId,
           status: 'in_progress'
         });
 
