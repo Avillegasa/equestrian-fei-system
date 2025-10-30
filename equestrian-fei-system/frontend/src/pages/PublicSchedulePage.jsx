@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import competitionService from '../services/competitionService';
+import scheduleService from '../services/scheduleService';
 
 const PublicSchedulePage = () => {
   const { competitionId } = useParams();
@@ -8,6 +10,7 @@ const PublicSchedulePage = () => {
   const [schedule, setSchedule] = useState([]);
   const [competition, setCompetition] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedDay, setSelectedDay] = useState('all');
 
   const handleLogout = async () => {
@@ -15,33 +18,44 @@ const PublicSchedulePage = () => {
   };
 
   useEffect(() => {
-    if (!competitionId) return;
+    const loadData = async () => {
+      if (!competitionId) return;
 
-    setLoading(true);
+      setLoading(true);
+      setError(null);
 
-    // Cargar competencia
-    const competitionsData = JSON.parse(localStorage.getItem('fei_competitions') || '[]');
-    const comp = competitionsData.find(c => c.id == competitionId);
+      try {
+        // Cargar competencia desde API
+        const comp = await competitionService.getCompetitionById(competitionId);
 
-    if (comp) {
-      setCompetition({
-        id: comp.id,
-        name: comp.name,
-        discipline: comp.discipline,
-        location: comp.location || `${comp.venue_city}, ${comp.venue_country}`,
-        startDate: comp.start_date || comp.startDate,
-        endDate: comp.end_date || comp.endDate,
-        status: comp.status
-      });
-    }
+        if (comp) {
+          setCompetition({
+            id: comp.id,
+            name: comp.name,
+            discipline: comp.discipline,
+            location: comp.location || `${comp.venue_city || comp.venueCity}, ${comp.venue_country || comp.venueCountry}`,
+            startDate: comp.start_date || comp.startDate,
+            endDate: comp.end_date || comp.endDate,
+            status: comp.status
+          });
+        }
 
-    // Cargar solo eventos PUBLICADOS
-    const scheduleKey = `fei_schedule_${competitionId}`;
-    const storedSchedule = JSON.parse(localStorage.getItem(scheduleKey) || '[]');
-    const publishedSchedule = storedSchedule.filter(event => event.is_published);
+        // Cargar eventos de programación desde API
+        const scheduleData = await scheduleService.getCompetitionSchedule(competitionId);
 
-    setSchedule(publishedSchedule);
-    setLoading(false);
+        // Filtrar solo eventos PUBLICADOS
+        const publishedSchedule = scheduleData.filter(event => event.is_published !== false);
+
+        setSchedule(publishedSchedule);
+      } catch (err) {
+        console.error('Error cargando programación:', err);
+        setError('Error al cargar la programación');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, [competitionId]);
 
   const getScheduleTypeIcon = (type) => {
