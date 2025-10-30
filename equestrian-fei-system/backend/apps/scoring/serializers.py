@@ -136,15 +136,14 @@ class RankingEntrySerializer(serializers.ModelSerializer):
     participant_number = serializers.CharField(source='participant.bib_number', read_only=True)
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
     country = serializers.CharField(source='participant.rider.country', read_only=True)
-    
+
     class Meta:
         model = RankingEntry
         fields = [
             'id', 'ranking', 'participant', 'participant_name',
             'participant_number', 'horse_name', 'country',
-            'position', 'final_score', 'technical_score',
-            'artistic_score', 'time_score', 'penalty_points',
-            'is_tied', 'tie_break_info'
+            'position', 'total_score', 'total_penalties', 'final_score',
+            'technical_score', 'artistic_score', 'time_score'
         ]
         read_only_fields = ['id']
 
