@@ -337,29 +337,24 @@ class EventingPhaseViewSet(viewsets.ModelViewSet):
 class CompetitionRankingViewSet(viewsets.ModelViewSet):
     """ViewSet para rankings de competencias"""
     queryset = CompetitionRanking.objects.select_related(
-        'competition', 'discipline', 'category'
-    ).prefetch_related('entries__participant__user', 'entries__participant__horse').all()
+        'competition', 'category'
+    ).prefetch_related('entries__participant__rider', 'entries__participant__horse').all()
     serializer_class = CompetitionRankingSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         queryset = self.queryset
-        
+
         # Filtrar por competencia
         competition_id = self.request.query_params.get('competition', None)
         if competition_id:
             queryset = queryset.filter(competition_id=competition_id)
-        
-        # Filtrar por disciplina
-        discipline_id = self.request.query_params.get('discipline', None)
-        if discipline_id:
-            queryset = queryset.filter(discipline_id=discipline_id)
-        
+
         # Filtrar por categoría
         category_id = self.request.query_params.get('category', None)
         if category_id:
             queryset = queryset.filter(category_id=category_id)
-        
+
         # Solo rankings publicados para participantes
         if self.request.user.role == 'participant':
             queryset = queryset.filter(is_published=True)
