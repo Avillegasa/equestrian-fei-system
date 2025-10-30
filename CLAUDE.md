@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a professional equestrian competition management system with FEI (Fédération Équestre Internationale) compliance. The system is designed for managing international equestrian competitions with real-time rankings and offline functionality.
 
-**🟢 PRODUCTION STATUS:** System deployed and running on Render.com (October 27, 2025)
+**🟢 PRODUCTION STATUS:** System fully operational and deployed on Render.com (October 30, 2025)
 - **Frontend:** https://equestrian-frontend.onrender.com
 - **Backend API:** https://equestrian-backend.onrender.com
 - **Health Check:** https://equestrian-backend.onrender.com/api/health/
+- **Last Deploy:** October 30, 2025 - Schedule management and timezone fixes
+- **System Status:** ✅ All core features working in production
 
 ## Architecture
 
@@ -249,6 +251,754 @@ All users authenticate via JWT tokens with role-based access control.
 - ❌ No puede gestionar usuarios
 - ❌ No puede gestionar participantes (solo visualizar)
 - ✅ Solo puede calificar en competencias donde esté asignado
+
+---
+
+## 🎯 Complete System Analysis: End-to-End Flows
+
+### System Overview
+
+The FEI Equestrian Competition Management System is a comprehensive platform for managing professional equestrian competitions from start to finish. It handles everything from competition setup, participant registration, staff assignment, event scheduling, live scoring, to real-time rankings and official reporting.
+
+### Core System Components
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      AUTHENTICATION LAYER                        │
+│  JWT Tokens | Role-Based Access Control | Session Management    │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+            ┌──────────────────┼──────────────────┐
+            │                  │                  │
+    ┌───────▼────────┐  ┌─────▼──────┐  ┌───────▼────────┐
+    │  ADMIN ROLE    │  │ ORGANIZER  │  │  JUDGE ROLE    │
+    │   Dashboard    │  │  ROLE      │  │   Dashboard    │
+    │                │  │ Dashboard  │  │                │
+    └───────┬────────┘  └─────┬──────┘  └───────┬────────┘
+            │                  │                  │
+    ┌───────▼──────────────────▼──────────────────▼────────┐
+    │           COMPETITION MANAGEMENT CORE                 │
+    │  ┌────────────┐  ┌──────────┐  ┌────────────────┐  │
+    │  │Competitions│  │Categories│  │   Disciplines  │  │
+    │  └────────────┘  └──────────┘  └────────────────┘  │
+    └───────────────────────┬───────────────────────────────┘
+                           │
+    ┌──────────────────────┼──────────────────────┐
+    │                      │                      │
+┌───▼────────┐  ┌─────────▼────────┐  ┌─────────▼──────┐
+│   STAFF    │  │   PARTICIPANTS   │  │   SCHEDULE     │
+│ Management │  │   Registration   │  │   Management   │
+└───┬────────┘  └─────────┬────────┘  └─────────┬──────┘
+    │                      │                      │
+    └──────────────────────┼──────────────────────┘
+                           │
+    ┌──────────────────────▼──────────────────────┐
+    │         COMPETITION EXECUTION PHASE          │
+    │  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+    │  │ Scoring  │  │ Rankings │  │ Reports  │  │
+    │  └──────────┘  └──────────┘  └──────────┘  │
+    └──────────────────────────────────────────────┘
+```
+
+---
+
+## 📋 Role-Based Workflows & Complete User Journeys
+
+### 🔐 Authentication & Access Control
+
+**System Entry Point:**
+1. User visits: https://equestrian-frontend.onrender.com
+2. Redirected to `/login` if not authenticated
+3. Enters credentials (username + password)
+4. Backend validates via `/api/auth/login/`
+5. Returns JWT tokens (access + refresh) + user profile
+6. Frontend stores tokens in localStorage
+7. User redirected to role-specific dashboard
+
+**Token Management:**
+- **Access Token:** Valid for 1 hour
+- **Refresh Token:** Valid for 7 days
+- Auto-refresh on 401 errors
+- Logout clears all tokens
+
+---
+
+### 👑 ADMIN ROLE - Complete Workflow
+
+**Dashboard:** `/admin`
+
+#### 1️⃣ **User Management Flow**
+**Route:** `/admin/users`
+
+**Journey:**
+1. Admin clicks "Gestionar Usuarios" from dashboard
+2. System loads all users via `GET /api/users/`
+3. Admin sees table with: username, email, role, status
+4. **Actions available:**
+   - ➕ **Create User:** Opens modal → fills form → `POST /api/users/` → user created
+   - ✏️ **Edit User:** Click edit → modal with current data → modify → `PATCH /api/users/{id}/` → updated
+   - 🗑️ **Delete User:** Click delete → confirmation → `DELETE /api/users/{id}/` → removed
+   - 🔍 **Search/Filter:** Real-time client-side filtering by name, email, role
+
+**Business Rules:**
+- Cannot delete self
+- Cannot change own role
+- Email must be unique
+- Strong password validation
+
+---
+
+#### 2️⃣ **Competition Management Flow**
+**Route:** `/admin/competitions`
+
+**Journey - Creating a Competition:**
+1. Admin clicks "Gestionar Competencias"
+2. Clicks "➕ Nueva Competencia"
+3. Modal opens with form:
+   - **Basic Info:** Name, short name, description
+   - **Venue:** Select from dropdown (or create new)
+   - **Dates:** Start date, end date, registration period
+   - **Type:** National, International, Championship
+   - **Settings:** Max participants, entry fee, rules
+4. Submits form → `POST /api/competitions/`
+5. Backend creates competition with organizer = current admin
+6. Competition appears in list with status "Borrador"
+
+**Competition Lifecycle:**
+```
+Borrador → Publicada → En Progreso → Completada → Archivada
+  │            │            │              │
+  │            │            │              └─→ Results finalized
+  │            │            └─→ Competition running
+  │            └─→ Open for registration
+  └─→ Initial creation
+```
+
+**Competition Card Actions:**
+- 📊 **Ver Rankings** → `/rankings/{id}` - Real-time competition standings
+- 👥 **Personal** → `/admin/competitions/{id}/staff` - Manage judges/officials
+- 🏇 **Participantes** → `/admin/competitions/{id}/participants` - Registered riders
+- 📋 **Programación** → `/admin/competitions/{id}/schedule` - Event schedule
+- ✏️ **Editar** → Edit competition details
+- 🗑️ **Eliminar** → Delete competition (if no participants)
+
+---
+
+#### 3️⃣ **Staff Assignment Flow**
+**Route:** `/admin/competitions/{id}/staff`
+
+**Journey:**
+1. Admin navigates to competition → clicks "Personal"
+2. System loads staff via `GET /api/competitions/staff/?competition={id}`
+3. Current staff displayed: Name, Role, Email, Status
+4. **Assign New Staff:**
+   - Click "➕ Asignar Personal"
+   - Select user from dropdown (filtered by role='judge')
+   - Select role: Chief Judge, Judge, Technical Delegate, Steward
+   - Add notes
+   - Submit → `POST /api/competitions/staff/`
+   - Staff member receives notification (future feature)
+5. **Staff Confirmation:**
+   - Staff member logs in → sees pending assignments
+   - Can accept/reject assignment
+   - `POST /api/competitions/staff/{id}/confirm/`
+
+**Staff Roles:**
+- **Chief Judge:** Main scoring authority
+- **Judge:** Scores participants
+- **Technical Delegate:** FEI official representative
+- **Steward:** Course supervision
+- **Veterinarian:** Horse health checks
+
+---
+
+#### 4️⃣ **Schedule Management Flow**
+**Route:** `/admin/competitions/{id}/schedule`
+
+**Journey:**
+1. Admin navigates to "Programación"
+2. System loads events via `GET /api/competitions/schedule/?competition={id}`
+3. **Create Event:**
+   - Click "📅 Programar Evento"
+   - Modal opens with form:
+     - **Title:** "Prueba Juvenil 1.20m - Clasificatoria"
+     - **Type:** Competition Start, Category Start, Break, Lunch, Awards, etc.
+     - **Start Time:** datetime-local input (auto-converts to UTC)
+     - **End Time:** datetime-local input
+     - **Discipline:** (if applicable) Show Jumping, Dressage, etc.
+     - **Category:** (if applicable) Select category
+     - **Location:** Arena Principal, Pista Calentamiento, etc.
+     - **Description:** Event details
+   - Submit → `POST /api/competitions/schedule/`
+   - **Timezone Handling:** Frontend converts local → UTC, backend stores UTC, display converts UTC → local
+4. **Event Display:**
+   - Grouped by date
+   - Shows time, title, type icon, location
+   - Status badges: Próximo, En Progreso, Completado
+5. **Publish Schedule:**
+   - Toggle `is_published` field
+   - Published events visible in public view: `/schedule/{id}`
+
+**Schedule Types:**
+- 🏁 **Competition Start:** Official opening
+- 🎯 **Discipline Start:** Beginning of discipline (e.g., Show Jumping starts)
+- 🏆 **Category Start:** Specific category competition
+- ☕ **Break:** Rest period
+- 🍽️ **Lunch:** Meal break
+- 🏅 **Awards:** Prize ceremony
+- ⭐ **Special Event:** Other activities
+
+---
+
+#### 5️⃣ **Category Management Flow**
+**Route:** `/admin/categories`
+
+**Journey:**
+1. Admin clicks "Gestionar Categorías"
+2. System loads `GET /api/competitions/categories/`
+3. Categories displayed in cards: name, type, min/max age, height, entry fee
+4. **Create Category:**
+   - Click "➕ Nueva Categoría"
+   - Fill form:
+     - Name: "Juvenil 1.20m"
+     - Type: By Age, By Height, By Level
+     - Min Age: 14, Max Age: 18
+     - Height Requirement: 120cm
+     - Entry Fee: $100
+     - Max Participants: 50
+     - Description: Rules and requirements
+   - Submit → `POST /api/competitions/categories/`
+5. **Activate/Deactivate:** Toggle `is_active` status
+
+---
+
+### 🏆 ORGANIZER ROLE - Complete Workflow
+
+**Dashboard:** `/organizer`
+
+Organizers have similar capabilities to admins but **scoped to their own competitions**.
+
+#### 1️⃣ **My Competitions Management**
+**Route:** `/organizer/competitions`
+
+**Journey:**
+1. Organizer sees only competitions where `organizer = current_user`
+2. Backend filters: `GET /api/competitions/?organizer={user_id}`
+3. Can create, edit, delete own competitions
+4. Cannot modify other organizers' competitions
+
+**Key Difference from Admin:**
+- Admin sees ALL competitions
+- Organizer sees ONLY their competitions
+- Same UI, different data scope
+
+---
+
+#### 2️⃣ **Participant Registration Management**
+**Route:** `/organizer/participants`
+
+**Journey:**
+1. Organizer reviews participant applications
+2. System loads: `GET /api/competitions/participants/?competition__organizer={user_id}`
+3. **Participant States:**
+   - **Pending:** Awaiting approval
+   - **Confirmed:** Approved and registered
+   - **Rejected:** Application denied
+   - **Withdrawn:** Participant cancelled
+4. **Actions:**
+   - ✅ **Approve:** `POST /api/competitions/participants/{id}/confirm/`
+   - ❌ **Reject:** `POST /api/competitions/participants/{id}/reject/`
+   - 📧 **Contact:** Send notification (future)
+
+**Participant Data:**
+- Rider info: Name, nationality, FEI ID
+- Horse info: Name, breed, passport number
+- Category selection
+- Entry fee payment status
+- Medical/vet certificates
+
+---
+
+### ⚖️ JUDGE ROLE - Complete Workflow
+
+**Dashboard:** `/judge`
+
+#### 1️⃣ **My Assignments**
+**Route:** `/judge/competitions`
+
+**Journey:**
+1. Judge sees competitions where assigned as staff
+2. Backend filters: `GET /api/competitions/?staff__staff_member={user_id}`
+3. Shows: Competition name, dates, role, status
+
+---
+
+#### 2️⃣ **Scoring System Flow**
+**Route:** `/judge/scoring/{competitionId}`
+
+**Journey - Scoring a Participant:**
+1. Judge navigates to assigned competition
+2. Clicks "⚖️ Calificar Participantes"
+3. System loads:
+   - Competition details
+   - Categories to judge
+   - List of participants in each category
+4. **Scoring Interface:**
+   - Participant list with: Name, Horse, Category, Current Score, Status
+   - Click "Calificar" on participant
+5. **Scoring Modal Opens:**
+   - **Technical Score:** 0-100 (precision, execution)
+   - **Artistic Score:** 0-100 (style, presentation)
+   - **Time:** Actual time taken
+   - **Faults:** Track penalties (refusals, knockdowns, etc.)
+   - **Penalties:** Additional deductions
+   - **Notes:** Judge comments
+6. **Score Calculation:**
+   - `Final Score = Technical + Artistic - Time Penalties - Faults - Penalties`
+   - For Show Jumping: Lower penalties = better
+   - For Dressage: Higher percentage = better
+7. Submit → `POST /api/scoring/scorecards/`
+8. **Real-time Updates:**
+   - Score saved to database
+   - Rankings automatically recalculated
+   - Leaderboard updates live
+
+**FEI Scoring Rules:**
+- **Show Jumping:** Time + faults (lower is better)
+  - Knockdown: 4 faults
+  - Refusal: 4 faults (1st), elimination (3rd)
+  - Time penalty: 1 fault per second over time allowed
+- **Dressage:** Percentage score (higher is better)
+  - Movements scored 0-10
+  - Collective marks for presentation
+  - Final = (Total Points / Max Possible) × 100%
+- **Eventing:** Combined penalties from dressage, cross-country, show jumping
+
+---
+
+#### 3️⃣ **Rankings View**
+**Route:** `/rankings/{competitionId}`
+
+**Journey:**
+1. Judge (or any role) navigates to rankings
+2. System loads: `GET /api/scoring/rankings/?competition={id}`
+3. **Display:**
+   - Filter by discipline and category
+   - Auto-refresh options: 10s, 30s, 1min, 5min, Off
+   - Leaderboard table:
+     - Position (with tie handling)
+     - Rider name + country flag
+     - Horse name
+     - Scores: Final, Technical, Artistic, Time, Penalties
+     - Status badges
+4. **Empty State:**
+   - Shows when no scores yet
+   - Explains: "Rankings se generarán cuando los jueces empiecen a calificar"
+   - Lists requirements: Completed scorecards needed
+
+**Ranking Calculation Logic:**
+```python
+# backend/apps/scoring/utils.py - calculate_competition_ranking()
+
+1. Get all completed scorecards for competition + category
+2. Exclude disqualified participants
+3. Sort by final_score (descending for dressage, ascending for jumping)
+4. Assign positions (handle ties):
+   - If scores equal → same position
+   - Tie-break by: technical_score → artistic_score → time → penalties
+5. Create RankingEntry for each participant
+6. Mark ranking as published if final
+```
+
+---
+
+## 🔄 Complete Data Flow Examples
+
+### Example 1: Creating and Running a Competition (End-to-End)
+
+#### Phase 1: Competition Setup (Admin/Organizer)
+1. **Create Competition:**
+   ```
+   Admin → Create Competition Form → POST /api/competitions/
+   Data: {name, dates, venue, categories, disciplines, max_participants}
+   → Competition created (status='draft')
+   ```
+
+2. **Assign Staff:**
+   ```
+   Admin → Staff Page → Select judges → POST /api/competitions/staff/
+   → Judges assigned (notifications sent)
+   → Judges confirm via POST /api/competitions/staff/{id}/confirm/
+   ```
+
+3. **Create Schedule:**
+   ```
+   Organizer → Schedule Page → Create events
+   → Multiple POST /api/competitions/schedule/
+   Events: Opening, Category starts, Breaks, Awards
+   → Publish schedule (is_published=true)
+   ```
+
+4. **Publish Competition:**
+   ```
+   Admin → Publish button → POST /api/competitions/{id}/publish/
+   → status='published'
+   → Open for participant registration
+   ```
+
+#### Phase 2: Registration (Participants - Future Feature)
+```
+Participant → Register → Fill form (rider+horse info)
+→ POST /api/competitions/participants/
+→ status='pending'
+
+Organizer → Review → Approve/Reject
+→ POST /api/competitions/participants/{id}/confirm/
+→ status='confirmed'
+```
+
+#### Phase 3: Competition Day (Execution)
+```
+Event Day → status='in_progress'
+
+Judge 1 → Opens scoring system → Sees participant list
+→ Scores Participant A → POST /api/scoring/scorecards/
+  Data: {technical:85, artistic:82, time:45.2, faults:0}
+→ Score saved
+
+Judge 2 → Scores Participant B → POST /api/scoring/scorecards/
+→ Score saved
+
+Backend → Auto-calculates rankings (trigger on scorecard save)
+→ utils.calculate_competition_ranking() runs
+→ RankingEntry objects created/updated
+
+Public → Views rankings → GET /api/scoring/rankings/
+→ Auto-refreshes every 30s
+→ Sees live leaderboard
+```
+
+#### Phase 4: Completion & Results
+```
+Competition ends → Admin sets status='completed'
+→ Final rankings published (is_final=true)
+→ Generate official FEI reports (PDF/Excel)
+→ Awards ceremony based on final standings
+```
+
+---
+
+### Example 2: Timezone Handling in Schedule Creation
+
+**Problem Solved (October 30, 2025):**
+
+```
+User in Bolivia (UTC-4):
+1. Enters event time: 07:58 AM (local)
+2. Frontend datetime-local input: "2025-10-30T07:58"
+3. Frontend converts to UTC:
+   new Date("2025-10-30T07:58").toISOString()
+   → "2025-10-30T11:58:00Z" (added 4 hours)
+4. Backend stores: 11:58:00 UTC
+5. Frontend fetches and displays:
+   new Date("2025-10-30T11:58:00Z").toLocaleTimeString('es-BO')
+   → "07:58" (subtracted 4 hours) ✅ Correct!
+```
+
+**Before Fix:**
+```
+1. Frontend sent: "2025-10-30T07:58" (no timezone)
+2. Backend interpreted as: 07:58 UTC
+3. Frontend displayed: 03:58 (07:58 - 4 hours) ❌ Wrong!
+```
+
+---
+
+## 🗄️ Database Schema & Relationships
+
+### Core Models
+
+```
+User (26 fields)
+├── id (Primary Key)
+├── username, email, password
+├── role: admin | organizer | judge | participant
+├── first_name, last_name, nationality
+├── fei_id (FEI athlete ID)
+└── is_active, is_verified
+
+Competition (35 fields)
+├── id (Primary Key)
+├── organizer (FK → User)
+├── venue (FK → Venue)
+├── name, short_name, description
+├── start_date, end_date
+├── status: draft | published | in_progress | completed
+├── competition_type: national | international | championship
+├── disciplines (M2M → Discipline)
+├── categories (M2M → Category)
+└── max_participants, entry_fee, rules
+
+CompetitionStaff
+├── competition (FK → Competition)
+├── staff_member (FK → User)
+├── role: chief_judge | judge | technical_delegate | steward
+├── is_confirmed
+└── assigned_date
+
+CompetitionSchedule
+├── competition (FK → Competition)
+├── start_time, end_time (UTC DateTimeField)
+├── title, description
+├── schedule_type: competition_start | category_start | break | lunch | awards
+├── discipline (FK → Discipline, nullable)
+├── category (FK → Category, nullable)
+├── location
+└── is_published
+
+Participant
+├── competition (FK → Competition)
+├── rider (FK → User)
+├── horse (FK → Horse)
+├── categories (M2M → Category)
+├── status: pending | confirmed | rejected | withdrawn
+└── registration_date
+
+ScoreCard
+├── competition (FK → Competition)
+├── participant (FK → Participant)
+├── judge (FK → User)
+├── technical_score, artistic_score, time_score
+├── penalties, faults
+├── final_score (calculated)
+├── status: pending | in_progress | completed
+└── is_disqualified
+
+CompetitionRanking
+├── competition (FK → Competition)
+├── category (FK → Category)
+├── ranking_type: general | preliminary | final
+├── calculation_method: standard | fei_jumping | fei_dressage
+├── is_final, is_published
+└── ranking_date
+
+RankingEntry
+├── ranking (FK → CompetitionRanking)
+├── participant (FK → Participant)
+├── position (integer)
+├── final_score, technical_score, artistic_score
+├── time_score, penalty_points
+└── is_tied
+```
+
+### Relationships Diagram
+
+```
+User ─┬─(1:N)─→ Competition (as organizer)
+      ├─(M:N)─→ Competition (as staff via CompetitionStaff)
+      └─(M:N)─→ Competition (as participant via Participant)
+
+Competition ─┬─(1:N)─→ CompetitionStaff
+             ├─(1:N)─→ CompetitionSchedule
+             ├─(1:N)─→ Participant
+             ├─(1:N)─→ ScoreCard
+             ├─(1:N)─→ CompetitionRanking
+             ├─(M:N)─→ Discipline
+             └─(M:N)─→ Category
+
+Participant ─┬─(1:N)─→ ScoreCard
+             └─(1:N)─→ RankingEntry
+
+CompetitionRanking ─(1:N)─→ RankingEntry
+```
+
+---
+
+## 🔐 Security & Permissions Matrix
+
+| Action | Admin | Organizer | Judge | Public |
+|--------|-------|-----------|-------|--------|
+| **Competitions** |
+| Create | ✅ | ✅ (own) | ❌ | ❌ |
+| View All | ✅ | ❌ (own only) | ❌ (assigned only) | ✅ (published) |
+| Edit | ✅ | ✅ (own) | ❌ | ❌ |
+| Delete | ✅ | ✅ (own, no participants) | ❌ | ❌ |
+| Publish | ✅ | ✅ (own) | ❌ | ❌ |
+| **Staff** |
+| Assign | ✅ | ✅ (own competitions) | ❌ | ❌ |
+| View | ✅ | ✅ (own competitions) | ✅ (own assignments) | ❌ |
+| Confirm Assignment | N/A | N/A | ✅ | ❌ |
+| **Schedule** |
+| Create Events | ✅ | ✅ (own competitions) | ❌ | ❌ |
+| View Private | ✅ | ✅ (own competitions) | ✅ (assigned) | ❌ |
+| View Published | ✅ | ✅ | ✅ | ✅ |
+| **Scoring** |
+| Create Scores | ✅ | ❌ | ✅ (assigned) | ❌ |
+| View Scores | ✅ | ✅ (own competitions) | ✅ (assigned) | ❌ |
+| Edit Scores | ✅ | ❌ | ✅ (own, before finalized) | ❌ |
+| **Rankings** |
+| View Draft | ✅ | ✅ (own competitions) | ✅ (assigned) | ❌ |
+| View Published | ✅ | ✅ | ✅ | ✅ |
+| Publish | ✅ | ✅ (own competitions) | ❌ | ❌ |
+| **Users** |
+| Create | ✅ | ❌ | ❌ | ❌ |
+| View All | ✅ | ❌ | ❌ | ❌ |
+| Edit | ✅ (any) | ❌ | ❌ | ❌ |
+| Delete | ✅ | ❌ | ❌ | ❌ |
+| **Categories** |
+| Create | ✅ | ✅ | ❌ | ❌ |
+| View | ✅ | ✅ | ✅ | ✅ |
+| Edit | ✅ | ✅ | ❌ | ❌ |
+| Delete | ✅ | ✅ | ❌ | ❌ |
+
+**Permission Implementation:**
+- Django REST Framework Permission Classes
+- `IsOrganizerOrAdmin`: Checks user.role in ['admin', 'organizer']
+- `CanManageCompetitionStaff`: Checks if user is admin or competition organizer
+- `CanViewCompetitionDetails`: Checks if user has access (staff, organizer, or admin)
+- JWT token validation on every API request
+
+---
+
+## 📊 API Endpoints Summary
+
+### Authentication (`/api/auth/`)
+- `POST /api/auth/login/` - Login (returns user + tokens)
+- `POST /api/auth/register/` - Register new user
+- `POST /api/auth/refresh/` - Refresh access token
+- `POST /api/users/logout/` - Logout (blacklist token)
+- `GET /api/users/profile/` - Get current user profile
+- `PATCH /api/users/profile/` - Update profile
+- `POST /api/users/change-password/` - Change password
+
+### Competitions (`/api/competitions/`)
+- `GET /api/competitions/` - List competitions (filtered by role)
+- `POST /api/competitions/` - Create competition
+- `GET /api/competitions/{id}/` - Competition details
+- `PATCH /api/competitions/{id}/` - Update competition
+- `DELETE /api/competitions/{id}/` - Delete competition
+- `POST /api/competitions/{id}/publish/` - Publish competition
+
+### Staff (`/api/competitions/staff/`)
+- `GET /api/competitions/staff/?competition={id}` - List staff for competition
+- `POST /api/competitions/staff/` - Assign staff member
+- `PATCH /api/competitions/staff/{id}/` - Update assignment
+- `DELETE /api/competitions/staff/{id}/` - Remove staff
+- `POST /api/competitions/staff/{id}/confirm/` - Confirm assignment
+
+### Schedule (`/api/competitions/schedule/`)
+- `GET /api/competitions/schedule/?competition={id}` - List events
+- `POST /api/competitions/schedule/` - Create event
+- `PATCH /api/competitions/schedule/{id}/` - Update event
+- `DELETE /api/competitions/schedule/{id}/` - Delete event
+- `GET /api/competitions/schedule/by_date/?date={YYYY-MM-DD}` - Events by date
+
+### Scoring (`/api/scoring/`)
+- `GET /api/scoring/scorecards/?competition={id}` - List scores
+- `POST /api/scoring/scorecards/` - Create score
+- `PATCH /api/scoring/scorecards/{id}/` - Update score
+- `GET /api/scoring/scorecards/{id}/` - Score details
+
+### Rankings (`/api/scoring/rankings/`)
+- `GET /api/scoring/rankings/?competition={id}` - Get rankings
+- `GET /api/scoring/rankings/?competition={id}&category={id}` - Filter by category
+- `POST /api/scoring/rankings/recalculate/` - Force recalculation
+
+### Categories (`/api/competitions/categories/`)
+- `GET /api/competitions/categories/` - List categories
+- `POST /api/competitions/categories/` - Create category
+- `PATCH /api/competitions/categories/{id}/` - Update category
+- `DELETE /api/competitions/categories/{id}/` - Delete category
+
+### Users (`/api/users/`) - Admin Only
+- `GET /api/users/` - List all users
+- `POST /api/users/` - Create user
+- `GET /api/users/{id}/` - User details
+- `PATCH /api/users/{id}/` - Update user
+- `DELETE /api/users/{id}/` - Delete user
+
+**Total:** 240+ API endpoints across 32 ViewSets
+
+---
+
+## 🐛 Recent Bug Fixes (October 30, 2025)
+
+### Fix 1: Rankings 500 Error - Field Name Issues
+**Commits:** 39a8095, 6fc9709
+
+**Problems:**
+1. `order_by('-last_updated')` → Field doesn't exist (should be `ranking_date`)
+2. `select_related('discipline')` → CompetitionRanking has no discipline field
+3. `prefetch_related('entries__participant__user')` → Should be `rider` not `user`
+
+**Solutions:**
+- Changed ordering to use existing `ranking_date` field
+- Removed non-existent `discipline` from select_related
+- Fixed participant relationship: `user` → `rider`
+- Removed discipline_id filter from queryset
+
+### Fix 2: Staff Showing 0 Results - UUID Validation
+**Commit:** 07443c5
+
+**Problem:**
+- Code validated `competition_id` as UUID, but IDs are integers
+- Validation failed → returned empty queryset
+
+**Solution:**
+- Removed UUID validation
+- Django handles integer/string conversion automatically in filter()
+
+### Fix 3: Schedule Events Not Displaying
+**Commit:** 304f0a7
+
+**Problem:**
+- PublicSchedulePage reading from localStorage instead of API
+- Production has no localStorage data
+
+**Solution:**
+- Changed to call `scheduleService.getCompetitionSchedule()` API
+- Added proper error handling and loading states
+
+### Fix 4: Schedule Creation 400 Error - Discipline/Category Fields
+**Commit:** 21e45da
+
+**Problem:**
+- Frontend sent discipline/category as strings ("Show Jumping")
+- Backend expected UUIDs (ForeignKey)
+- Not all event types need these fields (breaks, lunch, awards)
+
+**Solutions:**
+- Backend: Made discipline/category explicitly optional (`required=False, allow_null=True`)
+- Frontend: Send `null` for events that don't need discipline/category
+
+### Fix 5: Audit Logging 500 Error - Method Doesn't Exist
+**Commit:** 2a7ee87
+
+**Problem:**
+- Code called `AuditMiddleware.log_action()` (doesn't exist)
+- Should use `create_audit_log()` function
+
+**Solution:**
+- Changed import from `AuditMiddleware` to `create_audit_log`
+- Replaced all 7 occurrences with correct function signature
+- Affected: Competition, Staff, and Schedule operations
+
+### Fix 6: Timezone 4-Hour Mismatch in Schedule Events
+**Commit:** 7a1a176
+
+**Problem:**
+- User in Bolivia (UTC-4) programs event at 07:58
+- Displays as 03:58 (4 hours earlier)
+- `<input type="datetime-local">` sends time without timezone
+- Backend interprets as UTC → wrong time stored
+
+**Solution:**
+- Frontend converts local time to UTC before sending:
+  ```javascript
+  const localDate = new Date(formData.start_time);
+  dataToSubmit.start_time = localDate.toISOString(); // Adds UTC timezone
+  ```
+- Display already handled correctly (UTC → local conversion automatic)
 
 ---
 
