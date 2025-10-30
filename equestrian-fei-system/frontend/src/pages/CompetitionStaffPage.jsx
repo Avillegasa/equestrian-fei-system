@@ -60,12 +60,8 @@ const CompetitionStaffPage = () => {
     try {
       console.log('➕ Asignando personal:', staffData);
 
-      // Asignar personal usando staffService
-      await staffService.assignStaff(competitionId, {
-        staff_member: staffData.user_id,
-        role: staffData.staff_role,
-        notes: staffData.notes || ''
-      });
+      // AssignStaffModal ahora envía staff_member y role directamente
+      await staffService.assignStaff(competitionId, staffData);
 
       // Recargar lista de personal
       await loadStaff();

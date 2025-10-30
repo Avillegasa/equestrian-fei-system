@@ -230,8 +230,10 @@ class Competition(models.Model):
 class CompetitionStaff(models.Model):
     """Personal asignado a una competencia"""
     ROLE_CHOICES = [
+        ('organizer', 'Organizador'),
         ('chief_judge', 'Juez Principal'),
         ('judge', 'Juez'),
+        ('observer', 'Observador'),
         ('technical_delegate', 'Delegado Técnico'),
         ('steward', 'Comisario'),
         ('veterinarian', 'Veterinario'),

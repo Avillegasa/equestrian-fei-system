@@ -462,6 +462,11 @@ class CompetitionStaffViewSet(viewsets.ModelViewSet):
             queryset = CompetitionStaff.objects.filter(
                 competition__organizer=user
             ).select_related('competition', 'staff_member')
+        elif user.role == 'judge':
+            # Jueces ven staff de competencias donde están asignados
+            queryset = CompetitionStaff.objects.filter(
+                competition__staff__staff_member=user
+            ).select_related('competition', 'staff_member').distinct()
         else:
             # Otros usuarios no tienen acceso
             queryset = CompetitionStaff.objects.none()

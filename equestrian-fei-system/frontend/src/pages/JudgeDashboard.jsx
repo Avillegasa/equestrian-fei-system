@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import useAuth from '../hooks/useAuth';
 import useCompetitionStore from '../store/competitionStore';
 import competitionService from '../services/competitionService';
+import JudgePendingAssignments from '../components/JudgePendingAssignments';
 
 const JudgeDashboard = () => {
   const { user, logout } = useAuth();
@@ -520,6 +521,11 @@ const JudgeDashboard = () => {
               </div>
             </div>
           )}
+
+          {/* Nuevo componente para asignaciones pendientes */}
+          <div className="mb-8">
+            <JudgePendingAssignments />
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Assigned Competitions */}

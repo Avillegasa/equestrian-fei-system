@@ -248,6 +248,58 @@ class StaffService {
       return [];
     }
   }
+
+  /**
+   * Obtener asignaciones del juez actual
+   */
+  async getMyAssignments() {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/competitions/staff/`,
+        { headers: this.getAuthHeaders() }
+      );
+      console.log('✅ Asignaciones del juez cargadas:', response.data);
+      return response.data.results || response.data;
+    } catch (error) {
+      console.error('❌ Error obteniendo asignaciones:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Confirmar/aceptar asignación
+   */
+  async confirmAssignment(staffId, confirmed = true) {
+    try {
+      const response = await axios.patch(
+        `${API_BASE_URL}/competitions/staff/${staffId}/`,
+        { is_confirmed: confirmed },
+        { headers: this.getAuthHeaders() }
+      );
+      console.log('✅ Asignación confirmada');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error confirmando asignación:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rechazar asignación (eliminar)
+   */
+  async rejectAssignment(staffId) {
+    try {
+      const response = await axios.delete(
+        `${API_BASE_URL}/competitions/staff/${staffId}/`,
+        { headers: this.getAuthHeaders() }
+      );
+      console.log('✅ Asignación rechazada');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error rechazando asignación:', error);
+      throw error;
+    }
+  }
 }
 
 const staffService = new StaffService();

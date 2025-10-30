@@ -55,15 +55,11 @@ const AssignStaffModal = ({ isOpen, onClose, onSubmit }) => {
       return;
     }
 
+    // Solo enviar campos requeridos por el backend
     onSubmit({
-      first_name: selectedUser.first_name,
-      last_name: selectedUser.last_name,
-      email: selectedUser.email,
-      user_role: selectedUser.role,
-      staff_role: staffRole,
-      judge_position: (staffRole === 'judge' || staffRole === 'chief_judge') ? judgePosition : null,
-      notes: notes,
-      user_id: selectedUser.id
+      staff_member: selectedUser.id,  // Backend espera staff_member, no user_id
+      role: staffRole,                // Backend espera role, no staff_role
+      notes: notes || ''              // Notes opcional
     });
 
     onClose();
