@@ -85,8 +85,8 @@ class EventingPhaseSerializer(serializers.ModelSerializer):
 
 class ScoreCardDetailSerializer(serializers.ModelSerializer):
     """Serializer detallado para scorecard con todas las puntuaciones"""
-    participant_name = serializers.CharField(source='participant.user.get_full_name', read_only=True)
-    participant_number = serializers.CharField(source='participant.competitor_number', read_only=True)
+    participant_name = serializers.CharField(source='participant.rider.get_full_name', read_only=True)
+    participant_number = serializers.CharField(source='participant.bib_number', read_only=True)
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
     competition_name = serializers.CharField(source='competition.name', read_only=True)
     discipline_name = serializers.CharField(source='competition.disciplines.first.name', read_only=True)
@@ -118,7 +118,7 @@ class ScoreCardDetailSerializer(serializers.ModelSerializer):
 class ScoreCardListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listas de scorecards"""
     participant_name = serializers.CharField(source='participant.rider.get_full_name', read_only=True)
-    participant_number = serializers.CharField(source='participant.competitor_number', read_only=True)
+    participant_number = serializers.CharField(source='participant.bib_number', read_only=True)
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
     judge_name = serializers.CharField(source='judge.get_full_name', read_only=True)
 

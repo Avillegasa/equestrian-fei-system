@@ -104,7 +104,6 @@ const ScoreParticipantModal = ({ isOpen, onClose, onSubmit, participant, existin
               </div>
               <div>
                 <p><strong>Número de Dorsal:</strong> #{participant.bib_number}</p>
-                <p><strong>Caballo:</strong> {participant.horse.name}</p>
               </div>
             </div>
           </div>

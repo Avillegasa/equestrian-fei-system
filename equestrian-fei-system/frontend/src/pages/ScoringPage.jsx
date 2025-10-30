@@ -583,15 +583,12 @@ const ScoringPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">
-                              {participant.rider?.first_name} {participant.rider?.last_name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {participant.rider?.email || 'Email no disponible'}
+                              {participant.rider_name || `${participant.rider?.first_name || ''} ${participant.rider?.last_name || ''}`.trim() || 'Jinete no asignado'}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              🐴 {participant.horse?.name || 'Caballo no asignado'}
+                              🐴 {participant.horse_name || participant.horse?.name || 'Caballo no asignado'}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">

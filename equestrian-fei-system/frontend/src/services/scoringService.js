@@ -81,7 +81,7 @@ class ScoringService {
 
   async getScoreCardById(id) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/scorecards/${id}/`);
+      const response = await axios.get(`${API_BASE_URL}/scoring/scorecards/${id}/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo scorecard:', error);
@@ -91,7 +91,12 @@ class ScoringService {
 
   async createScoreCard(scorecardData) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/scorecards/`, scorecardData);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/scoring/scorecards/`, scorecardData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error creando scorecard:', error);
@@ -101,7 +106,12 @@ class ScoringService {
 
   async updateScoreCard(id, scorecardData) {
     try {
-      const response = await axios.put(`${API_BASE_URL}/scorecards/${id}/`, scorecardData);
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`${API_BASE_URL}/scoring/scorecards/${id}/`, scorecardData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error actualizando scorecard:', error);
@@ -112,7 +122,7 @@ class ScoringService {
   // =============== ACCIONES DE SCORECARD ===============
   async startEvaluation(scorecardId) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/scorecards/${scorecardId}/start_evaluation/`);
+      const response = await axios.post(`${API_BASE_URL}/scoring/scorecards/${scorecardId}/start_evaluation/`);
       return response.data;
     } catch (error) {
       console.error('Error iniciando evaluación:', error);
@@ -122,7 +132,7 @@ class ScoringService {
 
   async completeEvaluation(scorecardId) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/scorecards/${scorecardId}/complete_evaluation/`);
+      const response = await axios.post(`${API_BASE_URL}/scoring/scorecards/${scorecardId}/complete_evaluation/`);
       return response.data;
     } catch (error) {
       console.error('Error completando evaluación:', error);
@@ -132,7 +142,7 @@ class ScoringService {
 
   async validateScores(scorecardId) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/scorecards/${scorecardId}/validate_scores/`);
+      const response = await axios.post(`${API_BASE_URL}/scoring/scorecards/${scorecardId}/validate_scores/`);
       return response.data;
     } catch (error) {
       console.error('Error validando puntuaciones:', error);
@@ -142,7 +152,7 @@ class ScoringService {
 
   async disqualifyParticipant(scorecardId, reason) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/scorecards/${scorecardId}/disqualify/`, {
+      const response = await axios.post(`${API_BASE_URL}/scoring/scorecards/${scorecardId}/disqualify/`, {
         reason
       });
       return response.data;
@@ -154,7 +164,7 @@ class ScoringService {
 
   async getMyEvaluations() {
     try {
-      const response = await axios.get(`${API_BASE_URL}/scorecards/my_evaluations/`);
+      const response = await axios.get(`${API_BASE_URL}/scoring/scorecards/my_evaluations/`);
       return response.data;
     } catch (error) {
       console.error('Error obteniendo mis evaluaciones:', error);
