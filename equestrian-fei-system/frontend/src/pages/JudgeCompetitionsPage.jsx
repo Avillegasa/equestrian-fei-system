@@ -533,7 +533,7 @@ const JudgeCompetitionsPage = () => {
                             </button>
 
                             <button
-                              onClick={() => navigate(`/admin/competitions/${competition.id}/schedule`)}
+                              onClick={() => navigate(`/schedule/${competition.id}`)}
                               className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-1"
                             >
                               <span>📋</span>
