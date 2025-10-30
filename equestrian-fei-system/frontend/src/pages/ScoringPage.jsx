@@ -145,13 +145,13 @@ const ScoringPage = () => {
           }
         }
       } else {
-        // Show Jumping - actualizar scorecard con tiempo y faltas
+        // Show Jumping - actualizar scorecard con campos correctos del modelo
         await scoringService.updateScoreCard(selectedScorecard.id, {
-          time_seconds: scoreData.time || 0,
-          time_faults: scoreData.timeFaults || 0,
-          jumping_faults: scoreData.faults || 0,
-          refusals: scoreData.refusals || 0,
-          status: 'completed'
+          time_score: parseFloat(scoreData.time || 0),
+          penalty_score: parseFloat(scoreData.faults || 0) * 4,  // 4 puntos por falta
+          technical_score: parseFloat(scoreData.technical || 0),
+          status: 'completed',
+          end_time: new Date().toISOString()
         });
 
         // Si hay faltas, crear registro de falta
@@ -160,7 +160,7 @@ const ScoringPage = () => {
             score_card: selectedScorecard.id,
             fault_type: 'knockdown',
             obstacle_number: scoreData.obstacleNumber || 0,
-            penalty_points: scoreData.faults
+            penalty_points: parseFloat(scoreData.faults || 0) * 4
           });
         }
       }
