@@ -68,18 +68,41 @@ const ScoringPage = () => {
 
   const handleScoreParticipant = async (participant) => {
     try {
-      // Verificar si ya existe scorecard
-      let scorecard = scores.find(s => s.participant === participant.id || s.participant_id === participant.id);
+      let scorecard;
 
-      if (!scorecard) {
-        // Crear nuevo scorecard en backend
+      // Intentar crear nuevo scorecard
+      try {
         scorecard = await scoringService.createScoreCard({
           participant: participant.id,
           judge: user.id,
           status: 'in_progress'
         });
-
         setScores([...scores, scorecard]);
+      } catch (createErr) {
+        // Si el error es 400 (ya existe), buscar el scorecard existente
+        if (createErr.response?.status === 400 &&
+            createErr.response?.data?.non_field_errors?.[0]?.includes('Ya existe')) {
+          console.log('Scorecard ya existe, recuperando del backend...');
+
+          const existingScores = await scoringService.getScoreCards({
+            competition: competitionId,
+            participant: participant.id,
+            judge: user.id
+          });
+
+          if (existingScores.results && existingScores.results.length > 0) {
+            scorecard = existingScores.results[0];
+            // Actualizar array local si no existe
+            if (!scores.find(s => s.id === scorecard.id)) {
+              setScores([...scores, scorecard]);
+            }
+          } else {
+            throw new Error('No se pudo recuperar el scorecard existente');
+          }
+        } else {
+          // Otro tipo de error
+          throw createErr;
+        }
       }
 
       setSelectedParticipant(participant);
