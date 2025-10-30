@@ -77,6 +77,11 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
         queryset = self.queryset
         user = self.request.user
 
+        # Para operaciones retrieve/update/destroy, permitir acceso directo por UUID
+        # sin aplicar filtros restrictivos (las validaciones se hacen en perform_update)
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            return queryset
+
         # Filtrar por competencia (ScoreCard no tiene competition_id, usar participant__competition)
         competition_id = self.request.query_params.get('competition', None)
         if competition_id:
@@ -107,7 +112,27 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(participant__rider=user)
 
         return queryset.order_by('-updated_at', '-created_at')
-    
+
+    def perform_update(self, serializer):
+        """Validar permisos antes de actualizar scorecard"""
+        scorecard = self.get_object()
+        user = self.request.user
+
+        # Verificar que el juez solo pueda actualizar sus propios scorecards
+        if user.role == 'judge' and scorecard.judge != user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para actualizar este scorecard")
+
+        # Verificar que los organizadores solo puedan actualizar scorecards de sus competencias
+        if user.role == 'organizer':
+            competition = scorecard.participant.competition
+            if competition.organizer != user:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("No tienes permiso para actualizar este scorecard")
+
+        # Admin puede actualizar cualquier scorecard
+        serializer.save()
+
     @action(detail=True, methods=['post'])
     def start_evaluation(self, request, pk=None):
         """Iniciar evaluación de un scorecard"""

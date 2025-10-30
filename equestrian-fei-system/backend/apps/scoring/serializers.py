@@ -25,14 +25,13 @@ class ScoringCriteriaSerializer(serializers.ModelSerializer):
 class IndividualScoreSerializer(serializers.ModelSerializer):
     criteria_name = serializers.CharField(source='criteria.name', read_only=True)
     criteria_code = serializers.CharField(source='criteria.code', read_only=True)
-    judge_name = serializers.CharField(source='judge.get_full_name', read_only=True)
-    
+
     class Meta:
         model = IndividualScore
         fields = [
-            'id', 'scorecard', 'criteria', 'criteria_name', 'criteria_code',
-            'judge', 'judge_name', 'raw_score', 'weighted_score',
-            'notes', 'is_final', 'created_at', 'updated_at'
+            'id', 'score_card', 'criteria', 'criteria_name', 'criteria_code',
+            'raw_score', 'weighted_score', 'comments', 'time_value',
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'weighted_score', 'created_at', 'updated_at']
     
@@ -53,7 +52,7 @@ class JumpingFaultSerializer(serializers.ModelSerializer):
     class Meta:
         model = JumpingFault
         fields = [
-            'id', 'scorecard', 'obstacle_number', 'fault_type',
+            'id', 'score_card', 'obstacle_number', 'fault_type',
             'penalty_points', 'notes', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
@@ -63,7 +62,7 @@ class DressageMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = DressageMovement
         fields = [
-            'id', 'scorecard', 'movement_number', 'movement_name',
+            'id', 'score_card', 'movement_number', 'movement_name',
             'movement_description', 'score', 'coefficient',
             'weighted_score', 'judge_notes', 'created_at'
         ]
@@ -74,7 +73,7 @@ class EventingPhaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = EventingPhase
         fields = [
-            'id', 'scorecard', 'phase_type', 'phase_name',
+            'id', 'score_card', 'phase_type', 'phase_name',
             'time_allowed', 'time_taken', 'time_penalties',
             'jumping_penalties', 'cross_country_penalties',
             'dressage_score', 'total_penalties', 'phase_score',
@@ -88,30 +87,30 @@ class ScoreCardDetailSerializer(serializers.ModelSerializer):
     participant_name = serializers.CharField(source='participant.rider.get_full_name', read_only=True)
     participant_number = serializers.CharField(source='participant.bib_number', read_only=True)
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
-    competition_name = serializers.CharField(source='competition.name', read_only=True)
-    discipline_name = serializers.CharField(source='competition.disciplines.first.name', read_only=True)
-    
+    competition_name = serializers.CharField(source='participant.competition.name', read_only=True)
+    discipline_name = serializers.CharField(source='participant.competition.disciplines.first.name', read_only=True)
+
     # Puntuaciones individuales
     individual_scores = IndividualScoreSerializer(many=True, read_only=True)
     jumping_faults = JumpingFaultSerializer(many=True, read_only=True)
     dressage_movements = DressageMovementSerializer(many=True, read_only=True)
     eventing_phases = EventingPhaseSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = ScoreCard
         fields = [
-            'id', 'competition', 'competition_name', 'participant',
-            'participant_name', 'participant_number', 'horse_name',
-            'discipline_name', 'judge', 'status', 'start_time',
-            'finish_time', 'raw_score', 'penalties', 'bonus_points',
-            'final_score', 'position', 'notes', 'is_disqualified',
-            'disqualification_reason', 'technical_score', 'artistic_score',
-            'time_score', 'individual_scores', 'jumping_faults',
-            'dressage_movements', 'eventing_phases', 'created_at', 'updated_at'
+            'id', 'participant', 'participant_name', 'participant_number',
+            'horse_name', 'competition_name', 'discipline_name',
+            'judge', 'status', 'start_time', 'end_time',
+            'technical_score', 'artistic_score', 'time_score',
+            'penalty_score', 'final_score', 'notes',
+            'individual_scores', 'jumping_faults',
+            'dressage_movements', 'eventing_phases',
+            'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'raw_score', 'final_score', 'position', 'technical_score',
-            'artistic_score', 'time_score', 'created_at', 'updated_at'
+            'id', 'participant', 'judge', 'final_score',
+            'created_at', 'updated_at'
         ]
 
 
