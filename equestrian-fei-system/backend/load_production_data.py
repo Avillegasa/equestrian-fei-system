@@ -265,7 +265,8 @@ def assign_staff_to_competitions(competitions, users):
     """Asigna jueces y staff a las competencias activas"""
     print_section('ASIGNANDO STAFF A COMPETENCIAS ACTIVAS')
 
-    judges = [u for u in users.values() if u.role == 'judge' and hasattr(u, 'judge_profile')]
+    # Forzar aceptación de jueces sin verificar judge_profile
+    judges = [u for u in users.values() if u.role == 'judge']
 
     for competition in competitions:
         num_judges = min(3, len(judges))

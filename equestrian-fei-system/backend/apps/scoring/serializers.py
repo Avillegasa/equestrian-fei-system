@@ -132,10 +132,10 @@ class ScoreCardListSerializer(serializers.ModelSerializer):
 
 
 class RankingEntrySerializer(serializers.ModelSerializer):
-    participant_name = serializers.CharField(source='participant.user.get_full_name', read_only=True)
-    participant_number = serializers.CharField(source='participant.competitor_number', read_only=True)
+    participant_name = serializers.CharField(source='participant.rider.get_full_name', read_only=True)
+    participant_number = serializers.CharField(source='participant.bib_number', read_only=True)
     horse_name = serializers.CharField(source='participant.horse.name', read_only=True)
-    country = serializers.CharField(source='participant.user.country', read_only=True)
+    country = serializers.CharField(source='participant.rider.country', read_only=True)
     
     class Meta:
         model = RankingEntry
@@ -151,20 +151,18 @@ class RankingEntrySerializer(serializers.ModelSerializer):
 
 class CompetitionRankingSerializer(serializers.ModelSerializer):
     competition_name = serializers.CharField(source='competition.name', read_only=True)
-    discipline_name = serializers.CharField(source='discipline.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     entries = RankingEntrySerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = CompetitionRanking
         fields = [
-            'id', 'competition', 'competition_name', 'discipline',
-            'discipline_name', 'category', 'category_name',
-            'ranking_type', 'is_final', 'is_published',
-            'total_participants', 'calculation_method',
-            'last_updated', 'entries', 'created_at'
+            'id', 'competition', 'competition_name',
+            'category', 'category_name',
+            'ranking_date', 'is_final', 'is_published',
+            'entries'
         ]
-        read_only_fields = ['id', 'total_participants', 'last_updated', 'created_at']
+        read_only_fields = ['id', 'ranking_date']
 
 
 class ScoreCardCreateSerializer(serializers.ModelSerializer):
