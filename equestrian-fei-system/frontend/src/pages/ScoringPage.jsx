@@ -47,12 +47,11 @@ const ScoringPage = () => {
       const confirmedParticipants = participantsData.filter(p => p.is_confirmed);
       setParticipants(confirmedParticipants);
 
-      // 3. Cargar scores existentes del juez
-      const existingScores = await scoringService.getScoreCards({
-        competition: competitionId,
-        judge: user.id
+      // 3. Cargar TODOS los scores de la competencia (incluyendo de otros jueces)
+      const scoresResponse = await scoringService.getScoreCards({
+        competition: competitionId
       });
-      setScores(existingScores);
+      setScores(scoresResponse.results || []);
 
     } catch (err) {
       console.error('Error loading competition data:', err);
@@ -75,7 +74,7 @@ const ScoringPage = () => {
         scorecard = await scoringService.createScoreCard({
           participant: participant.id,
           judge: user.id,
-          status: 'in_progress'
+          status: 'pending'
         });
         setScores([...scores, scorecard]);
       } catch (createErr) {
@@ -86,15 +85,15 @@ const ScoringPage = () => {
 
           const existingScores = await scoringService.getScoreCards({
             competition: competitionId,
-            participant: participant.id,
-            judge: user.id
+            participant: participant.id
           });
 
           if (existingScores.results && existingScores.results.length > 0) {
             scorecard = existingScores.results[0];
             // Actualizar array local si no existe
-            if (!scores.find(s => s.id === scorecard.id)) {
-              setScores([...scores, scorecard]);
+            const scoresArray = Array.isArray(scores) ? scores : [];
+            if (!scoresArray.find(s => s.id === scorecard.id)) {
+              setScores([...scoresArray, scorecard]);
             }
           } else {
             throw new Error('No se pudo recuperar el scorecard existente');
@@ -657,6 +656,7 @@ const ScoringPage = () => {
       {showScoreModal && selectedParticipant && (
         competition.discipline?.toLowerCase() === 'dressage' ? (
           <DressageScoreModal
+            key={`dressage-${selectedScorecard?.id || selectedParticipant.id}-${showScoreModal}`}
             isOpen={showScoreModal}
             onClose={() => {
               setShowScoreModal(false);
@@ -670,6 +670,7 @@ const ScoringPage = () => {
           />
         ) : (
           <ScoreParticipantModal
+            key={`score-${selectedScorecard?.id || selectedParticipant.id}-${showScoreModal}`}
             isOpen={showScoreModal}
             onClose={() => {
               setShowScoreModal(false);

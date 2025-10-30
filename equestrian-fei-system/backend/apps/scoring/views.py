@@ -76,34 +76,37 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset
         user = self.request.user
-        
-        # Filtrar por competencia
+
+        # Filtrar por competencia (ScoreCard no tiene competition_id, usar participant__competition)
         competition_id = self.request.query_params.get('competition', None)
         if competition_id:
-            queryset = queryset.filter(competition_id=competition_id)
-        
+            queryset = queryset.filter(participant__competition_id=competition_id)
+
         # Filtrar por participante
         participant_id = self.request.query_params.get('participant', None)
         if participant_id:
             queryset = queryset.filter(participant_id=participant_id)
-        
+
         # Filtrar por juez
         judge_id = self.request.query_params.get('judge', None)
         if judge_id:
             queryset = queryset.filter(judge_id=judge_id)
-        
+
         # Filtrar por estado
         status_filter = self.request.query_params.get('status', None)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        
-        # Permisos: jueces ven solo sus evaluaciones
-        if user.role == 'judge':
-            queryset = queryset.filter(judge=user)
-        elif user.role == 'participant':
-            queryset = queryset.filter(participant__rider=user)
-        
-        return queryset.order_by('-created_at')
+
+        # Permisos: jueces pueden ver TODOS los scorecards si filtran por competencia
+        # (necesario para ver scorecards de otros jueces y mostrar estados correctos)
+        if not competition_id:
+            # Sin filtro de competencia, solo ven sus propias evaluaciones
+            if user.role == 'judge':
+                queryset = queryset.filter(judge=user)
+            elif user.role == 'participant':
+                queryset = queryset.filter(participant__rider=user)
+
+        return queryset.order_by('-updated_at', '-created_at')
     
     @action(detail=True, methods=['post'])
     def start_evaluation(self, request, pk=None):
