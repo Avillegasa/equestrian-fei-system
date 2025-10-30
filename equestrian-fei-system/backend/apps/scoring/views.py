@@ -363,8 +363,8 @@ class CompetitionRankingViewSet(viewsets.ModelViewSet):
         # Solo rankings publicados para participantes
         if self.request.user.role == 'participant':
             queryset = queryset.filter(is_published=True)
-        
-        return queryset.order_by('-last_updated')
+
+        return queryset.order_by('-ranking_date')
     
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):

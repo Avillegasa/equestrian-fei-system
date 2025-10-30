@@ -97,11 +97,6 @@ def _calculate_specific_ranking(competition, discipline, category):
         # Resolver empates finales si los hay
         if tied_participants:
             _resolve_ties(ranking, tied_participants)
-        
-        # Actualizar información del ranking
-        ranking.total_participants = scorecards.count()
-        ranking.last_updated = timezone.now()
-        ranking.save()
 
 
 def _resolve_ties(ranking, tied_scorecards):
@@ -230,12 +225,7 @@ def update_live_rankings(competition_id):
         competition = Competition.objects.get(id=competition_id)
         calculate_competition_ranking(competition)
         
-        # Marcar como actualizado en vivo
-        rankings = CompetitionRanking.objects.filter(competition=competition)
-        for ranking in rankings:
-            ranking.last_updated = timezone.now()
-            ranking.save()
-            
+        # Rankings actualizados (ranking_date se actualiza automáticamente)
         return True
     except Competition.DoesNotExist:
         return False
